@@ -8,5 +8,5 @@ type User struct {
 }
 
 type UserRepository interface {
-	CreateUser(user User) error
+	CreateUser(user User) (string, error)
 }

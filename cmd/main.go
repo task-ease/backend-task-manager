@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"go-postgres-test/infrastructure"
+	"go-postgres-test/infrastructure/db"
 	"go-postgres-test/internal/delivery/http"
 	"go-postgres-test/internal/repository"
 	"go-postgres-test/internal/usecase"
 )
 
 func main() {
-	db := infrastructure.ConnectDB()
+	db := db.ConnectDB()
 	defer db.Close(nil)
 
 	userRepo := repository.NewUserRepository(db)
@@ -19,7 +19,12 @@ func main() {
 	userHandler := http.NewUserHandler(userUC)
 
 	r := gin.Default()
-	r.Use(cors.Default())
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:5173"},
+		AllowMethods:     []string{"POST", "GET", "OPTIONS"},
+		AllowHeaders:     []string{"Content-Type"},
+		AllowCredentials: true,
+	}))
 
 	userHandler.RegisterRoutes(r)
 

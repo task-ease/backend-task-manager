@@ -10,6 +10,6 @@ func NewUserUsecase(r domain.UserRepository) *UserUseCase {
 	return &UserUseCase{repo: r}
 }
 
-func (uc *UserUseCase) CreateUser(user domain.User) error {
+func (uc *UserUseCase) CreateUser(user domain.User) (string, error) {
 	return uc.repo.CreateUser(user)
 }
