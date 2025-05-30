@@ -10,8 +10,9 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS workspaces (
                                           id uuid PRIMARY KEY,
+                                          creator_id uuid REFERENCES users(id) ON DELETE CASCADE,
                                           name VARCHAR(20) NOT NULL,
-                                          created_at timestamptz DEFAULT NOW()
+                                          created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS user_workspaces (
