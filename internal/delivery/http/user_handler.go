@@ -1,7 +1,6 @@
 package http
 
 import (
-	"fmt"
 	"github.com/gin-gonic/gin"
 	"go-postgres-test/infrastructure/auth"
 	"go-postgres-test/internal/domain"
@@ -26,7 +25,6 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 
 	var user domain.User
 	if err := c.ShouldBindJSON(&user); err != nil {
-		fmt.Println("Error while getting user ", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -34,7 +32,6 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 	userID, err := h.uc.CreateUser(user)
 
 	if err != nil {
-		fmt.Println("Error while create user ", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -42,7 +39,6 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 	token, err := authService.GenerateToken(userID)
 
 	if err != nil {
-		fmt.Println("Error while generate token ", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
