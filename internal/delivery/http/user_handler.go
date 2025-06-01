@@ -17,7 +17,28 @@ func NewUserHandler(uc *usecase.UserUseCase) *UserHandler {
 }
 
 func (h *UserHandler) RegisterRoutes(router *gin.Engine) {
+	router.GET("/users/is-authorized", h.IsAuthorized)
 	router.POST("/users/create-user", h.CreateUser)
+}
+
+func (h *UserHandler) IsAuthorized(c *gin.Context) {
+	token, err := c.Cookie("token")
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"status": "unauthorized"})
+		return
+	}
+
+	authService := auth.NewJWTService()
+
+	_, err = authService.ValidateToken(token)
+
+	if err != nil {
+		c.SetCookie("token", "", -1, "/", "localhost", false, true)
+		c.JSON(http.StatusUnauthorized, gin.H{"status": "unauthorized"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, "authorized")
 }
 
 func (h *UserHandler) CreateUser(c *gin.Context) {

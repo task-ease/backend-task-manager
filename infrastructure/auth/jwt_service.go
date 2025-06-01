@@ -26,7 +26,7 @@ func (s *jwtService) GenerateToken(userID string) (string, error) {
 
 func (s *jwtService) ValidateToken(tokenString string) (string, error) {
 	token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
-		return string(s.secret), nil
+		return s.secret, nil
 	})
 
 	if err != nil || !token.Valid {
