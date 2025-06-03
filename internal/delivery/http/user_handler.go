@@ -18,6 +18,7 @@ func NewUserHandler(uc *usecase.UserUseCase) *UserHandler {
 
 func (h *UserHandler) RegisterRoutes(router *gin.Engine) {
 	router.GET("/users/is-authorized", h.IsAuthorized)
+	router.POST("/users/log-in", h.LogIn)
 	router.POST("/users/create-user", h.CreateUser)
 }
 
@@ -41,9 +42,30 @@ func (h *UserHandler) IsAuthorized(c *gin.Context) {
 	c.JSON(http.StatusCreated, "authorized")
 }
 
-func (h *UserHandler) CreateUser(c *gin.Context) {
-	authService := auth.NewJWTService()
+func (h *UserHandler) LogIn(c *gin.Context) {
+	var user domain.User
 
+	if err := c.ShouldBindJSON(&user); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"status": err.Error()})
+		return
+	}
+
+	userId, err := h.uc.LogIn(user)
+
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"status": err.Error()})
+		return
+	}
+
+	authService := auth.NewJWTService()
+	token, err := authService.GenerateToken(userId.String())
+
+	c.SetCookie("token", token, 86400, "/", "localhost", false, true)
+
+	c.JSON(http.StatusOK, true)
+}
+
+func (h *UserHandler) CreateUser(c *gin.Context) {
 	var user domain.User
 	if err := c.ShouldBindJSON(&user); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -57,6 +79,7 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 		return
 	}
 
+	authService := auth.NewJWTService()
 	token, err := authService.GenerateToken(userID)
 
 	if err != nil {
@@ -66,5 +89,5 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 
 	c.SetCookie("token", token, 86400, "/", "localhost", false, true)
 
-	c.JSON(http.StatusCreated, "success")
+	c.JSON(http.StatusCreated, true)
 }

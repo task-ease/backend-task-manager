@@ -11,4 +11,5 @@ type User struct {
 
 type UserRepository interface {
 	CreateUser(user User) (string, error)
+	LogIn(user User) (uuid.UUID, error)
 }

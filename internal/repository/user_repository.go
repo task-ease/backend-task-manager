@@ -50,3 +50,24 @@ func (r *userRepo) CreateUser(user domain.User) (string, error) {
 
 	return id, err
 }
+
+func (r *userRepo) LogIn(user domain.User) (uuid.UUID, error) {
+	var passwordHash string
+	var userId uuid.UUID
+
+	err := r.conn.QueryRow(context.Background(),
+		`SELECT password_hash, id FROM users WHERE email = $1`,
+		user.Email).Scan(&passwordHash, &userId)
+
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(user.Password))
+
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	return userId, nil
+}
