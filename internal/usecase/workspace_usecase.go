@@ -20,3 +20,11 @@ func (uc *WorkSpaceUsecase) CreateWorkSpace(workspace domain.WorkSpace) (bool, e
 func (uc *WorkSpaceUsecase) GetAllUserSpaces(userId uuid.UUID) ([]domain.WorkSpace, error) {
 	return uc.repo.GetAllUserSpaces(userId)
 }
+
+func (uc *WorkSpaceUsecase) AddUserToWorkSpace(workSpaceId string, userId string, role string) (bool, error) {
+	return uc.repo.AddUserToWorkSpace(workSpaceId, userId, role)
+}
+
+func (uc *WorkSpaceUsecase) GetAllSpaceMembers(workSpaceId uuid.UUID) ([]domain.MemberUser, error) {
+	return uc.repo.GetAllSpaceMembers(workSpaceId)
+}

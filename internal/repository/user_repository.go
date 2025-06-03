@@ -17,7 +17,7 @@ func NewUserRepository(conn *pgx.Conn) domain.UserRepository {
 	return &userRepo{conn: conn}
 }
 
-func (r *userRepo) CreateUser(user domain.User) (string, error) {
+func (r *userRepo) CreateUser(user domain.AuthUser) (string, error) {
 	id := uuid.New().String()
 	var exists bool
 
@@ -51,7 +51,7 @@ func (r *userRepo) CreateUser(user domain.User) (string, error) {
 	return id, err
 }
 
-func (r *userRepo) LogIn(user domain.User) (uuid.UUID, error) {
+func (r *userRepo) LogIn(user domain.AuthUser) (uuid.UUID, error) {
 	var passwordHash string
 	var userId uuid.UUID
 
@@ -70,4 +70,29 @@ func (r *userRepo) LogIn(user domain.User) (uuid.UUID, error) {
 	}
 
 	return userId, nil
+}
+
+func (r *userRepo) SearchUserByEmail(value string) ([]domain.User, error) {
+	pattern := value + "%"
+
+	rows, err := r.conn.Query(context.Background(),
+		`SELECT email, id, username FROM users WHERE email ILIKE $1 LIMIT 10`,
+		pattern)
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []domain.User
+	for rows.Next() {
+		var user domain.User
+		if err := rows.Scan(&user.Email, &user.ID, &user.Username); err != nil {
+			return nil, err
+		}
+
+		users = append(users, user)
+	}
+
+	return users, nil
 }

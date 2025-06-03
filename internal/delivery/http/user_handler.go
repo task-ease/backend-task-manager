@@ -1,9 +1,11 @@
 package http
 
 import (
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"go-postgres-test/infrastructure/auth"
 	"go-postgres-test/internal/domain"
+	"go-postgres-test/internal/middleware"
 	"go-postgres-test/internal/usecase"
 	"net/http"
 )
@@ -17,9 +19,16 @@ func NewUserHandler(uc *usecase.UserUseCase) *UserHandler {
 }
 
 func (h *UserHandler) RegisterRoutes(router *gin.Engine) {
+	authService := auth.NewJWTService()
+
 	router.GET("/users/is-authorized", h.IsAuthorized)
+
 	router.POST("/users/log-in", h.LogIn)
 	router.POST("/users/create-user", h.CreateUser)
+
+	protected := router.Group("/users", middleware.JWTMiddleware(authService))
+
+	protected.GET("/search-user-by-email/:value", h.SearchUserByEmail)
 }
 
 func (h *UserHandler) IsAuthorized(c *gin.Context) {
@@ -43,7 +52,7 @@ func (h *UserHandler) IsAuthorized(c *gin.Context) {
 }
 
 func (h *UserHandler) LogIn(c *gin.Context) {
-	var user domain.User
+	var user domain.AuthUser
 
 	if err := c.ShouldBindJSON(&user); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"status": err.Error()})
@@ -66,7 +75,7 @@ func (h *UserHandler) LogIn(c *gin.Context) {
 }
 
 func (h *UserHandler) CreateUser(c *gin.Context) {
-	var user domain.User
+	var user domain.AuthUser
 	if err := c.ShouldBindJSON(&user); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -90,4 +99,18 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 	c.SetCookie("token", token, 86400, "/", "localhost", false, true)
 
 	c.JSON(http.StatusCreated, true)
+}
+
+func (h *UserHandler) SearchUserByEmail(c *gin.Context) {
+	value := c.Param("value")
+
+	users, err := h.uc.SearchUserByEmail(value)
+
+	if err != nil {
+		fmt.Printf(err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, users)
 }
