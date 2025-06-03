@@ -18,6 +18,10 @@ func main() {
 	userUC := usecase.NewUserUsecase(userRepo)
 	userHandler := http.NewUserHandler(userUC)
 
+	workSpaceRepo := repository.NewWorkSpaceRepository(db)
+	workSpaceUC := usecase.NewWorkSpaceUsecase(workSpaceRepo)
+	workSpaceHandler := http.NewWorkSpaceHandler(workSpaceUC)
+
 	r := gin.Default()
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:5173"},
@@ -27,7 +31,10 @@ func main() {
 	}))
 
 	userHandler.RegisterRoutes(r)
+	workSpaceHandler.RegisterRoutes(r)
 
 	fmt.Println("Running server")
-	r.Run(":8080")
+	if err := r.Run(":8080"); err != nil {
+		panic(err)
+	}
 }

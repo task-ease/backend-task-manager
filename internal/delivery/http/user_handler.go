@@ -30,7 +30,7 @@ func (h *UserHandler) IsAuthorized(c *gin.Context) {
 
 	authService := auth.NewJWTService()
 
-	_, err = authService.ValidateToken(token)
+	_, err = authService.VerifyToken(token)
 
 	if err != nil {
 		c.SetCookie("token", "", -1, "/", "localhost", false, true)
