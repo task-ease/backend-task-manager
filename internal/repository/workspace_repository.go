@@ -3,15 +3,15 @@ package repository
 import (
 	"context"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"go-postgres-test/internal/domain"
 )
 
 type workSpaceRepo struct {
-	conn *pgx.Conn
+	conn *pgxpool.Pool
 }
 
-func NewWorkSpaceRepository(conn *pgx.Conn) domain.WorkSpaceRepository {
+func NewWorkSpaceRepository(conn *pgxpool.Pool) domain.WorkSpaceRepository {
 	return &workSpaceRepo{conn: conn}
 }
 
