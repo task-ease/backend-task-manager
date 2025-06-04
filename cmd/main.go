@@ -11,14 +11,14 @@ import (
 )
 
 func main() {
-	db := db.ConnectDB()
-	defer db.Close(nil)
+	dbPool := db.ConnectDB()
+	defer dbPool.Close()
 
-	userRepo := repository.NewUserRepository(db)
+	userRepo := repository.NewUserRepository(dbPool)
 	userUC := usecase.NewUserUsecase(userRepo)
 	userHandler := http.NewUserHandler(userUC)
 
-	workSpaceRepo := repository.NewWorkSpaceRepository(db)
+	workSpaceRepo := repository.NewWorkSpaceRepository(dbPool)
 	workSpaceUC := usecase.NewWorkSpaceUsecase(workSpaceRepo)
 	workSpaceHandler := http.NewWorkSpaceHandler(workSpaceUC)
 

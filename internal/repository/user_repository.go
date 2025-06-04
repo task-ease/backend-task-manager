@@ -4,16 +4,16 @@ import (
 	"context"
 	"fmt"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"go-postgres-test/internal/domain"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type userRepo struct {
-	conn *pgx.Conn
+	conn *pgxpool.Pool
 }
 
-func NewUserRepository(conn *pgx.Conn) domain.UserRepository {
+func NewUserRepository(conn *pgxpool.Pool) domain.UserRepository {
 	return &userRepo{conn: conn}
 }
 
