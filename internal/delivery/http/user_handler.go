@@ -48,7 +48,7 @@ func (h *UserHandler) IsAuthorized(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, "authorized")
+	c.JSON(http.StatusOK, "authorized")
 }
 
 func (h *UserHandler) LogIn(c *gin.Context) {
@@ -68,6 +68,10 @@ func (h *UserHandler) LogIn(c *gin.Context) {
 
 	authService := auth.NewJWTService()
 	token, err := authService.GenerateToken(userId.String())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 
 	c.SetCookie("token", token, 86400, "/", "localhost", false, true)
 

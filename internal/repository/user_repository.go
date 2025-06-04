@@ -31,7 +31,7 @@ func (r *userRepo) CreateUser(user domain.AuthUser) (string, error) {
 	}
 
 	if exists {
-		return "", fmt.Errorf("email allready exists")
+		return "", fmt.Errorf("email already exists")
 	}
 
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
