@@ -81,7 +81,7 @@ func (r *workSpaceRepo) GetAllUserSpaces(userId uuid.UUID) ([]domain.WorkSpace, 
 
 func (r *workSpaceRepo) GetAllSpaceMembers(workSpaceId uuid.UUID) ([]domain.MemberUser, error) {
 	rows, err := r.conn.Query(context.Background(), `
-		SELECT u.id, u.username, u.email, uw.joined_at
+		SELECT u.id, u.username, u.email, uw.joined_at, uw.role
 		FROM user_workspaces uw
 		JOIN users u ON uw.user_id = u.id
 		WHERE uw.workspace_id = $1`,
@@ -95,7 +95,7 @@ func (r *workSpaceRepo) GetAllSpaceMembers(workSpaceId uuid.UUID) ([]domain.Memb
 	var users []domain.MemberUser
 	for rows.Next() {
 		var user domain.MemberUser
-		if err := rows.Scan(&user.ID, &user.Username, &user.Email, &user.JoinedAt); err != nil {
+		if err := rows.Scan(&user.ID, &user.Username, &user.Email, &user.JoinedAt, &user.Role); err != nil {
 			return nil, err
 		}
 
@@ -133,4 +133,17 @@ func (r *workSpaceRepo) HasUserWorkspace(userId string, workspaceId string) (boo
 	}
 
 	return exists, nil
+}
+
+func (r *workSpaceRepo) ChangeUserRole(workSpaceId string, userId string, role string) (bool, error) {
+	_, err := r.conn.Exec(context.Background(),
+		`UPDATE user_workspaces
+				SET role = $1
+				WHERE workspace_id = $2 AND user_id = $3`, role, workSpaceId, userId)
+
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
 }

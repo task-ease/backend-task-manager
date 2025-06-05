@@ -43,6 +43,7 @@ func (h *WorkSpaceHandler) RegisterRoutes(router *gin.Engine) {
 	protected.GET("/get-all-workspace-members/:id", h.GetAllSpaceMembers)
 	protected.GET("/has-user-workspace/:id", h.HasUserWorkspace)
 
+	protected.POST("/change-user-role", h.ChangeUserRole)
 	protected.POST("/create-workspace", h.CreateWorkSpace)
 	protected.POST("/add-user-to-workspace", h.AddUserToWorkSpace)
 
@@ -186,6 +187,24 @@ func (h *WorkSpaceHandler) HasUserWorkspace(c *gin.Context) {
 	}
 
 	ok, err := h.uc.HasUserWorkspace(userId, workSpaceId)
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, ok)
+}
+
+func (h *WorkSpaceHandler) ChangeUserRole(c *gin.Context) {
+	var input BindInput
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	ok, err := h.uc.ChangeUserRole(input.WorkSpaceId, input.UserId, input.Role)
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
