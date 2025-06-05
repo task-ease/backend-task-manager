@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"database/sql"
 	"github.com/google/uuid"
 	"time"
 )
@@ -16,7 +17,9 @@ type AuthUser struct {
 }
 type MemberUser struct {
 	User
-	JoinedAt time.Time `json:"joined_at"`
+	JoinedAt time.Time      `json:"joined_at"`
+	Role     string         `json:"role"`
+	Position sql.NullString `json:"position"`
 }
 
 type UserRepository interface {
