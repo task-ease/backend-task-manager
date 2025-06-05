@@ -25,6 +25,11 @@ type BindInput struct {
 	Role        string `json:"role"`
 }
 
+type RemoveUserInput struct {
+	UserId      string `json:"userId"`
+	WorkspaceId string `json:"workSpaceId"`
+}
+
 func NewWorkSpaceHandler(uc *usecase.WorkSpaceUsecase) *WorkSpaceHandler {
 	return &WorkSpaceHandler{uc: uc}
 }
@@ -36,9 +41,12 @@ func (h *WorkSpaceHandler) RegisterRoutes(router *gin.Engine) {
 
 	protected.GET("/get-all-user-workspaces", h.GetAllUserSpaces)
 	protected.GET("/get-all-workspace-members/:id", h.GetAllSpaceMembers)
+	protected.GET("/has-user-workspace/:id", h.HasUserWorkspace)
 
 	protected.POST("/create-workspace", h.CreateWorkSpace)
 	protected.POST("/add-user-to-workspace", h.AddUserToWorkSpace)
+
+	protected.DELETE("/remove-user-from-workspace", h.RemoveUser)
 }
 
 func (h *WorkSpaceHandler) CreateWorkSpace(c *gin.Context) {
@@ -140,5 +148,49 @@ func (h *WorkSpaceHandler) GetAllSpaceMembers(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, members)
+}
 
+func (h *WorkSpaceHandler) RemoveUser(c *gin.Context) {
+	var input RemoveUserInput
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	status, err := h.uc.RemoveUser(input.WorkspaceId, input.UserId)
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, status)
+}
+
+func (h *WorkSpaceHandler) HasUserWorkspace(c *gin.Context) {
+	workSpaceId := c.Param("id")
+
+	anyTypeUserId, exists := c.Get("userId")
+
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "user id not found"})
+		return
+	}
+
+	userId, ok := anyTypeUserId.(string)
+
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "user id not found"})
+		return
+	}
+
+	ok, err := h.uc.HasUserWorkspace(userId, workSpaceId)
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, ok)
 }

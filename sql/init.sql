@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS user_workspaces (
                                                user_id uuid REFERENCES users(id) ON DELETE CASCADE,
                                                workspace_id uuid REFERENCES workspaces(id) ON DELETE CASCADE,
                                                role VARCHAR(20) DEFAULT 'member',
+                                               position VARCHAR(50),
                                                joined_at timestamptz DEFAULT NOW(),
                                                PRIMARY KEY (user_id, workspace_id)
 );

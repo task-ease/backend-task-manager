@@ -104,3 +104,33 @@ func (r *workSpaceRepo) GetAllSpaceMembers(workSpaceId uuid.UUID) ([]domain.Memb
 
 	return users, nil
 }
+
+func (r *workSpaceRepo) RemoveUser(workSpaceId string, userId string) (bool, error) {
+	_, err := r.conn.Exec(context.Background(),
+		`DELETE FROM user_workspaces WHERE workspace_id = $1 AND user_id = $2`,
+		workSpaceId,
+		userId)
+
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+func (r *workSpaceRepo) HasUserWorkspace(userId string, workspaceId string) (bool, error) {
+	var exists bool
+
+	err := r.conn.QueryRow(context.Background(), `
+		SELECT EXISTS (
+			SELECT 1 FROM user_workspaces
+			WHERE user_id = $1 AND workspace_id = $2
+			)`,
+		userId, workspaceId).Scan(&exists)
+
+	if err != nil {
+		return false, err
+	}
+
+	return exists, nil
+}

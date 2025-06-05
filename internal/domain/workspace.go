@@ -17,4 +17,6 @@ type WorkSpaceRepository interface {
 	GetAllUserSpaces(userId uuid.UUID) ([]WorkSpace, error)
 	AddUserToWorkSpace(workSpaceId string, userId string, role string) (bool, error)
 	GetAllSpaceMembers(workSpaceId uuid.UUID) ([]MemberUser, error)
+	RemoveUser(workSpaceId string, userId string) (bool, error)
+	HasUserWorkspace(userId string, workspaceId string) (bool, error)
 }

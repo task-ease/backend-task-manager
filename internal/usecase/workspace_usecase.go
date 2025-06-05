@@ -28,3 +28,11 @@ func (uc *WorkSpaceUsecase) AddUserToWorkSpace(workSpaceId string, userId string
 func (uc *WorkSpaceUsecase) GetAllSpaceMembers(workSpaceId uuid.UUID) ([]domain.MemberUser, error) {
 	return uc.repo.GetAllSpaceMembers(workSpaceId)
 }
+
+func (uc *WorkSpaceUsecase) RemoveUser(workSpaceId string, userId string) (bool, error) {
+	return uc.repo.RemoveUser(workSpaceId, userId)
+}
+
+func (uc *WorkSpaceUsecase) HasUserWorkspace(userId string, workspaceId string) (bool, error) {
+	return uc.repo.HasUserWorkspace(userId, workspaceId)
+}
