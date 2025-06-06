@@ -15,7 +15,7 @@ func NewWorkSpaceRepository(conn *pgxpool.Pool) domain.WorkSpaceRepository {
 	return &workSpaceRepo{conn: conn}
 }
 
-func (r *workSpaceRepo) CreateWorkSpace(workSpace domain.WorkSpace) (bool, error) {
+func (r *workSpaceRepo) CreateWorkSpace(workSpace domain.WorkSpace) (uuid.UUID, error) {
 	workSpace.ID = uuid.New()
 
 	_, err := r.conn.Exec(context.Background(),
@@ -26,16 +26,16 @@ func (r *workSpaceRepo) CreateWorkSpace(workSpace domain.WorkSpace) (bool, error
 	)
 
 	if err != nil {
-		return false, err
+		return uuid.Nil, err
 	}
 
 	_, err = r.AddUserToWorkSpace(workSpace.ID.String(), workSpace.CreatorId.String(), "admin")
 
 	if err != nil {
-		return false, err
+		return uuid.Nil, err
 	}
 
-	return true, nil
+	return workSpace.ID, nil
 }
 
 func (r *workSpaceRepo) AddUserToWorkSpace(workSpaceId string, userId string, role string) (bool, error) {

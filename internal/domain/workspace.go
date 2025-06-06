@@ -13,7 +13,7 @@ type WorkSpace struct {
 }
 
 type WorkSpaceRepository interface {
-	CreateWorkSpace(workspace WorkSpace) (bool, error)
+	CreateWorkSpace(workspace WorkSpace) (uuid.UUID, error)
 	GetAllUserSpaces(userId uuid.UUID) ([]WorkSpace, error)
 	AddUserToWorkSpace(workSpaceId string, userId string, role string) (bool, error)
 	GetAllSpaceMembers(workSpaceId uuid.UUID) ([]MemberUser, error)

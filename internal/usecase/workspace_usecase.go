@@ -13,7 +13,7 @@ func NewWorkSpaceUsecase(repo domain.WorkSpaceRepository) *WorkSpaceUsecase {
 	return &WorkSpaceUsecase{repo: repo}
 }
 
-func (uc *WorkSpaceUsecase) CreateWorkSpace(workspace domain.WorkSpace) (bool, error) {
+func (uc *WorkSpaceUsecase) CreateWorkSpace(workspace domain.WorkSpace) (uuid.UUID, error) {
 	return uc.repo.CreateWorkSpace(workspace)
 }
 
