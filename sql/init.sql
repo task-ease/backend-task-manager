@@ -25,19 +25,28 @@ CREATE TABLE IF NOT EXISTS user_workspaces (
 );
 
 CREATE TABLE IF NOT EXISTS tasks (
-                                     id uuid PRIMARY KEY,
-                                     author_id uuid REFERENCES users(id) ON DELETE CASCADE,
+                                     id UUID PRIMARY KEY,
+                                     column_id UUID REFERENCES task_columns(id) ON DELETE CASCADE,
+                                     workspace_id UUID REFERENCES workspaces(id) ON DELETE CASCADE,
+                                     author_id UUID REFERENCES users(id) ON DELETE CASCADE,
                                      created_at TIMESTAMPTZ DEFAULT NOW(),
                                      title VARCHAR(20) NOT NULL,
                                      description TEXT,
-                                     is_finished BOOLEAN DEFAULT FALSE,
+                                     is_finished BOOLEAN DEFAULT FALSE NOT NULL,
                                      due_date TIMESTAMPTZ,
-                                     priority INTEGER,
+                                     priority INTEGER DEFAULT 0,
                                      updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS tasks_assignment (
-                                                task_id uuid REFERENCES tasks(id) ON DELETE CASCADE,
-                                                user_id uuid REFERENCES users(id) ON DELETE CASCADE,
+                                                task_id UUID REFERENCES tasks(id) ON DELETE CASCADE,
+                                                user_id UUID REFERENCES users(id) ON DELETE CASCADE,
                                                 PRIMARY KEY (task_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS task_columns (
+                              id UUID PRIMARY KEY,
+                              workspace_id UUID REFERENCES workspaces(id) ON DELETE CASCADE,
+                              name TEXT NOT NULL,
+                              position INTEGER DEFAULT 0
 );

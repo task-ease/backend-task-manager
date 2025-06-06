@@ -18,7 +18,11 @@ func main() {
 	userUC := usecase.NewUserUsecase(userRepo)
 	userHandler := http.NewUserHandler(userUC)
 
-	workSpaceRepo := repository.NewWorkSpaceRepository(dbPool)
+	taskRepo := repository.NewTaskRepository(dbPool)
+	taskUC := usecase.NewTaskUseCase(taskRepo)
+	taskHandler := http.NewTaskHandler(taskUC)
+
+	workSpaceRepo := repository.NewWorkSpaceRepository(dbPool, taskRepo)
 	workSpaceUC := usecase.NewWorkSpaceUsecase(workSpaceRepo)
 	workSpaceHandler := http.NewWorkSpaceHandler(workSpaceUC)
 
@@ -31,6 +35,7 @@ func main() {
 	}))
 
 	userHandler.RegisterRoutes(r)
+	taskHandler.RegisterRoutes(r)
 	workSpaceHandler.RegisterRoutes(r)
 
 	fmt.Println("Running server")

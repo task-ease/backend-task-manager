@@ -9,9 +9,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type userRepo struct {
-	conn *pgxpool.Pool
-}
+type userRepo struct{ conn *pgxpool.Pool }
 
 func NewUserRepository(conn *pgxpool.Pool) domain.UserRepository {
 	return &userRepo{conn: conn}

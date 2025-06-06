@@ -1,0 +1,89 @@
+package repository
+
+import (
+	"context"
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"go-postgres-test/internal/domain"
+	"time"
+)
+
+type taskRepository struct{ conn *pgxpool.Pool }
+
+func NewTaskRepository(conn *pgxpool.Pool) domain.TaskRepository {
+	return &taskRepository{conn: conn}
+}
+
+func (r *taskRepository) CreateTask(task *domain.Task) (bool, error) {
+	task.ID = uuid.New()
+	task.CreatedAt = time.Now()
+
+	_, err := r.conn.Exec(context.Background(),
+		`INSERT INTO tasks (
+        id,
+        workspace_id,
+        author_id,
+        created_at,
+        title,
+        description,
+        is_finished,
+        due_date,
+        priority,
+        updated_at,
+		column_id
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+		task.ID,
+		task.WorkspaceID,
+		task.AuthorID,
+		task.CreatedAt,
+		task.Title,
+		task.Description,
+		task.IsFinished,
+		task.DueDate,
+		task.Priority,
+		task.UpdatedAt,
+		task.ColumnID,
+	)
+
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+func (r *taskRepository) CreateColumn(name string, workspaceId uuid.UUID, position int) (bool, error) {
+	_, err := r.conn.Exec(context.Background(),
+		`INSERT INTO task_columns (
+                          id, 
+                          workspace_id,
+                          name,
+                          position)
+			VALUES ($1, $2, $3, $4)`, uuid.New(), workspaceId, name, position)
+
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+func (r *taskRepository) GetAllColumns(workspaceId uuid.UUID) ([]*domain.TaskColumn, error) {
+	rows, err := r.conn.Query(context.Background(),
+		`SELECT id, workspace_id, name, position FROM task_columns WHERE workspace_id = $1`, workspaceId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var taskColumns []*domain.TaskColumn
+	for rows.Next() {
+		var column domain.TaskColumn
+		if err := rows.Scan(&column.ID, &column.WorkspaceId, &column.Name, &column.Position); err != nil {
+			return nil, err
+		}
+		taskColumns = append(taskColumns, &column)
+	}
+
+	return taskColumns, nil
+}
