@@ -16,3 +16,11 @@ func (uc *TaskUseCase) CreateTask(task *domain.Task) (bool, error) { return uc.r
 func (uc *TaskUseCase) GetAllColumns(workspaceId uuid.UUID) ([]*domain.TaskColumn, error) {
 	return uc.repo.GetAllColumns(workspaceId)
 }
+
+func (uc *TaskUseCase) GetAllTasks(workspaceId uuid.UUID) ([]*domain.Task, error) {
+	return uc.repo.GetAllTasks(workspaceId)
+}
+
+func (uc *TaskUseCase) UpdateTaskTitle(taskId uuid.UUID, title string) error {
+	return uc.repo.UpdateTaskTitle(taskId, title)
+}

@@ -50,3 +50,4 @@ CREATE TABLE IF NOT EXISTS task_columns (
                               name TEXT NOT NULL,
                               position INTEGER DEFAULT 0
 );
+

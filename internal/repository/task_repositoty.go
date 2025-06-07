@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go-postgres-test/internal/domain"
@@ -17,6 +18,7 @@ func NewTaskRepository(conn *pgxpool.Pool) domain.TaskRepository {
 func (r *taskRepository) CreateTask(task *domain.Task) (bool, error) {
 	task.ID = uuid.New()
 	task.CreatedAt = time.Now()
+	task.UpdatedAt = time.Now()
 
 	_, err := r.conn.Exec(context.Background(),
 		`INSERT INTO tasks (
@@ -86,4 +88,61 @@ func (r *taskRepository) GetAllColumns(workspaceId uuid.UUID) ([]*domain.TaskCol
 	}
 
 	return taskColumns, nil
+}
+
+func (r *taskRepository) GetAllTasks(workspaceId uuid.UUID) ([]*domain.Task, error) {
+	rows, err := r.conn.Query(context.Background(),
+		`SELECT 
+				id, 
+				column_id, 
+				author_id, 
+				created_at, 
+				title,
+				description,
+				is_finished,
+				due_date,
+				priority,
+				updated_at
+			FROM tasks WHERE workspace_id = $1`, workspaceId)
+
+	if err != nil {
+		fmt.Printf(err.Error())
+		return nil, err
+	}
+	defer rows.Close()
+
+	var taskList []*domain.Task
+	for rows.Next() {
+		var task domain.Task
+		if err := rows.Scan(
+			&task.ID,
+			&task.ColumnID,
+			&task.AuthorID,
+			&task.CreatedAt,
+			&task.Title,
+			&task.Description,
+			&task.IsFinished,
+			&task.DueDate,
+			&task.Priority,
+			&task.UpdatedAt); err != nil {
+			return nil, err
+		}
+
+		task.WorkspaceID = workspaceId
+
+		taskList = append(taskList, &task)
+	}
+
+	return taskList, nil
+}
+
+func (r *taskRepository) UpdateTaskTitle(taskId uuid.UUID, title string) error {
+	_, err := r.conn.Exec(context.Background(),
+		`UPDATE tasks SET title = $1, updated_at = NOW() WHERE id =  $2`, title, taskId)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

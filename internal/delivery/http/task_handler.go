@@ -23,7 +23,6 @@ type RawTask struct {
 	Description sql.NullString `json:"description"`
 	DueDate     sql.NullTime   `json:"dueDate"`
 	Priority    sql.NullInt64  `json:"priority"`
-	UpdatedAt   sql.NullTime   `json:"updatedAt"`
 }
 
 func NewTaskHandler(uc *usecase.TaskUseCase) *TaskHandler { return &TaskHandler{uc: uc} }
@@ -34,6 +33,9 @@ func (h *TaskHandler) RegisterRoutes(router *gin.Engine) {
 	protected := router.Group("/task", middleware.JWTMiddleware(authService))
 
 	protected.GET("/get-all-columns/:id", h.GetAllColumns)
+	protected.GET("/get-all-tasks/:id", h.GetAllTasks)
+
+	protected.PATCH("/update-task-title", h.UpdateTaskTitle)
 
 	protected.POST("/create-task", h.CreateTask)
 }
@@ -69,7 +71,6 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 	task.Description = rawTask.Description
 	task.DueDate = rawTask.DueDate
 	task.Priority = rawTask.Priority
-	task.UpdatedAt = rawTask.UpdatedAt
 
 	status, err := h.uc.CreateTask(&task)
 
@@ -99,4 +100,41 @@ func (h *TaskHandler) GetAllColumns(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, columnsList)
+}
+
+func (h *TaskHandler) GetAllTasks(c *gin.Context) {
+	workSpaceId := c.Param("id")
+	id, err := uuid.Parse(workSpaceId)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	tasks, err := h.uc.GetAllTasks(id)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, tasks)
+}
+
+func (h *TaskHandler) UpdateTaskTitle(c *gin.Context) {
+	var input struct {
+		Title  string    `json:"title"`
+		TaskId uuid.UUID `json:"taskId"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.uc.UpdateTaskTitle(input.TaskId, input.Title); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Status(http.StatusOK)
 }

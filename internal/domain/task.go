@@ -17,7 +17,7 @@ type Task struct {
 	Description sql.NullString `json:"description"`
 	DueDate     sql.NullTime   `json:"dueDate"`
 	Priority    sql.NullInt64  `json:"priority"`
-	UpdatedAt   sql.NullTime   `json:"updatedAt"`
+	UpdatedAt   time.Time      `json:"updatedAt"`
 }
 
 type TaskColumn struct {
@@ -31,4 +31,8 @@ type TaskRepository interface {
 	CreateTask(task *Task) (bool, error)
 	CreateColumn(name string, workspaceId uuid.UUID, position int) (bool, error)
 	GetAllColumns(workspaceId uuid.UUID) ([]*TaskColumn, error)
+	GetAllTasks(workspaceId uuid.UUID) ([]*Task, error)
+
+	UpdateTaskTitle(taskId uuid.UUID, title string) error
+	//UpdateTaskColumn(taskId uuid.UUID, columnId uuid.UUID) error
 }
