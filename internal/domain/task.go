@@ -34,5 +34,9 @@ type TaskRepository interface {
 	GetAllTasks(workspaceId uuid.UUID) ([]*Task, error)
 
 	UpdateTaskTitle(taskId uuid.UUID, title string) error
-	//UpdateTaskColumn(taskId uuid.UUID, columnId uuid.UUID) error
+	UpdateTaskColumn(taskId uuid.UUID, columnId uuid.UUID) error
+	UpdateTaskDescription(taskId uuid.UUID, description string) error
+	UpdateTaskIsFinished(taskId uuid.UUID, isFinished bool) error
+	UpdateTaskDueDate(taskId uuid.UUID, dueDate time.Time) error
+	UpdateTaskPriority(taskId uuid.UUID, priority int) error
 }

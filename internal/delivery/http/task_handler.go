@@ -9,6 +9,7 @@ import (
 	"go-postgres-test/internal/middleware"
 	"go-postgres-test/internal/usecase"
 	"net/http"
+	"time"
 )
 
 type TaskHandler struct {
@@ -36,6 +37,11 @@ func (h *TaskHandler) RegisterRoutes(router *gin.Engine) {
 	protected.GET("/get-all-tasks/:id", h.GetAllTasks)
 
 	protected.PATCH("/update-task-title", h.UpdateTaskTitle)
+	protected.PATCH("/update-task-column", h.UpdateTaskColumn)
+	protected.PATCH("/update-task-description", h.UpdateTaskDescription)
+	protected.PATCH("/update-task-is-finished", h.UpdateTaskIsFinished)
+	protected.PATCH("/update-task-due-date", h.UpdateTaskDueDate)
+	protected.PATCH("/update-task-priority", h.UpdateTaskPriority)
 
 	protected.POST("/create-task", h.CreateTask)
 }
@@ -132,6 +138,101 @@ func (h *TaskHandler) UpdateTaskTitle(c *gin.Context) {
 	}
 
 	if err := h.uc.UpdateTaskTitle(input.TaskId, input.Title); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Status(http.StatusOK)
+}
+
+func (h *TaskHandler) UpdateTaskColumn(c *gin.Context) {
+	var input struct {
+		ColumnId uuid.UUID `json:"columnId"`
+		TaskId   uuid.UUID `json:"taskId"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.uc.UpdateTaskColumn(input.TaskId, input.ColumnId); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Status(http.StatusOK)
+}
+
+func (h *TaskHandler) UpdateTaskDescription(c *gin.Context) {
+	var input struct {
+		Description string    `json:"description"`
+		TaskId      uuid.UUID `json:"taskId"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.uc.UpdateTaskDescription(input.TaskId, input.Description); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Status(http.StatusOK)
+}
+
+func (h *TaskHandler) UpdateTaskIsFinished(c *gin.Context) {
+	var input struct {
+		IsFinished bool      `json:"isFinished"`
+		TaskId     uuid.UUID `json:"taskId"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.uc.UpdateTaskIsFinished(input.TaskId, input.IsFinished); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Status(http.StatusOK)
+}
+
+func (h *TaskHandler) UpdateTaskDueDate(c *gin.Context) {
+	var input struct {
+		DueDate time.Time `json:"dueDate"`
+		TaskId  uuid.UUID `json:"taskId"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.uc.UpdateTaskDueDate(input.TaskId, input.DueDate); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Status(http.StatusOK)
+}
+
+func (h *TaskHandler) UpdateTaskPriority(c *gin.Context) {
+	var input struct {
+		Priority int       `json:"priority"`
+		TaskId   uuid.UUID `json:"taskId"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.uc.UpdateTaskPriority(input.TaskId, input.Priority); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

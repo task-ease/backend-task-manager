@@ -138,11 +138,36 @@ func (r *taskRepository) GetAllTasks(workspaceId uuid.UUID) ([]*domain.Task, err
 
 func (r *taskRepository) UpdateTaskTitle(taskId uuid.UUID, title string) error {
 	_, err := r.conn.Exec(context.Background(),
-		`UPDATE tasks SET title = $1, updated_at = NOW() WHERE id =  $2`, title, taskId)
+		`UPDATE tasks SET title = $1, updated_at = NOW() WHERE id = $2`, title, taskId)
+	return err
+}
 
-	if err != nil {
-		return err
-	}
+func (r *taskRepository) UpdateTaskColumn(taskId uuid.UUID, columnId uuid.UUID) error {
+	_, err := r.conn.Exec(context.Background(),
+		`UPDATE tasks SET column_id = $1, updated_at = NOW()  WHERE id = $2`, columnId, taskId)
+	return err
+}
 
-	return nil
+func (r *taskRepository) UpdateTaskDescription(taskId uuid.UUID, description string) error {
+	_, err := r.conn.Exec(context.Background(),
+		`UPDATE tasks SET description = $1, updated_at = NOW() WHERE id = $2`, taskId, description)
+	return err
+}
+
+func (r *taskRepository) UpdateTaskIsFinished(taskId uuid.UUID, isFinished bool) error {
+	_, err := r.conn.Exec(context.Background(),
+		`UPDATE tasks SET is_finished = $1, updated_at = NOW() WHERE id = $2`, isFinished, taskId)
+	return err
+}
+
+func (r *taskRepository) UpdateTaskDueDate(taskId uuid.UUID, dueDate time.Time) error {
+	_, err := r.conn.Exec(context.Background(),
+		`UPDATE tasks SET due_date = $1, updated_at = NOW() WHERE id = $2`, dueDate, taskId)
+	return err
+}
+
+func (r *taskRepository) UpdateTaskPriority(taskId uuid.UUID, priority int) error {
+	_, err := r.conn.Exec(context.Background(),
+		`UPDATE tasks SET priority = $1, updated_at = NOW() WHERE id = $2`, priority, taskId)
+	return err
 }
