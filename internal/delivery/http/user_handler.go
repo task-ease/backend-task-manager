@@ -73,7 +73,7 @@ func (h *UserHandler) LogIn(c *gin.Context) {
 		return
 	}
 
-	c.SetCookie("token", token, 86400, "/", "localhost", false, true)
+	c.SetCookie("token", token, 604800, "/", "localhost", false, true)
 
 	c.JSON(http.StatusOK, true)
 }
@@ -100,7 +100,7 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 		return
 	}
 
-	c.SetCookie("token", token, 86400, "/", "localhost", false, true)
+	c.SetCookie("token", token, 604800, "/", "localhost", false, true)
 
 	c.JSON(http.StatusCreated, true)
 }

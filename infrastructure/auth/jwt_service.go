@@ -19,7 +19,7 @@ func NewJWTService() *jwtService {
 func (s *jwtService) GenerateToken(userID string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"user_id": userID,
-		"exp":     time.Now().Add(time.Hour * 24).Unix(),
+		"exp":     time.Now().Add(time.Hour * 24 * 7).Unix(),
 	})
 	return token.SignedString(s.secret)
 }
