@@ -72,7 +72,7 @@ func (r *taskRepository) CreateColumn(name string, workspaceId uuid.UUID, positi
 
 func (r *taskRepository) GetAllColumns(workspaceId uuid.UUID) ([]*domain.TaskColumn, error) {
 	rows, err := r.conn.Query(context.Background(),
-		`SELECT id, workspace_id, name, position FROM task_columns WHERE workspace_id = $1`, workspaceId)
+		`SELECT id, workspace_id, name, position, color FROM task_columns WHERE workspace_id = $1`, workspaceId)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +81,7 @@ func (r *taskRepository) GetAllColumns(workspaceId uuid.UUID) ([]*domain.TaskCol
 	var taskColumns []*domain.TaskColumn
 	for rows.Next() {
 		var column domain.TaskColumn
-		if err := rows.Scan(&column.ID, &column.WorkspaceId, &column.Name, &column.Position); err != nil {
+		if err := rows.Scan(&column.ID, &column.WorkspaceId, &column.Name, &column.Position, &column.Color); err != nil {
 			return nil, err
 		}
 		taskColumns = append(taskColumns, &column)

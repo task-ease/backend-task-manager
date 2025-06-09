@@ -25,6 +25,7 @@ type TaskColumn struct {
 	WorkspaceId uuid.UUID `json:"workspaceId"`
 	Name        string    `json:"name"`
 	Position    int       `json:"position"`
+	Color       string    `json:"color"`
 }
 
 type TaskRepository interface {

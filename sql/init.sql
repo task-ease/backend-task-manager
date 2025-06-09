@@ -48,6 +48,6 @@ CREATE TABLE IF NOT EXISTS task_columns (
                               id UUID PRIMARY KEY,
                               workspace_id UUID REFERENCES workspaces(id) ON DELETE CASCADE,
                               name TEXT NOT NULL,
-                              position INTEGER DEFAULT 0
+                              position INTEGER DEFAULT 0,
+                              color VARCHAR(6)
 );
-
