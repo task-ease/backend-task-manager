@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS tasks (
                                      workspace_id UUID REFERENCES workspaces(id) ON DELETE CASCADE,
                                      author_id UUID REFERENCES users(id) ON DELETE CASCADE,
                                      created_at TIMESTAMPTZ DEFAULT NOW(),
-                                     title VARCHAR(20) NOT NULL,
+                                     title VARCHAR(30) NOT NULL,
                                      description TEXT,
                                      is_finished BOOLEAN DEFAULT FALSE NOT NULL,
                                      due_date TIMESTAMPTZ,
@@ -51,3 +51,5 @@ CREATE TABLE IF NOT EXISTS task_columns (
                               position INTEGER DEFAULT 0,
                               color VARCHAR(6)
 );
+
+ALTER TABLE tasks ALTER COLUMN title TYPE VARCHAR(30);

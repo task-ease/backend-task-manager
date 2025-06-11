@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"fmt"
+	"database/sql"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go-postgres-test/internal/domain"
@@ -54,14 +54,15 @@ func (r *taskRepository) CreateTask(task *domain.Task) (bool, error) {
 	return true, nil
 }
 
-func (r *taskRepository) CreateColumn(name string, workspaceId uuid.UUID, position int) (bool, error) {
+func (r *taskRepository) CreateColumn(name string, workspaceId uuid.UUID, position int, color string) (bool, error) {
 	_, err := r.conn.Exec(context.Background(),
 		`INSERT INTO task_columns (
                           id, 
                           workspace_id,
                           name,
-                          position)
-			VALUES ($1, $2, $3, $4)`, uuid.New(), workspaceId, name, position)
+                          position,
+                          color)
+			VALUES ($1, $2, $3, $4, $5)`, uuid.New(), workspaceId, name, position, color)
 
 	if err != nil {
 		return false, err
@@ -106,29 +107,45 @@ func (r *taskRepository) GetAllTasks(workspaceId uuid.UUID) ([]*domain.Task, err
 			FROM tasks WHERE workspace_id = $1`, workspaceId)
 
 	if err != nil {
-		fmt.Printf(err.Error())
 		return nil, err
 	}
 	defer rows.Close()
 
 	var taskList []*domain.Task
 	for rows.Next() {
-		var task domain.Task
+		var (
+			task        domain.Task
+			description sql.NullString
+			dueDate     sql.NullTime
+			priority    sql.NullInt64
+		)
 		if err := rows.Scan(
 			&task.ID,
 			&task.ColumnID,
 			&task.AuthorID,
 			&task.CreatedAt,
 			&task.Title,
-			&task.Description,
+			&description,
 			&task.IsFinished,
-			&task.DueDate,
-			&task.Priority,
+			&dueDate,
+			&priority,
 			&task.UpdatedAt); err != nil {
 			return nil, err
 		}
 
 		task.WorkspaceID = workspaceId
+
+		if description.Valid {
+			task.Description = &description.String
+		}
+
+		if dueDate.Valid {
+			task.DueDate = &dueDate.Time
+		}
+
+		if priority.Valid {
+			task.Priority = &priority.Int64
+		}
 
 		taskList = append(taskList, &task)
 	}

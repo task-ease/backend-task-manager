@@ -34,9 +34,9 @@ func (r *workSpaceRepo) CreateWorkSpace(workSpace domain.WorkSpace) (uuid.UUID, 
 		return uuid.Nil, err
 	}
 
-	_, err = r.taskRepo.CreateColumn("Planning", workSpace.ID, 0)
-	_, err = r.taskRepo.CreateColumn("To do", workSpace.ID, 1)
-	_, err = r.taskRepo.CreateColumn("Done", workSpace.ID, 2)
+	_, err = r.taskRepo.CreateColumn("Planning", workSpace.ID, 0, "38BDF8")
+	_, err = r.taskRepo.CreateColumn("To do", workSpace.ID, 1, "FACC15")
+	_, err = r.taskRepo.CreateColumn("Done", workSpace.ID, 2, "22C55E")
 
 	if err != nil {
 		return uuid.Nil, err

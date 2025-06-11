@@ -1,7 +1,6 @@
 package http
 
 import (
-	"fmt"
 	"github.com/gin-gonic/gin"
 	"go-postgres-test/infrastructure/auth"
 	"go-postgres-test/internal/domain"
@@ -111,7 +110,6 @@ func (h *UserHandler) SearchUserByEmail(c *gin.Context) {
 	users, err := h.uc.SearchUserByEmail(value)
 
 	if err != nil {
-		fmt.Printf(err.Error())
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}

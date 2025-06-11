@@ -1,23 +1,22 @@
 package domain
 
 import (
-	"database/sql"
 	"github.com/google/uuid"
 	"time"
 )
 
 type Task struct {
-	ID          uuid.UUID      `json:"id"`
-	AuthorID    uuid.UUID      `json:"authorId"`
-	ColumnID    uuid.UUID      `json:"columnId"`
-	WorkspaceID uuid.UUID      `json:"workspaceId"`
-	CreatedAt   time.Time      `json:"createdAt"`
-	Title       string         `json:"title"`
-	IsFinished  bool           `json:"isFinished"`
-	Description sql.NullString `json:"description"`
-	DueDate     sql.NullTime   `json:"dueDate"`
-	Priority    sql.NullInt64  `json:"priority"`
-	UpdatedAt   time.Time      `json:"updatedAt"`
+	ID          uuid.UUID  `json:"id"`
+	AuthorID    uuid.UUID  `json:"authorId"`
+	ColumnID    uuid.UUID  `json:"columnId"`
+	WorkspaceID uuid.UUID  `json:"workspaceId"`
+	CreatedAt   time.Time  `json:"createdAt"`
+	Title       string     `json:"title"`
+	IsFinished  bool       `json:"isFinished"`
+	Description *string    `json:"description"`
+	DueDate     *time.Time `json:"dueDate"`
+	Priority    *int64     `json:"priority"`
+	UpdatedAt   time.Time  `json:"updatedAt"`
 }
 
 type TaskColumn struct {
@@ -30,7 +29,7 @@ type TaskColumn struct {
 
 type TaskRepository interface {
 	CreateTask(task *Task) (bool, error)
-	CreateColumn(name string, workspaceId uuid.UUID, position int) (bool, error)
+	CreateColumn(name string, workspaceId uuid.UUID, position int, color string) (bool, error)
 	GetAllColumns(workspaceId uuid.UUID) ([]*TaskColumn, error)
 	GetAllTasks(workspaceId uuid.UUID) ([]*Task, error)
 

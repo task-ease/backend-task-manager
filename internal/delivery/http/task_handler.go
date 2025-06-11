@@ -74,9 +74,9 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 	task.WorkspaceID = rawTask.WorkspaceID
 	task.Title = rawTask.Title
 	task.IsFinished = rawTask.IsFinished
-	task.Description = rawTask.Description
-	task.DueDate = rawTask.DueDate
-	task.Priority = rawTask.Priority
+	task.Description = &rawTask.Description.String
+	task.DueDate = &rawTask.DueDate.Time
+	task.Priority = &rawTask.Priority.Int64
 
 	status, err := h.uc.CreateTask(&task)
 
