@@ -39,7 +39,7 @@ func (h *UserHandler) IsAuthorized(c *gin.Context) {
 
 	authService := auth.NewJWTService()
 
-	_, err = authService.VerifyToken(token)
+	userId, err := authService.VerifyToken(token)
 
 	if err != nil {
 		c.SetCookie("token", "", -1, "/", "localhost", false, true)
@@ -47,7 +47,7 @@ func (h *UserHandler) IsAuthorized(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, "authorized")
+	c.JSON(http.StatusOK, userId)
 }
 
 func (h *UserHandler) LogIn(c *gin.Context) {

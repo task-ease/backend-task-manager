@@ -94,7 +94,7 @@ func (r *workSpaceRepo) GetAllUserSpaces(userId uuid.UUID) ([]domain.WorkSpace, 
 
 func (r *workSpaceRepo) GetAllSpaceMembers(workSpaceId uuid.UUID) ([]domain.MemberUser, error) {
 	rows, err := r.conn.Query(context.Background(), `
-		SELECT u.id, u.username, u.email, uw.joined_at, uw.role, uw.position
+		SELECT u.id, u.username, u.email, u.user_icon_url, uw.joined_at, uw.role, uw.position
 		FROM user_workspaces uw
 		JOIN users u ON uw.user_id = u.id
 		WHERE uw.workspace_id = $1`,
@@ -109,7 +109,7 @@ func (r *workSpaceRepo) GetAllSpaceMembers(workSpaceId uuid.UUID) ([]domain.Memb
 	for rows.Next() {
 		var user domain.MemberUser
 		var pos sql.NullString
-		if err := rows.Scan(&user.ID, &user.Username, &user.Email, &user.JoinedAt, &user.Role, &pos); err != nil {
+		if err := rows.Scan(&user.ID, &user.Username, &user.Email, &user.UserIconUrl, &user.JoinedAt, &user.Role, &pos); err != nil {
 			return nil, err
 		}
 

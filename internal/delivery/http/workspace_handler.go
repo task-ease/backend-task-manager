@@ -1,7 +1,6 @@
 package http
 
 import (
-	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"go-postgres-test/infrastructure/auth"
@@ -130,6 +129,8 @@ func (h *WorkSpaceHandler) AddUserToWorkSpace(c *gin.Context) {
 	c.JSON(http.StatusCreated, status)
 }
 
+//TODO добавить функцию которая будет возвращать не отфильтрованный список, либо просто в workspace_handler передавать либо true либо false
+
 func (h *WorkSpaceHandler) GetAllSpaceMembers(c *gin.Context) {
 	workSpaceId := c.Param("id")
 
@@ -142,13 +143,32 @@ func (h *WorkSpaceHandler) GetAllSpaceMembers(c *gin.Context) {
 
 	members, err := h.uc.GetAllSpaceMembers(id)
 
-	if err != nil {
-		fmt.Printf("error while getting all space members %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	userIdRaw, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "user not found"})
 		return
 	}
 
-	c.JSON(http.StatusOK, members)
+	userIdStr, ok := userIdRaw.(string)
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "userId is not a string"})
+		return
+	}
+
+	parsedUserId, err := uuid.Parse(userIdStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid userId"})
+		return
+	}
+
+	membersFiltered := make([]domain.MemberUser, 0)
+	for _, m := range members {
+		if m.ID != parsedUserId {
+			membersFiltered = append(membersFiltered, m)
+		}
+	}
+
+	c.JSON(http.StatusOK, membersFiltered)
 }
 
 func (h *WorkSpaceHandler) RemoveUser(c *gin.Context) {

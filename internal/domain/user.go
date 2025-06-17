@@ -6,9 +6,12 @@ import (
 )
 
 type User struct {
-	ID       uuid.UUID `json:"id"`
-	Username string    `json:"username"`
-	Email    string    `json:"email"`
+	ID           uuid.UUID `json:"id"`
+	Username     string    `json:"username"`
+	Email        string    `json:"email"`
+	UserIconUrl  *string   `json:"userIconUrl"`
+	IsOnline     bool      `json:"isOnline"`
+	LastOnlineAt time.Time `json:"lastOnlineAt"`
 }
 type AuthUser struct {
 	User

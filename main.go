@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go-postgres-test/infrastructure/db"
 	"go-postgres-test/internal/delivery/http"
+	"go-postgres-test/internal/delivery/ws"
 	"go-postgres-test/internal/repository"
 	"go-postgres-test/internal/usecase"
 )
@@ -22,9 +23,21 @@ func main() {
 	taskUC := usecase.NewTaskUseCase(taskRepo)
 	taskHandler := http.NewTaskHandler(taskUC)
 
+	messageRepo := repository.NewMessageRepository(dbPool)
+	messageUC := usecase.NewMessageUsecase(messageRepo)
+	messageHandler := http.NewMessageHandler(messageUC)
+
+	chatRepo := repository.NewChatRepo(dbPool, messageRepo)
+	chatUseCase := usecase.NewChatUsecase(chatRepo)
+	chatHandler := http.NewChatHandler(*chatUseCase)
+
 	workSpaceRepo := repository.NewWorkSpaceRepository(dbPool, taskRepo)
 	workSpaceUC := usecase.NewWorkSpaceUsecase(workSpaceRepo)
 	workSpaceHandler := http.NewWorkSpaceHandler(workSpaceUC)
+
+	hub := ws.NewHub()
+	wsHandler := http.NewWsHandler(hub)
+	go hub.Run()
 
 	r := gin.Default()
 	r.Use(cors.New(cors.Config{
@@ -37,6 +50,9 @@ func main() {
 	userHandler.RegisterRoutes(r)
 	taskHandler.RegisterRoutes(r)
 	workSpaceHandler.RegisterRoutes(r)
+	wsHandler.RegisterRoutes(r)
+	chatHandler.RegisterRoutes(r)
+	messageHandler.RegisterRoutes(r)
 
 	fmt.Println("Running server")
 	if err := r.Run(":8080"); err != nil {

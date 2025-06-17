@@ -6,17 +6,17 @@ import (
 	"time"
 )
 
-type jwtService struct {
+type JwtService struct {
 	secret []byte
 }
 
-func NewJWTService() *jwtService {
-	return &jwtService{
+func NewJWTService() *JwtService {
+	return &JwtService{
 		secret: []byte(os.Getenv("JWT_SECRET")),
 	}
 }
 
-func (s *jwtService) GenerateToken(userID string) (string, error) {
+func (s *JwtService) GenerateToken(userID string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"user_id": userID,
 		"exp":     time.Now().Add(time.Hour * 24 * 7).Unix(),
@@ -24,7 +24,7 @@ func (s *jwtService) GenerateToken(userID string) (string, error) {
 	return token.SignedString(s.secret)
 }
 
-func (s *jwtService) VerifyToken(tokenString string) (string, error) {
+func (s *JwtService) VerifyToken(tokenString string) (string, error) {
 	token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
 		return s.secret, nil
 	})
