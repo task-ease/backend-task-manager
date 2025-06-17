@@ -47,12 +47,14 @@ func main() {
 		AllowCredentials: true,
 	}))
 
-	userHandler.RegisterRoutes(r)
-	taskHandler.RegisterRoutes(r)
-	workSpaceHandler.RegisterRoutes(r)
-	wsHandler.RegisterRoutes(r)
-	chatHandler.RegisterRoutes(r)
-	messageHandler.RegisterRoutes(r)
+	api := r.Group("/api")
+
+	userHandler.RegisterRoutes(api)
+	taskHandler.RegisterRoutes(api)
+	workSpaceHandler.RegisterRoutes(api)
+	wsHandler.RegisterRoutes(api)
+	chatHandler.RegisterRoutes(api)
+	messageHandler.RegisterRoutes(api)
 
 	fmt.Println("Running server")
 	if err := r.Run(":8080"); err != nil {

@@ -18,7 +18,7 @@ func NewChatHandler(uc usecase.ChatUsecase) *ChatHandler {
 	return &ChatHandler{uc: uc}
 }
 
-func (h *ChatHandler) RegisterRoutes(router *gin.Engine) {
+func (h *ChatHandler) RegisterRoutes(router *gin.RouterGroup) {
 	authService := auth.NewJWTService()
 
 	protected := router.Group("/chat", middleware.JWTMiddleware(authService))

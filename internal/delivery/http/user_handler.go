@@ -17,7 +17,7 @@ func NewUserHandler(uc *usecase.UserUseCase) *UserHandler {
 	return &UserHandler{uc: uc}
 }
 
-func (h *UserHandler) RegisterRoutes(router *gin.Engine) {
+func (h *UserHandler) RegisterRoutes(router *gin.RouterGroup) {
 	authService := auth.NewJWTService()
 
 	router.GET("/users/is-authorized", h.IsAuthorized)

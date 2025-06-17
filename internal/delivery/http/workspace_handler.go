@@ -33,7 +33,7 @@ func NewWorkSpaceHandler(uc *usecase.WorkSpaceUsecase) *WorkSpaceHandler {
 	return &WorkSpaceHandler{uc: uc}
 }
 
-func (h *WorkSpaceHandler) RegisterRoutes(router *gin.Engine) {
+func (h *WorkSpaceHandler) RegisterRoutes(router *gin.RouterGroup) {
 	authService := auth.NewJWTService()
 
 	protected := router.Group("/workspace", middleware.JWTMiddleware(authService))

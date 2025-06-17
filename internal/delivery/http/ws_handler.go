@@ -25,7 +25,7 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-func (h *WsHandler) RegisterRoutes(router *gin.Engine) {
+func (h *WsHandler) RegisterRoutes(router *gin.RouterGroup) {
 	authService := auth.NewJWTService()
 
 	protected := router.Group("/ws", middleware.JWTMiddleware(authService))

@@ -18,7 +18,7 @@ func NewMessageHandler(uc *usecase.MessageUsecase) *MessageHandler {
 	return &MessageHandler{uc: uc}
 }
 
-func (h *MessageHandler) RegisterRoutes(router *gin.Engine) {
+func (h *MessageHandler) RegisterRoutes(router *gin.RouterGroup) {
 	authService := auth.NewJWTService()
 
 	protected := router.Group("/message", middleware.JWTMiddleware(authService))

@@ -28,7 +28,7 @@ type RawTask struct {
 
 func NewTaskHandler(uc *usecase.TaskUseCase) *TaskHandler { return &TaskHandler{uc: uc} }
 
-func (h *TaskHandler) RegisterRoutes(router *gin.Engine) {
+func (h *TaskHandler) RegisterRoutes(router *gin.RouterGroup) {
 	authService := auth.NewJWTService()
 
 	protected := router.Group("/task", middleware.JWTMiddleware(authService))
