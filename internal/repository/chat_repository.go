@@ -55,11 +55,8 @@ func (r *chatRepo) CreateChat(chat *domain.Chat, participantId uuid.UUID) error 
 		UpdatedAt:   time.Now(),
 	}
 
-	if err = r.messageRepo.AddMessage(&systemMessage); err != nil {
-		return err
-	}
-
-	return nil
+	err = r.messageRepo.AddMessage(&systemMessage)
+	return err
 }
 
 func (r *chatRepo) AddUserToChat(userId uuid.UUID, chatId string, workspaceId uuid.UUID) error {

@@ -1,9 +1,7 @@
-package http
+package handlers
 
 import (
-	"fmt"
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"go-postgres-test/infrastructure/auth"
 	"go-postgres-test/internal/middleware"
 	"go-postgres-test/internal/usecase"
@@ -28,19 +26,8 @@ func (h *MessageHandler) RegisterRoutes(router *gin.RouterGroup) {
 
 func (h *MessageHandler) GetAllMessages(c *gin.Context) {
 	chatId := c.Param("chatId")
-	userIdStr, exists := c.Get("userId")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"message": "user not found"})
-		return
-	}
-	userId, err := uuid.Parse(userIdStr.(string))
+	messageList, err := h.uc.GetAllMessages(chatId)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"message": "user not found"})
-		return
-	}
-	messageList, err := h.uc.GetAllMessages(chatId, userId)
-	if err != nil {
-		fmt.Println(err)
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "internal server error"})
 		return
 	}

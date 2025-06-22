@@ -7,19 +7,19 @@ import (
 )
 
 type Message struct {
-	ID          string            `db:"id"`
-	ChatID      string            `db:"chat_id"`
-	SenderID    uuid.UUID         `db:"sender_id"`
-	Content     string            `db:"content"`
-	MessageType types.MessageType `db:"message_type"`
-	CreatedAt   time.Time         `db:"created_at"`
-	UpdatedAt   time.Time         `db:"updated_at"`
-	IsEdited    bool              `db:"is_edited"`
-	IsDeleted   bool              `db:"is_deleted"`
-	ReplyTo     *uuid.UUID        `db:"reply_to"`
+	ID          string            `db:"ID" json:"ID"`
+	ChatID      string            `db:"chatID" json:"chatID"`
+	SenderID    uuid.UUID         `db:"senderID" json:"senderID"`
+	Content     string            `db:"content" json:"content"`
+	MessageType types.MessageType `db:"messageType" json:"messageType"`
+	CreatedAt   time.Time         `db:"createdAt" json:"createdAt"`
+	UpdatedAt   time.Time         `db:"updatedAt" json:"updatedAt"`
+	IsEdited    bool              `db:"isEdited" json:"isEdited"`
+	IsDeleted   bool              `db:"isDeleted" json:"isDeleted"`
+	ReplyTo     *uuid.UUID        `db:"replyTo" json:"replyTo"`
 }
 
 type MessageRepository interface {
 	AddMessage(message *Message) error
-	GetAllMessages(chatId string, userId uuid.UUID) ([]*Message, error)
+	GetAllMessages(chatId string) ([]*Message, error)
 }

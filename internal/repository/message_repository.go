@@ -23,7 +23,7 @@ func (r *messageRepo) AddMessage(message *domain.Message) error {
 	return err
 }
 
-func (r *messageRepo) GetAllMessages(chatId string, userId uuid.UUID) ([]*domain.Message, error) {
+func (r *messageRepo) GetAllMessages(chatId string) ([]*domain.Message, error) {
 	rows, err := r.conn.Query(context.Background(), `
 		SELECT id, sender_id, content, message_type, created_at
 		FROM messages
@@ -38,9 +38,6 @@ func (r *messageRepo) GetAllMessages(chatId string, userId uuid.UUID) ([]*domain
 		var message domain.Message
 		if err = rows.Scan(&message.ID, &message.SenderID, &message.Content, &message.MessageType, &message.CreatedAt); err != nil {
 			return nil, err
-		}
-		if message.SenderID == userId {
-			message.SenderID = uuid.Nil
 		}
 		messages = append(messages, &message)
 	}

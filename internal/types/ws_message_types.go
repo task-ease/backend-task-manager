@@ -3,6 +3,7 @@ package types
 type WsMessageTypes string
 
 const (
-	TypeMessage WsMessageTypes = "message"
-	TypeStatus  WsMessageTypes = "status"
+	TypeMessage      WsMessageTypes = "message"
+	TypeConnected    WsMessageTypes = "connected"
+	TypeDisconnected WsMessageTypes = "disconnected"
 )
