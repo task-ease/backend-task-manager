@@ -17,7 +17,8 @@ import (
 )
 
 type WebSocketHandler struct {
-	msgRepo domain.MessageRepository
+	msgRepo  domain.MessageRepository
+	userRepo domain.UserRepository
 }
 
 type Client struct {
@@ -33,6 +34,13 @@ type WebSocketMessage struct {
 	RoomID string               `json:"roomId"`
 }
 
+type MessageNotification struct {
+	ChatID          string            `json:"chatID"`
+	LastMessage     string            `json:"lastMessage"`
+	LastMessageTime time.Time         `json:"lastMessageTime"`
+	LastMessageType types.MessageType `json:"lastMessageType"`
+}
+
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
 		return true
@@ -44,8 +52,8 @@ var (
 	roomsMu sync.Mutex
 )
 
-func NewWebSocketHandler(msgRepo domain.MessageRepository) *WebSocketHandler {
-	return &WebSocketHandler{msgRepo: msgRepo}
+func NewWebSocketHandler(msgRepo domain.MessageRepository, userRepo domain.UserRepository) *WebSocketHandler {
+	return &WebSocketHandler{msgRepo: msgRepo, userRepo: userRepo}
 }
 
 func (h *WebSocketHandler) RegisterRoutes(r *gin.Engine) {
@@ -92,6 +100,7 @@ func (h *WebSocketHandler) HandleWS(c *gin.Context) {
 		Data:   "",
 		RoomID: roomId,
 	}
+	_ = h.userRepo.ChangeOnlineStatus(client.ID, true)
 	sendJSONToRoom(roomId, msg)
 
 	for {
@@ -103,6 +112,7 @@ func (h *WebSocketHandler) HandleWS(c *gin.Context) {
 				Data:   "",
 				RoomID: roomId,
 			}
+			_ = h.userRepo.ChangeOnlineStatus(client.ID, false)
 			sendJSONToRoom(roomId, msg)
 			break
 		}
@@ -131,6 +141,24 @@ func (h *WebSocketHandler) HandleWS(c *gin.Context) {
 			RoomID: roomId,
 		}
 		sendJSONToRoom(roomId, msg)
+
+		messageNotificationData := MessageNotification{
+			ChatID:          roomId,
+			LastMessage:     wsMsg.Content,
+			LastMessageType: wsMsg.MessageType,
+			LastMessageTime: time.Now(),
+		}
+
+		dataStr, _ = json.Marshal(messageNotificationData)
+
+		msgNotificationGlobal := WebSocketMessage{
+			Type:   types.TypeMessageNotification,
+			UserID: client.ID,
+			Data:   string(dataStr),
+			RoomID: "global",
+		}
+
+		sendJSONToRoom("global", msgNotificationGlobal)
 	}
 
 	roomsMu.Lock()

@@ -67,10 +67,20 @@ func (r *chatRepo) AddUserToChat(userId uuid.UUID, chatId string, workspaceId uu
 
 func (r *chatRepo) GetAllUserChats(userId uuid.UUID, workspaceId uuid.UUID) ([]response.GetChats, error) {
 	rows, err := r.conn.Query(context.Background(), `
-		SELECT uc.chat_id, uc.muted, uc.pinned, uc.notification, uc.role, c.type
+		SELECT
+  			uc.chat_id,
+  			uc.muted,
+  			uc.pinned,
+  			uc.notification,
+  			uc.role,
+  			c.type,
+  			u2.is_online,
+  			u2.id
 		FROM user_chats uc
 		JOIN chats c ON c.id = uc.chat_id
-		WHERE user_id = $1 AND c.workspace_id = $2`, userId, workspaceId)
+		JOIN user_chats uc2 ON uc2.chat_id = uc.chat_id AND uc2.user_id != $1
+		JOIN users u2 ON u2.id = uc2.user_id
+		WHERE uc.user_id = $1 AND c.workspace_id = $2`, userId, workspaceId)
 
 	if err != nil {
 		return nil, err
@@ -80,7 +90,7 @@ func (r *chatRepo) GetAllUserChats(userId uuid.UUID, workspaceId uuid.UUID) ([]r
 	var chats []response.GetChats
 	for rows.Next() {
 		var chat response.GetChats
-		if err := rows.Scan(&chat.ID, &chat.Muted, &chat.Pinned, &chat.Notification, &chat.Role, &chat.Type); err != nil {
+		if err := rows.Scan(&chat.ID, &chat.Muted, &chat.Pinned, &chat.Notification, &chat.Role, &chat.Type, &chat.IsOnline, &chat.ParticipantID); err != nil {
 			return nil, err
 		}
 		if err = r.getLastMessageInfo(&chat); err != nil {
@@ -109,10 +119,10 @@ func (r *chatRepo) getUserNameById(chatId string, userId uuid.UUID, name *string
 
 func (r *chatRepo) getLastMessageInfo(chat *response.GetChats) error {
 	err := r.conn.QueryRow(context.Background(), `
-		SELECT content, message_type, created_at 
-		FROM messages 
+		SELECT m.content, m.message_type, m.created_at 
+		FROM messages m
 		WHERE chat_id = $1
-		ORDER BY created_at
+		ORDER BY m.created_at DESC
 		LIMIT 1`, chat.ID).Scan(&chat.LastMessage, &chat.LastMessageType, &chat.LastMessageTime)
 	return err
 }

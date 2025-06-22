@@ -94,3 +94,9 @@ func (r *userRepo) SearchUserByEmail(value string) ([]domain.User, error) {
 
 	return users, nil
 }
+
+func (r *userRepo) ChangeOnlineStatus(userId uuid.UUID, status bool) error {
+	_, err := r.conn.Exec(context.Background(),
+		`UPDATE users SET is_online = $1 WHERE id = $2`, status, userId)
+	return err
+}

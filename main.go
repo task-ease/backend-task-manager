@@ -36,7 +36,7 @@ func main() {
 	workSpaceUC := usecase.NewWorkSpaceUsecase(workSpaceRepo)
 	workSpaceHandler := handlers.NewWorkSpaceHandler(workSpaceUC)
 
-	wsHandler := ws.NewWebSocketHandler(messageRepo)
+	wsHandler := ws.NewWebSocketHandler(messageRepo, userRepo)
 
 	r := gin.Default()
 

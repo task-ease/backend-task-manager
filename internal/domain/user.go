@@ -28,4 +28,5 @@ type UserRepository interface {
 	CreateUser(user AuthUser) (string, error)
 	LogIn(user AuthUser) (uuid.UUID, error)
 	SearchUserByEmail(value string) ([]User, error)
+	ChangeOnlineStatus(userId uuid.UUID, status bool) error
 }

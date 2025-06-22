@@ -8,7 +8,8 @@ import (
 )
 
 type messageRepo struct {
-	conn *pgxpool.Pool
+	conn     *pgxpool.Pool
+	chatRepo domain.ChatRepository
 }
 
 func NewMessageRepository(conn *pgxpool.Pool) domain.MessageRepository {
@@ -20,6 +21,8 @@ func (r *messageRepo) AddMessage(message *domain.Message) error {
 	_, err := r.conn.Exec(context.Background(),
 		`INSERT INTO messages (id, chat_id, sender_id, content, message_type, created_at, updated_at)
 			VALUES ($1, $2, $3, $4, $5, $6, $7)`, message.ID, message.ChatID, message.SenderID, message.Content, message.MessageType, message.CreatedAt, message.UpdatedAt)
+	_, err = r.conn.Exec(context.Background(),
+		`UPDATE chats SET updated_at = $1 WHERE id = $2`, message.UpdatedAt, message.ChatID)
 	return err
 }
 

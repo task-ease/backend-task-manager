@@ -16,4 +16,6 @@ type GetChats struct {
 	LastMessage     string             `json:"lastMessage"`
 	LastMessageTime time.Time          `json:"lastMessageTime"`
 	LastMessageType types.MessageType  `json:"lastMessageType"`
+	IsOnline        bool               `json:"isOnline"`
+	ParticipantID   *string            `json:"participantId"`
 }
