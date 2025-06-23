@@ -37,4 +37,5 @@ type ChatRepository interface {
 	CreateChat(chat *Chat, participantId uuid.UUID) error
 	AddUserToChat(userId uuid.UUID, chatId string, workspaceId uuid.UUID) error
 	GetAllUserChats(userId uuid.UUID, workspaceId uuid.UUID) ([]response.GetChats, error)
+	GetChatsBySearch(userID uuid.UUID, workspaceId uuid.UUID, value string) ([]response.GetChatsSearch, error)
 }

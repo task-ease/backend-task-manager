@@ -19,3 +19,10 @@ type GetChats struct {
 	IsOnline        bool               `json:"isOnline"`
 	ParticipantID   *string            `json:"participantId"`
 }
+
+type GetChatsSearch struct {
+	ID          *string `json:"id"`
+	UserID      *string `json:"userId"`
+	Name        string  `json:"name"`
+	LastMessage *string `json:"lastMessage"`
+}

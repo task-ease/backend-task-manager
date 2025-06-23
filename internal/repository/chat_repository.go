@@ -126,3 +126,49 @@ func (r *chatRepo) getLastMessageInfo(chat *response.GetChats) error {
 		LIMIT 1`, chat.ID).Scan(&chat.LastMessage, &chat.LastMessageType, &chat.LastMessageTime)
 	return err
 }
+
+func (r *chatRepo) GetChatsBySearch(userID uuid.UUID, workspaceId uuid.UUID, value string) ([]response.GetChatsSearch, error) {
+	rows, err := r.conn.Query(context.Background(), `
+		 SELECT
+		    u.id,
+		    c.chat_id,
+    		u.username,
+    		c.last_message
+		FROM user_workspaces uw
+		JOIN users u ON u.id = uw.user_id
+		LEFT JOIN LATERAL (
+    		SELECT 
+        		ch.id AS chat_id,
+        		(
+            		SELECT content
+            		FROM messages
+            		WHERE chat_id = ch.id
+            		ORDER BY created_at DESC
+            		LIMIT 1
+        		) AS last_message
+    		FROM chats ch
+    		JOIN user_chats uc1 ON uc1.chat_id = ch.id AND uc1.user_id = $1
+    		JOIN user_chats uc2 ON uc2.chat_id = ch.id AND uc2.user_id = u.id
+      		AND ch.workspace_id = $2
+		) c ON true
+		WHERE uw.workspace_id = $2
+  		AND u.id != $1
+  		AND u.username ILIKE $3
+	LIMIT 10;
+	`, userID, workspaceId, "%"+value+"%")
+	defer rows.Close()
+
+	if err != nil {
+		return nil, err
+	}
+
+	var chats []response.GetChatsSearch
+	for rows.Next() {
+		var chat response.GetChatsSearch
+		if err := rows.Scan(&chat.UserID, &chat.ID, &chat.Name, &chat.LastMessage); err != nil {
+			return nil, err
+		}
+		chats = append(chats, chat)
+	}
+	return chats, err
+}
