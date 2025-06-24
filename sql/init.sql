@@ -94,7 +94,7 @@ CREATE TABLE IF NOT EXISTS messages (
                                         id TEXT PRIMARY KEY,
                                         chat_id TEXT REFERENCES chats(id),
                                         sender_id UUID REFERENCES users(id),
-                                        content TEXT NOT NULL,
+                                        content TEXT,
                                         message_type VARCHAR(20) DEFAULT 'text' NOT NULL,
                                         created_at timestamptz DEFAULT now() NOT NULL,
                                         updated_at timestamptz NOT NULL,
@@ -110,7 +110,8 @@ CREATE TABLE IF NOT EXISTS message_attachments (
                                                    file_type VARCHAR(20) NOT NULL,
                                                    file_name TEXT NOT NULL,
                                                    file_size INTEGER NOT NULL,
-                                                   uploaded_at timestamptz DEFAULT now() NOT NULL
+                                                   uploaded_at timestamptz DEFAULT now() NOT NULL,
+                                                   chat_id text REFERENCES chats(id)
 );
 
 CREATE TABLE IF NOT EXISTS message_reads (
@@ -120,3 +121,9 @@ CREATE TABLE IF NOT EXISTS message_reads (
                                              read_at timestamptz DEFAULT now(),
                                              PRIMARY KEY (user_id, message_id)
 );
+
+ALTER TABLE messages
+    ALTER COLUMN content DROP NOT NULL;
+
+ALTER TABLE message_attachments
+    ADD COLUMN chat_id text REFERENCES chats(id);

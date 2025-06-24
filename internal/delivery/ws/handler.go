@@ -83,7 +83,6 @@ func (h *WebSocketHandler) HandleWS(c *gin.Context) {
 
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
-		log.Println("Upgrade error:", err)
 		return
 	}
 	defer conn.Close()
@@ -117,39 +116,25 @@ func (h *WebSocketHandler) HandleWS(c *gin.Context) {
 			break
 		}
 
-		var wsMsg domain.Message
-		_ = json.Unmarshal(raw, &wsMsg)
-
-		addData := domain.Message{
-			ID:          "",
-			ChatID:      roomId,
-			SenderID:    client.ID,
-			Content:     wsMsg.Content,
-			MessageType: wsMsg.MessageType,
-			CreatedAt:   time.Now(),
-			UpdatedAt:   time.Now(),
-		}
-
-		_ = h.msgRepo.AddMessage(&addData)
-
-		dataStr, _ := json.Marshal(addData)
-
 		msg := WebSocketMessage{
 			Type:   types.TypeMessage,
 			UserID: client.ID,
-			Data:   string(dataStr),
+			Data:   string(raw),
 			RoomID: roomId,
 		}
 		sendJSONToRoom(roomId, msg)
 
+		var message domain.Message
+		err = json.Unmarshal(raw, &message)
+
 		messageNotificationData := MessageNotification{
 			ChatID:          roomId,
-			LastMessage:     wsMsg.Content,
-			LastMessageType: wsMsg.MessageType,
+			LastMessage:     message.Content,
+			LastMessageType: message.MessageType,
 			LastMessageTime: time.Now(),
 		}
 
-		dataStr, _ = json.Marshal(messageNotificationData)
+		dataStr, _ := json.Marshal(messageNotificationData)
 
 		msgNotificationGlobal := WebSocketMessage{
 			Type:   types.TypeMessageNotification,

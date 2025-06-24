@@ -3,6 +3,7 @@ package domain
 import (
 	"github.com/google/uuid"
 	"go-postgres-test/internal/types"
+	"io"
 	"time"
 )
 
@@ -17,9 +18,24 @@ type Message struct {
 	IsEdited    bool              `db:"isEdited" json:"isEdited"`
 	IsDeleted   bool              `db:"isDeleted" json:"isDeleted"`
 	ReplyTo     *uuid.UUID        `db:"replyTo" json:"replyTo"`
+	Attachments []Attachment      `db:"attachments" json:"attachments"`
+}
+
+type Attachment struct {
+	ID         uuid.UUID         `json:"id"`
+	MessageID  string            `json:"messageID"`
+	ChatID     string            `json:"chatID"`
+	FileUrl    string            `json:"fileUrl"`
+	FileType   types.MessageType `json:"fileType"`
+	FileSize   int64             `json:"fileSize"`
+	FileName   string            `json:"fileName"`
+	Size       int64             `json:"size"`
+	UploadedAt time.Time         `json:"uploadedAt"`
 }
 
 type MessageRepository interface {
 	AddMessage(message *Message) error
+	UploadImage(image io.Reader) (string, error)
 	GetAllMessages(chatId string) ([]*Message, error)
+	AddAttachment(attachment *Attachment) error
 }

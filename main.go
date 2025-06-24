@@ -2,17 +2,24 @@ package main
 
 import (
 	"fmt"
-	"go-postgres-test/internal/delivery/handlers"
-	"go-postgres-test/internal/delivery/ws"
-
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 	"go-postgres-test/infrastructure/db"
+	"go-postgres-test/internal/delivery/handlers"
+	"go-postgres-test/internal/delivery/ws"
 	"go-postgres-test/internal/repository"
 	"go-postgres-test/internal/usecase"
+	"log"
+	"os"
 )
 
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Println("⚠️ no .env")
+	}
+
 	dbPool := db.ConnectDB()
 	defer dbPool.Close()
 
@@ -24,7 +31,7 @@ func main() {
 	taskUC := usecase.NewTaskUseCase(taskRepo)
 	taskHandler := handlers.NewTaskHandler(taskUC)
 
-	messageRepo := repository.NewMessageRepository(dbPool)
+	messageRepo := repository.NewMessageRepository(dbPool, os.Getenv("IMAGE_STORAGE_API_KEY"))
 	messageUC := usecase.NewMessageUsecase(messageRepo)
 	messageHandler := handlers.NewMessageHandler(messageUC)
 
