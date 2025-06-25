@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go-postgres-test/internal/domain"
+	"log"
 	"time"
 )
 
@@ -20,20 +21,37 @@ func (r *taskRepository) CreateTask(task *domain.Task) (bool, error) {
 	task.CreatedAt = time.Now()
 	task.UpdatedAt = time.Now()
 
-	_, err := r.conn.Exec(context.Background(),
+	var maxPos sql.NullInt32
+	err := r.conn.QueryRow(
+		context.Background(),
+		`SELECT MAX(position) FROM tasks WHERE column_id = $1`,
+		task.ColumnID,
+	).Scan(&maxPos)
+	if err != nil {
+		return false, err
+	}
+	if maxPos.Valid {
+		task.Position = int(maxPos.Int32 + 1)
+	} else {
+		task.Position = 0
+	}
+
+	_, err = r.conn.Exec(context.Background(),
 		`INSERT INTO tasks (
-        id,
-        workspace_id,
-        author_id,
-        created_at,
-        title,
-        description,
-        is_finished,
-        due_date,
-        priority,
-        updated_at,
-		column_id
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+    id,
+    workspace_id,
+    author_id,
+    created_at,
+    title,
+    description,
+    is_finished,
+    due_date,
+    priority,
+    status,
+    updated_at,
+	column_id,
+    position
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
 		task.ID,
 		task.WorkspaceID,
 		task.AuthorID,
@@ -43,8 +61,10 @@ func (r *taskRepository) CreateTask(task *domain.Task) (bool, error) {
 		task.IsFinished,
 		task.DueDate,
 		task.Priority,
+		task.Status,
 		task.UpdatedAt,
 		task.ColumnID,
+		task.Position,
 	)
 
 	if err != nil {
@@ -94,17 +114,19 @@ func (r *taskRepository) GetAllColumns(workspaceId uuid.UUID) ([]*domain.TaskCol
 func (r *taskRepository) GetAllTasks(workspaceId uuid.UUID) ([]*domain.Task, error) {
 	rows, err := r.conn.Query(context.Background(),
 		`SELECT 
-				id, 
-				column_id, 
-				author_id, 
-				created_at, 
-				title,
-				description,
-				is_finished,
-				due_date,
-				priority,
-				updated_at
-			FROM tasks WHERE workspace_id = $1`, workspaceId)
+	id, 
+	column_id, 
+	author_id, 
+	created_at, 
+	title,
+	description,
+	is_finished,
+	due_date,
+	priority,
+	status,
+	position,
+	updated_at
+FROM tasks WHERE workspace_id = $1`, workspaceId)
 
 	if err != nil {
 		return nil, err
@@ -118,7 +140,9 @@ func (r *taskRepository) GetAllTasks(workspaceId uuid.UUID) ([]*domain.Task, err
 			description sql.NullString
 			dueDate     sql.NullTime
 			priority    sql.NullInt64
+			status      sql.NullInt64
 		)
+
 		if err := rows.Scan(
 			&task.ID,
 			&task.ColumnID,
@@ -129,11 +153,12 @@ func (r *taskRepository) GetAllTasks(workspaceId uuid.UUID) ([]*domain.Task, err
 			&task.IsFinished,
 			&dueDate,
 			&priority,
-			&task.UpdatedAt); err != nil {
+			&status,
+			&task.Position,
+			&task.UpdatedAt,
+		); err != nil {
 			return nil, err
 		}
-
-		task.WorkspaceID = workspaceId
 
 		if description.Valid {
 			task.Description = &description.String
@@ -144,7 +169,13 @@ func (r *taskRepository) GetAllTasks(workspaceId uuid.UUID) ([]*domain.Task, err
 		}
 
 		if priority.Valid {
-			task.Priority = &priority.Int64
+			val := int(priority.Int64)
+			task.Priority = &val
+		}
+
+		if status.Valid {
+			val := int(status.Int64)
+			task.Status = &val
 		}
 
 		taskList = append(taskList, &task)
@@ -155,36 +186,171 @@ func (r *taskRepository) GetAllTasks(workspaceId uuid.UUID) ([]*domain.Task, err
 
 func (r *taskRepository) UpdateTaskTitle(taskId uuid.UUID, title string) error {
 	_, err := r.conn.Exec(context.Background(),
-		`UPDATE tasks SET title = $1, updated_at = NOW() WHERE id = $2`, title, taskId)
+		`UPDATE tasks 
+         SET 
+             title = $1,
+             updated_at = NOW()
+         WHERE id = $2`,
+		title,
+		taskId,
+	)
 	return err
 }
 
 func (r *taskRepository) UpdateTaskColumn(taskId uuid.UUID, columnId uuid.UUID) error {
 	_, err := r.conn.Exec(context.Background(),
-		`UPDATE tasks SET column_id = $1, updated_at = NOW()  WHERE id = $2`, columnId, taskId)
+		`UPDATE tasks 
+         SET 
+             column_id = $1,
+             updated_at = NOW()
+         WHERE id = $2`,
+		columnId,
+		taskId,
+	)
 	return err
 }
 
 func (r *taskRepository) UpdateTaskDescription(taskId uuid.UUID, description string) error {
 	_, err := r.conn.Exec(context.Background(),
-		`UPDATE tasks SET description = $1, updated_at = NOW() WHERE id = $2`, taskId, description)
+		`UPDATE tasks 
+         SET 
+             description = $1,
+             updated_at = NOW()
+         WHERE id = $2`,
+		description,
+		taskId,
+	)
 	return err
 }
 
 func (r *taskRepository) UpdateTaskIsFinished(taskId uuid.UUID, isFinished bool) error {
 	_, err := r.conn.Exec(context.Background(),
-		`UPDATE tasks SET is_finished = $1, updated_at = NOW() WHERE id = $2`, isFinished, taskId)
+		`UPDATE tasks 
+         SET 
+             is_finished = $1,
+             updated_at = NOW()
+         WHERE id = $2`,
+		isFinished,
+		taskId,
+	)
 	return err
 }
 
 func (r *taskRepository) UpdateTaskDueDate(taskId uuid.UUID, dueDate time.Time) error {
 	_, err := r.conn.Exec(context.Background(),
-		`UPDATE tasks SET due_date = $1, updated_at = NOW() WHERE id = $2`, dueDate, taskId)
+		`UPDATE tasks 
+         SET 
+             due_date = $1,
+             updated_at = NOW()
+         WHERE id = $2`,
+		dueDate,
+		taskId,
+	)
 	return err
 }
 
 func (r *taskRepository) UpdateTaskPriority(taskId uuid.UUID, priority int) error {
 	_, err := r.conn.Exec(context.Background(),
-		`UPDATE tasks SET priority = $1, updated_at = NOW() WHERE id = $2`, priority, taskId)
+		`UPDATE tasks 
+         SET 
+             priority = $1,
+             updated_at = NOW()
+         WHERE id = $2`,
+		priority,
+		taskId,
+	)
 	return err
+}
+func (r *taskRepository) UpdateTask(task *domain.Task) error {
+	tx, err := r.conn.Begin(context.Background())
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(context.Background())
+
+	log.Printf("UpdateTask: task=%+v", task)
+
+	_, err = tx.Exec(context.Background(),
+		`UPDATE tasks
+         SET position = new_position
+         FROM (
+             SELECT id, ROW_NUMBER() OVER (ORDER BY position) - 1 AS new_position
+             FROM tasks
+             WHERE column_id = $1
+         ) AS ranked
+         WHERE tasks.id = ranked.id`,
+		task.ColumnID,
+	)
+	if err != nil {
+		log.Printf("UpdateTask error: %v", err)
+		return err
+	}
+
+	_, err = tx.Exec(context.Background(),
+		`UPDATE tasks 
+         SET 
+             title = $1,
+             description = $2,
+             is_finished = $3,
+             due_date = $4,
+             priority = $5,
+             status = $6,
+             column_id = $7,
+             updated_at = NOW()
+         WHERE id = $8`,
+		task.Title,
+		task.Description,
+		task.IsFinished,
+		task.DueDate,
+		task.Priority,
+		task.Status,
+		task.ColumnID,
+		task.ID,
+	)
+	if err != nil {
+		log.Printf("UpdateTask error: %v", err)
+		return err
+	}
+
+	return tx.Commit(context.Background())
+}
+
+func (r *taskRepository) UpdateTaskPosition(taskId uuid.UUID, position int) error {
+	_, err := r.conn.Exec(context.Background(),
+		`UPDATE tasks 
+         SET position = $1,
+             updated_at = NOW()
+         WHERE id = $2`,
+		position,
+		taskId,
+	)
+	return err
+}
+
+func (r *taskRepository) ReorderTasks(columnId uuid.UUID, orderedTaskIDs []uuid.UUID) error {
+	tx, err := r.conn.Begin(context.Background())
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(context.Background())
+
+	log.Printf("ReorderTasks: columnId=%s, orderedTaskIDs=%v", columnId, orderedTaskIDs)
+
+	for index, taskID := range orderedTaskIDs {
+		_, err := tx.Exec(
+			context.Background(),
+			`UPDATE tasks
+            SET position = $1, column_id = $2, updated_at = NOW()
+            WHERE id = $3`,
+			index,
+			columnId,
+			taskID,
+		)
+		if err != nil {
+			log.Printf("ReorderTasks error for task %s: %v", taskID, err)
+			return err
+		}
+	}
+
+	return tx.Commit(context.Background())
 }

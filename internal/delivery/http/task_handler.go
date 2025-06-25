@@ -8,8 +8,8 @@ import (
 	"go-postgres-test/internal/domain"
 	"go-postgres-test/internal/middleware"
 	"go-postgres-test/internal/usecase"
+	"log"
 	"net/http"
-	"time"
 )
 
 type TaskHandler struct {
@@ -23,7 +23,13 @@ type RawTask struct {
 	IsFinished  bool           `json:"isFinished"`
 	Description sql.NullString `json:"description"`
 	DueDate     sql.NullTime   `json:"dueDate"`
-	Priority    sql.NullInt64  `json:"priority"`
+	Priority    int            `json:"priority"`
+	Status      int            `json:"status"`
+}
+
+type ReorderRequest struct {
+	ColumnID uuid.UUID   `json:"columnId"`
+	TaskIDs  []uuid.UUID `json:"taskIds"`
 }
 
 func NewTaskHandler(uc *usecase.TaskUseCase) *TaskHandler { return &TaskHandler{uc: uc} }
@@ -36,19 +42,13 @@ func (h *TaskHandler) RegisterRoutes(router *gin.RouterGroup) {
 	protected.GET("/get-all-columns/:id", h.GetAllColumns)
 	protected.GET("/get-all-tasks/:id", h.GetAllTasks)
 
-	protected.PATCH("/update-task-title", h.UpdateTaskTitle)
-	protected.PATCH("/update-task-column", h.UpdateTaskColumn)
-	protected.PATCH("/update-task-description", h.UpdateTaskDescription)
-	protected.PATCH("/update-task-is-finished", h.UpdateTaskIsFinished)
-	protected.PATCH("/update-task-due-date", h.UpdateTaskDueDate)
-	protected.PATCH("/update-task-priority", h.UpdateTaskPriority)
-
+	protected.POST("/update-task", h.UpdateTask)
 	protected.POST("/create-task", h.CreateTask)
+	protected.POST("/reorder-tasks", h.ReorderTasks)
 }
 
 func (h *TaskHandler) CreateTask(c *gin.Context) {
 	userIdStr, exists := c.Get("userId")
-
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
 		return
@@ -59,7 +59,6 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 	var err error
 
 	task.AuthorID, err = uuid.Parse(userIdStr.(string))
-
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
 		return
@@ -74,13 +73,21 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 	task.WorkspaceID = rawTask.WorkspaceID
 	task.Title = rawTask.Title
 	task.IsFinished = rawTask.IsFinished
-	task.Description = &rawTask.Description.String
-	task.DueDate = &rawTask.DueDate.Time
-	task.Priority = &rawTask.Priority.Int64
+
+	if rawTask.Description.Valid {
+		task.Description = &rawTask.Description.String
+	}
+
+	if rawTask.DueDate.Valid {
+		task.DueDate = &rawTask.DueDate.Time
+	}
+
+	task.Priority = &rawTask.Priority
+	task.Status = &rawTask.Status
 
 	status, err := h.uc.CreateTask(&task)
-
 	if err != nil {
+		log.Printf("CreateTask error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -119,123 +126,51 @@ func (h *TaskHandler) GetAllTasks(c *gin.Context) {
 	tasks, err := h.uc.GetAllTasks(id)
 
 	if err != nil {
+		log.Println("GetAllTasks error:", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+
 		return
 	}
 
 	c.JSON(http.StatusOK, tasks)
 }
 
-func (h *TaskHandler) UpdateTaskTitle(c *gin.Context) {
-	var input struct {
-		Title  string    `json:"title"`
-		TaskId uuid.UUID `json:"taskId"`
-	}
+func (h *TaskHandler) UpdateTask(c *gin.Context) {
+	var task domain.Task
 
-	if err := c.ShouldBindJSON(&input); err != nil {
+	if err := c.ShouldBindJSON(&task); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	if err := h.uc.UpdateTaskTitle(input.TaskId, input.Title); err != nil {
+	if err := h.uc.UpdateTask(&task); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.Status(http.StatusOK)
+	c.JSON(http.StatusOK, task)
 }
 
-func (h *TaskHandler) UpdateTaskColumn(c *gin.Context) {
-	var input struct {
-		ColumnId uuid.UUID `json:"columnId"`
-		TaskId   uuid.UUID `json:"taskId"`
-	}
-
-	if err := c.ShouldBindJSON(&input); err != nil {
+func (h *TaskHandler) ReorderTasks(c *gin.Context) {
+	var req ReorderRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	if err := h.uc.UpdateTaskColumn(input.TaskId, input.ColumnId); err != nil {
+	if err := h.uc.ReorderTasks(req.ColumnID, req.TaskIDs); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.Status(http.StatusOK)
-}
-
-func (h *TaskHandler) UpdateTaskDescription(c *gin.Context) {
-	var input struct {
-		Description string    `json:"description"`
-		TaskId      uuid.UUID `json:"taskId"`
-	}
-
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	if err := h.uc.UpdateTaskDescription(input.TaskId, input.Description); err != nil {
+	tasks, err := h.uc.GetAllTasks(uuid.UUID{})
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.Status(http.StatusOK)
-}
-
-func (h *TaskHandler) UpdateTaskIsFinished(c *gin.Context) {
-	var input struct {
-		IsFinished bool      `json:"isFinished"`
-		TaskId     uuid.UUID `json:"taskId"`
-	}
-
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	if err := h.uc.UpdateTaskIsFinished(input.TaskId, input.IsFinished); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.Status(http.StatusOK)
-}
-
-func (h *TaskHandler) UpdateTaskDueDate(c *gin.Context) {
-	var input struct {
-		DueDate time.Time `json:"dueDate"`
-		TaskId  uuid.UUID `json:"taskId"`
-	}
-
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	if err := h.uc.UpdateTaskDueDate(input.TaskId, input.DueDate); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.Status(http.StatusOK)
-}
-
-func (h *TaskHandler) UpdateTaskPriority(c *gin.Context) {
-	var input struct {
-		Priority int       `json:"priority"`
-		TaskId   uuid.UUID `json:"taskId"`
-	}
-
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	if err := h.uc.UpdateTaskPriority(input.TaskId, input.Priority); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.Status(http.StatusOK)
+	c.JSON(http.StatusOK, gin.H{
+		"status": "reordered",
+		"tasks":  tasks,
+	})
 }
