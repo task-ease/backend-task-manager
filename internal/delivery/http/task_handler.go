@@ -65,6 +65,7 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&rawTask); err != nil {
+		log.Println(err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
