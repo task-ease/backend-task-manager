@@ -1,7 +1,6 @@
 package http
 
 import (
-	"database/sql"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"go-postgres-test/infrastructure/auth"
@@ -10,6 +9,7 @@ import (
 	"go-postgres-test/internal/usecase"
 	"log"
 	"net/http"
+	"time"
 )
 
 type TaskHandler struct {
@@ -17,14 +17,14 @@ type TaskHandler struct {
 }
 
 type RawTask struct {
-	ColumnID    uuid.UUID      `json:"columnId"`
-	WorkspaceID uuid.UUID      `json:"workspaceId"`
-	Title       string         `json:"title"`
-	IsFinished  bool           `json:"isFinished"`
-	Description sql.NullString `json:"description"`
-	DueDate     sql.NullTime   `json:"dueDate"`
-	Priority    int            `json:"priority"`
-	Status      int            `json:"status"`
+	ColumnID    uuid.UUID  `json:"columnId"`
+	WorkspaceID uuid.UUID  `json:"workspaceId"`
+	Title       string     `json:"title"`
+	IsFinished  bool       `json:"isFinished"`
+	Description *string    `json:"description"`
+	DueDate     *time.Time `json:"dueDate"`
+	Priority    int        `json:"priority"`
+	Status      int        `json:"status"`
 }
 
 type ReorderRequest struct {
@@ -65,7 +65,6 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&rawTask); err != nil {
-		log.Println(err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -75,20 +74,11 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 	task.Title = rawTask.Title
 	task.IsFinished = rawTask.IsFinished
 
-	if rawTask.Description.Valid {
-		task.Description = &rawTask.Description.String
-	}
-
-	if rawTask.DueDate.Valid {
-		task.DueDate = &rawTask.DueDate.Time
-	}
-
 	task.Priority = &rawTask.Priority
 	task.Status = &rawTask.Status
 
 	status, err := h.uc.CreateTask(&task)
 	if err != nil {
-		log.Printf("CreateTask error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

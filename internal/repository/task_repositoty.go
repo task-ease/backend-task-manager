@@ -21,7 +21,7 @@ func (r *taskRepository) CreateTask(task *domain.Task) (bool, error) {
 	task.CreatedAt = time.Now()
 	task.UpdatedAt = time.Now()
 
-	var maxPos sql.NullInt32
+	var maxPos int
 	err := r.conn.QueryRow(
 		context.Background(),
 		`SELECT MAX(position) FROM tasks WHERE column_id = $1`,
@@ -29,11 +29,6 @@ func (r *taskRepository) CreateTask(task *domain.Task) (bool, error) {
 	).Scan(&maxPos)
 	if err != nil {
 		return false, err
-	}
-	if maxPos.Valid {
-		task.Position = int(maxPos.Int32 + 1)
-	} else {
-		task.Position = 0
 	}
 
 	_, err = r.conn.Exec(context.Background(),
@@ -167,12 +162,6 @@ FROM tasks WHERE workspace_id = $1`, workspaceId)
 		if dueDate.Valid {
 			task.DueDate = &dueDate.Time
 		}
-
-		if priority.Valid {
-			val := int(priority.Int64)
-			task.Priority = &val
-		}
-
 		if status.Valid {
 			val := int(status.Int64)
 			task.Status = &val
@@ -267,8 +256,6 @@ func (r *taskRepository) UpdateTask(task *domain.Task) error {
 		return err
 	}
 	defer tx.Rollback(context.Background())
-
-	log.Printf("UpdateTask: task=%+v", task)
 
 	_, err = tx.Exec(context.Background(),
 		`UPDATE tasks
