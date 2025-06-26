@@ -27,6 +27,7 @@ type TaskColumn struct {
 	Name        string    `json:"name"`
 	Position    int       `json:"position"`
 	Color       string    `json:"color"`
+	IsDone      bool      `json:"isDone"`
 }
 
 type TaskRepository interface {
@@ -37,4 +38,6 @@ type TaskRepository interface {
 
 	ReorderTasks(columnId uuid.UUID, orderedTaskIDs []uuid.UUID) error
 	UpdateTask(task *Task) error
+	MarkColumnAsDone(columnID uuid.UUID, isDone bool) error
+	UpdateColumn(id, name, color string) error
 }

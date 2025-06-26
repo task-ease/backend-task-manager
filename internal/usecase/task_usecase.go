@@ -32,3 +32,11 @@ func (uc *TaskUseCase) UpdateTask(task *domain.Task) error {
 func (uc *TaskUseCase) ReorderTasks(columnId uuid.UUID, orderedTaskIDs []uuid.UUID) error {
 	return uc.repo.ReorderTasks(columnId, orderedTaskIDs)
 }
+
+func (uc *TaskUseCase) MarkColumnAsDone(columnID uuid.UUID, isDone bool) error {
+	return uc.repo.MarkColumnAsDone(columnID, isDone)
+}
+
+func (uc *TaskUseCase) UpdateColumn(id, name, color string) error {
+	return uc.repo.UpdateColumn(id, name, color)
+}

@@ -32,6 +32,11 @@ type ReorderRequest struct {
 	TaskIDs  []uuid.UUID `json:"taskIds"`
 }
 
+type SetDoneColumnRequest struct {
+	WorkspaceID uuid.UUID `json:"workspaceId"`
+	ColumnID    uuid.UUID `json:"columnId"`
+}
+
 func NewTaskHandler(uc *usecase.TaskUseCase) *TaskHandler { return &TaskHandler{uc: uc} }
 
 func (h *TaskHandler) RegisterRoutes(router *gin.RouterGroup) {
@@ -45,6 +50,8 @@ func (h *TaskHandler) RegisterRoutes(router *gin.RouterGroup) {
 	protected.POST("/update-task", h.UpdateTask)
 	protected.POST("/create-task", h.CreateTask)
 	protected.POST("/reorder-tasks", h.ReorderTasks)
+	protected.POST("/mark-column-done", h.MarkColumnAsDone)
+	protected.POST("/update-column", h.UpdateColumn)
 }
 
 func (h *TaskHandler) CreateTask(c *gin.Context) {
@@ -164,4 +171,46 @@ func (h *TaskHandler) ReorderTasks(c *gin.Context) {
 		"status": "reordered",
 		"tasks":  tasks,
 	})
+}
+
+type MarkDoneColumnRequest struct {
+	ColumnID uuid.UUID `json:"columnId"`
+	IsDone   bool      `json:"isDone"`
+}
+
+func (h *TaskHandler) MarkColumnAsDone(c *gin.Context) {
+	var req MarkDoneColumnRequest
+	if err := c.BindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+
+	if err := h.uc.MarkColumnAsDone(req.ColumnID, req.IsDone); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "update failed"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true})
+}
+
+func (h *TaskHandler) UpdateColumn(c *gin.Context) {
+	var input struct {
+		ID    string `json:"id"`
+		Name  string `json:"name"`
+		Color string `json:"color"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		return
+	}
+
+	log.Printf("Received update request for column: ID=%s, Name=%s, Color=%s\n", input.ID, input.Name, input.Color)
+
+	if err := h.uc.UpdateColumn(input.ID, input.Name, input.Color); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update column"})
+		return
+	}
+
+	c.Status(http.StatusOK)
 }

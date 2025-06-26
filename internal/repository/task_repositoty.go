@@ -31,6 +31,8 @@ func (r *taskRepository) CreateTask(task *domain.Task) (bool, error) {
 		return false, err
 	}
 
+	task.Position = maxPos + 1
+
 	_, err = r.conn.Exec(context.Background(),
 		`INSERT INTO tasks (
     id,
@@ -88,7 +90,7 @@ func (r *taskRepository) CreateColumn(name string, workspaceId uuid.UUID, positi
 
 func (r *taskRepository) GetAllColumns(workspaceId uuid.UUID) ([]*domain.TaskColumn, error) {
 	rows, err := r.conn.Query(context.Background(),
-		`SELECT id, workspace_id, name, position, color FROM task_columns WHERE workspace_id = $1`, workspaceId)
+		`SELECT id, workspace_id, name, position, color, is_done FROM task_columns WHERE workspace_id = $1`, workspaceId)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +99,7 @@ func (r *taskRepository) GetAllColumns(workspaceId uuid.UUID) ([]*domain.TaskCol
 	var taskColumns []*domain.TaskColumn
 	for rows.Next() {
 		var column domain.TaskColumn
-		if err := rows.Scan(&column.ID, &column.WorkspaceId, &column.Name, &column.Position, &column.Color); err != nil {
+		if err := rows.Scan(&column.ID, &column.WorkspaceId, &column.Name, &column.Position, &column.Color, &column.IsDone); err != nil {
 			return nil, err
 		}
 		taskColumns = append(taskColumns, &column)
@@ -173,83 +175,6 @@ FROM tasks WHERE workspace_id = $1`, workspaceId)
 	return taskList, nil
 }
 
-func (r *taskRepository) UpdateTaskTitle(taskId uuid.UUID, title string) error {
-	_, err := r.conn.Exec(context.Background(),
-		`UPDATE tasks 
-         SET 
-             title = $1,
-             updated_at = NOW()
-         WHERE id = $2`,
-		title,
-		taskId,
-	)
-	return err
-}
-
-func (r *taskRepository) UpdateTaskColumn(taskId uuid.UUID, columnId uuid.UUID) error {
-	_, err := r.conn.Exec(context.Background(),
-		`UPDATE tasks 
-         SET 
-             column_id = $1,
-             updated_at = NOW()
-         WHERE id = $2`,
-		columnId,
-		taskId,
-	)
-	return err
-}
-
-func (r *taskRepository) UpdateTaskDescription(taskId uuid.UUID, description string) error {
-	_, err := r.conn.Exec(context.Background(),
-		`UPDATE tasks 
-         SET 
-             description = $1,
-             updated_at = NOW()
-         WHERE id = $2`,
-		description,
-		taskId,
-	)
-	return err
-}
-
-func (r *taskRepository) UpdateTaskIsFinished(taskId uuid.UUID, isFinished bool) error {
-	_, err := r.conn.Exec(context.Background(),
-		`UPDATE tasks 
-         SET 
-             is_finished = $1,
-             updated_at = NOW()
-         WHERE id = $2`,
-		isFinished,
-		taskId,
-	)
-	return err
-}
-
-func (r *taskRepository) UpdateTaskDueDate(taskId uuid.UUID, dueDate time.Time) error {
-	_, err := r.conn.Exec(context.Background(),
-		`UPDATE tasks 
-         SET 
-             due_date = $1,
-             updated_at = NOW()
-         WHERE id = $2`,
-		dueDate,
-		taskId,
-	)
-	return err
-}
-
-func (r *taskRepository) UpdateTaskPriority(taskId uuid.UUID, priority int) error {
-	_, err := r.conn.Exec(context.Background(),
-		`UPDATE tasks 
-         SET 
-             priority = $1,
-             updated_at = NOW()
-         WHERE id = $2`,
-		priority,
-		taskId,
-	)
-	return err
-}
 func (r *taskRepository) UpdateTask(task *domain.Task) error {
 	tx, err := r.conn.Begin(context.Background())
 	if err != nil {
@@ -340,4 +265,30 @@ func (r *taskRepository) ReorderTasks(columnId uuid.UUID, orderedTaskIDs []uuid.
 	}
 
 	return tx.Commit(context.Background())
+}
+
+func (r *taskRepository) MarkColumnAsDone(columnID uuid.UUID, isDone bool) error {
+	ctx := context.Background()
+
+	_, err := r.conn.Exec(ctx, `UPDATE task_columns SET is_done = FALSE WHERE is_done = TRUE`)
+	if err != nil {
+		return err
+	}
+
+	_, err = r.conn.Exec(ctx,
+		`UPDATE task_columns SET is_done = $1 WHERE id = $2`,
+		isDone,
+		columnID,
+	)
+	return err
+}
+
+func (r *taskRepository) UpdateColumn(id, name, color string) error {
+	_, err := r.conn.Exec(
+		context.Background(),
+		`UPDATE task_columns SET name = $1, color = $2 WHERE id = $3`,
+		name, color, id,
+	)
+
+	return err
 }
