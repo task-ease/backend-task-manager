@@ -3,6 +3,6 @@ package types
 type UserChatRole string
 
 const (
-	UserDefault UserChatRole = "user"
-	UserAdmin   UserChatRole = "admin"
+	UserDefault UserChatRole = "USER"
+	UserAdmin   UserChatRole = "ADMIN"
 )

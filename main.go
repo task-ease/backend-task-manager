@@ -17,7 +17,7 @@ import (
 func main() {
 	err := godotenv.Load()
 	if err != nil {
-		log.Println("⚠️ no .env")
+		log.Println("no .env")
 	}
 
 	dbPool := db.ConnectDB()

@@ -17,6 +17,7 @@ type Message struct {
 	UpdatedAt   time.Time         `db:"updatedAt" json:"updatedAt"`
 	IsEdited    bool              `db:"isEdited" json:"isEdited"`
 	IsDeleted   bool              `db:"isDeleted" json:"isDeleted"`
+	IsRead      bool              `db:"isRead" json:"isRead"`
 	ReplyTo     *uuid.UUID        `db:"replyTo" json:"replyTo"`
 	Attachments []Attachment      `db:"attachments" json:"attachments"`
 }
@@ -38,4 +39,6 @@ type MessageRepository interface {
 	UploadImage(image io.Reader) (string, error)
 	GetAllMessages(chatId string) ([]*Message, error)
 	AddAttachment(attachment *Attachment) error
+	SetMessageRead(message *Message, userId uuid.UUID) (*string, error)
+	SetMessagesRead(messages *[]Message, userId uuid.UUID) (*[]string, error)
 }

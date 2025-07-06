@@ -32,7 +32,7 @@ func (r *chatRepo) CreateChat(chat *domain.Chat, participantId uuid.UUID) error 
 	_, err := r.conn.Exec(
 		context.Background(),
 		`INSERT INTO chats (id, workspace_id, creator_id, type, created_at, updated_at, last_message_time)
-			VALUES ($1, $2, $3, $4, $5, $6, $7)`, chat.ID, chat.WorkspaceID, chat.CreatorID, chat.Type, time.Now(), time.Now(), time.Now())
+			VALUES ($1, $2, $3, $4, $5, $6, $7)`, chat.ID, chat.WorkspaceID, chat.CreatorID, chat.Type, time.Now().UTC(), time.Now().UTC(), time.Now().UTC())
 
 	if err != nil {
 		return err
@@ -51,8 +51,8 @@ func (r *chatRepo) CreateChat(chat *domain.Chat, participantId uuid.UUID) error 
 		SenderID:    chat.CreatorID,
 		MessageType: types.MessageSystem,
 		Content:     "chat created",
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+		CreatedAt:   time.Now().UTC(),
+		UpdatedAt:   time.Now().UTC(),
 	}
 
 	err = r.messageRepo.AddMessage(&systemMessage)
@@ -78,8 +78,8 @@ func (r *chatRepo) GetAllUserChats(userId uuid.UUID, workspaceId uuid.UUID) ([]r
   			u2.id
 		FROM user_chats uc
 		JOIN chats c ON c.id = uc.chat_id
-		JOIN user_chats uc2 ON uc2.chat_id = uc.chat_id AND uc2.user_id != $1
-		JOIN users u2 ON u2.id = uc2.user_id
+		LEFT JOIN user_chats uc2 ON uc2.chat_id = uc.chat_id AND uc2.user_id != $1
+		LEFT JOIN users u2 ON u2.id = uc2.user_id
 		WHERE uc.user_id = $1 AND c.workspace_id = $2`, userId, workspaceId)
 
 	if err != nil {
@@ -119,11 +119,17 @@ func (r *chatRepo) getUserNameById(chatId string, userId uuid.UUID, name *string
 
 func (r *chatRepo) getLastMessageInfo(chat *response.GetChats) error {
 	err := r.conn.QueryRow(context.Background(), `
-		SELECT m.content, m.message_type, m.created_at 
+		SELECT
+		    m.content,
+		    m.message_type, 
+		    m.created_at,
+			COALESCE(ma.file_url, '') as lastMessageAttachment
 		FROM messages m
-		WHERE chat_id = $1
+		LEFT JOIN message_attachments ma
+			ON ma.message_id = m.id AND m.message_type = $2
+		WHERE m.chat_id = $1
 		ORDER BY m.created_at DESC
-		LIMIT 1`, chat.ID).Scan(&chat.LastMessage, &chat.LastMessageType, &chat.LastMessageTime)
+		LIMIT 1`, chat.ID, types.MessageImage).Scan(&chat.LastMessage, &chat.LastMessageType, &chat.LastMessageTime, &chat.LastMessageAttachment)
 	return err
 }
 

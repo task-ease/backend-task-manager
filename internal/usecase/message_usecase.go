@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"github.com/google/uuid"
 	"go-postgres-test/internal/domain"
 	"io"
 )
@@ -27,4 +28,8 @@ func (uc *MessageUsecase) UploadImage(image io.Reader) (string, error) {
 
 func (uc *MessageUsecase) AddAttachment(attachment *domain.Attachment) error {
 	return uc.repo.AddAttachment(attachment)
+}
+
+func (uc *MessageUsecase) SetMessagesRead(messages *[]domain.Message, userId uuid.UUID) (*[]string, error) {
+	return uc.repo.SetMessagesRead(messages, userId)
 }

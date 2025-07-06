@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"time"
 )
 
 type messageRepo struct {
@@ -31,6 +32,24 @@ func (r *messageRepo) AddMessage(message *domain.Message) error {
 	if err != nil {
 		return err
 	}
+
+	_, err = r.conn.Exec(context.Background(), `
+		INSERT INTO message_reads (user_id, message_id, chat_id)
+		SELECT uc.user_id, $1, $2
+		FROM user_chats uc
+		WHERE uc.chat_id = $2
+	  		AND uc.workspace_id = (
+	      	SELECT c.workspace_id
+	      	FROM chats c
+	      	WHERE c.id = $2
+	  	)
+	  	AND uc.user_id != $3;
+		`, message.ID, message.ChatID, message.SenderID)
+
+	if err != nil {
+		return err
+	}
+
 	_, err = r.conn.Exec(context.Background(),
 		`UPDATE chats SET updated_at = $1 WHERE id = $2`, message.UpdatedAt, message.ChatID)
 	return err
@@ -38,9 +57,11 @@ func (r *messageRepo) AddMessage(message *domain.Message) error {
 
 func (r *messageRepo) GetAllMessages(chatId string) ([]*domain.Message, error) {
 	rows, err := r.conn.Query(context.Background(), `
-		SELECT id, sender_id, content, message_type, created_at
+		SELECT id, sender_id, content, message_type, created_at, is_read
 		FROM messages
-		WHERE chat_id = $1`, chatId)
+		WHERE chat_id = $1
+		ORDER BY created_at
+		`, chatId)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +70,7 @@ func (r *messageRepo) GetAllMessages(chatId string) ([]*domain.Message, error) {
 	var messages []*domain.Message
 	for rows.Next() {
 		var message domain.Message
-		if err = rows.Scan(&message.ID, &message.SenderID, &message.Content, &message.MessageType, &message.CreatedAt); err != nil {
+		if err = rows.Scan(&message.ID, &message.SenderID, &message.Content, &message.MessageType, &message.CreatedAt, &message.IsRead); err != nil {
 			return nil, err
 		}
 
@@ -132,4 +153,54 @@ func (r *messageRepo) getAttachments(messageId string, attachments *[]domain.Att
 	}
 
 	return nil
+}
+
+func (r *messageRepo) SetMessageRead(message *domain.Message, userId uuid.UUID) (*string, error) {
+	_, err := r.conn.Exec(context.Background(), `
+		UPDATE message_reads 
+		SET read_at = $1 
+		WHERE message_id = $2 AND user_id = $3`,
+		time.Now().UTC(), message.ID, userId)
+	if err != nil {
+		return nil, err
+	}
+
+	var isRead bool
+
+	err = r.conn.QueryRow(context.Background(), `
+			SELECT COUNT(*) = 0
+			FROM message_reads
+			WHERE message_id = $1 AND read_at IS NULL`,
+		message.ID).Scan(&isRead)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if isRead {
+		_, err := r.conn.Exec(context.Background(), `
+		UPDATE messages
+		SET is_read = true
+		WHERE id = $1
+	`, message.ID)
+		if err != nil {
+			return nil, err
+		}
+		return &message.ID, nil
+	}
+
+	return nil, nil
+}
+
+func (r *messageRepo) SetMessagesRead(messages *[]domain.Message, userId uuid.UUID) (*[]string, error) {
+	var readList []string
+	for _, m := range *messages {
+		isReadID, err := r.SetMessageRead(&m, userId)
+		if err != nil {
+			return nil, err
+		} else if isReadID != nil {
+			readList = append(readList, *isReadID)
+		}
+	}
+	return &readList, nil
 }

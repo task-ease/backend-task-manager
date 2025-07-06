@@ -29,6 +29,7 @@ func (h *MessageHandler) RegisterRoutes(router *gin.RouterGroup) {
 	protected.GET("/get-all-messages/:chatId", h.GetAllMessages)
 	protected.PATCH("/upload-image-list/:chatId", h.UploadImageList)
 	protected.PATCH("/add-message", h.AddMessage)
+	protected.PATCH("/set-read", h.SetMessagesRead)
 }
 
 func (h *MessageHandler) GetAllMessages(c *gin.Context) {
@@ -66,8 +67,8 @@ func (h *MessageHandler) UploadImageList(c *gin.Context) {
 		SenderID:    userId,
 		Content:     content,
 		MessageType: types.MessageImage,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+		CreatedAt:   time.Now().UTC(),
+		UpdatedAt:   time.Now().UTC(),
 	}
 
 	err = h.uc.AddMessage(&message)
@@ -104,7 +105,7 @@ func (h *MessageHandler) UploadImageList(c *gin.Context) {
 			FileType:   types.MessageImage,
 			FileName:   fileHeader.Filename,
 			FileSize:   fileHeader.Size,
-			UploadedAt: time.Now(),
+			UploadedAt: time.Now().UTC(),
 			ChatID:     message.ChatID,
 		}
 
@@ -134,4 +135,35 @@ func (h *MessageHandler) AddMessage(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"messageId": message.ID})
+}
+
+func (h *MessageHandler) SetMessagesRead(c *gin.Context) {
+	var messages []domain.Message
+	if err := c.ShouldBindJSON(&messages); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	userIdStr, exists := c.Get("userId")
+
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "user id not found"})
+		return
+	}
+
+	userId, err := uuid.Parse(userIdStr.(string))
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	readList, err := h.uc.SetMessagesRead(&messages, userId)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"status": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, readList)
 }

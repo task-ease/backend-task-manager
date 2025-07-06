@@ -35,10 +35,11 @@ type WebSocketMessage struct {
 }
 
 type MessageNotification struct {
-	ChatID          string            `json:"chatID"`
-	LastMessage     string            `json:"lastMessage"`
-	LastMessageTime time.Time         `json:"lastMessageTime"`
-	LastMessageType types.MessageType `json:"lastMessageType"`
+	ChatID                string            `json:"chatID"`
+	LastMessage           string            `json:"lastMessage"`
+	LastMessageTime       time.Time         `json:"lastMessageTime"`
+	LastMessageType       types.MessageType `json:"lastMessageType"`
+	LastMessageAttachment *string           `json:"lastMessageAttachment"`
 }
 
 var upgrader = websocket.Upgrader{
@@ -127,11 +128,19 @@ func (h *WebSocketHandler) HandleWS(c *gin.Context) {
 		var message domain.Message
 		err = json.Unmarshal(raw, &message)
 
+		var lastAttachmentURL *string
+		if len(message.Attachments) > 0 {
+			lastAttachmentURL = &message.Attachments[0].FileUrl
+		} else {
+			lastAttachmentURL = nil
+		}
+
 		messageNotificationData := MessageNotification{
-			ChatID:          roomId,
-			LastMessage:     message.Content,
-			LastMessageType: message.MessageType,
-			LastMessageTime: time.Now(),
+			ChatID:                roomId,
+			LastMessage:           message.Content,
+			LastMessageType:       message.MessageType,
+			LastMessageTime:       time.Now().UTC(),
+			LastMessageAttachment: lastAttachmentURL,
 		}
 
 		dataStr, _ := json.Marshal(messageNotificationData)

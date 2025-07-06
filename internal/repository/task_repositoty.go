@@ -17,8 +17,8 @@ func NewTaskRepository(conn *pgxpool.Pool) domain.TaskRepository {
 
 func (r *taskRepository) CreateTask(task *domain.Task) (bool, error) {
 	task.ID = uuid.New()
-	task.CreatedAt = time.Now()
-	task.UpdatedAt = time.Now()
+	task.CreatedAt = time.Now().UTC()
+	task.UpdatedAt = time.Now().UTC()
 
 	_, err := r.conn.Exec(context.Background(),
 		`INSERT INTO tasks (

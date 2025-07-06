@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS chats (
                                      id TEXT PRIMARY KEY,
                                      workspace_id UUID REFERENCES workspaces(id),
                                      creator_id UUID REFERENCES users(id),
-                                     type VARCHAR(20) DEFAULT 'private' NOT NULL,
+                                     type VARCHAR(20) DEFAULT 'PRIVATE' NOT NULL,
                                      created_at timestamptz DEFAULT now() NOT NULL,
                                      updated_at timestamptz DEFAULT now() NOT NULL,
                                      last_message_time timestamptz NOT NULL
@@ -77,7 +77,7 @@ CREATE TABLE IF NOT EXISTS user_chats (
                                           muted BOOLEAN DEFAULT FALSE NOT NULL,
                                           pinned BOOLEAN DEFAULT FALSE NOT NULL,
                                           notification BOOLEAN DEFAULT TRUE NOT NULL,
-                                          role TEXT DEFAULT 'user' NOT NULL,
+                                          role TEXT DEFAULT 'USER' NOT NULL,
                                           joined_at timestamptz NOT NULL DEFAULT NOW(),
                                           PRIMARY KEY (chat_id, user_id, workspace_id)
 );
@@ -86,8 +86,7 @@ CREATE TABLE IF NOT EXISTS pinned_chat_position (
                                                     chat_id TEXT REFERENCES chats(id),
                                                     user_id UUID REFERENCES users(id),
                                                     position INTEGER NOT NULL,
-                                                    PRIMARY KEY (chat_id, user_id),
-                                                    FOREIGN KEY (chat_id, user_id) REFERENCES user_chats(chat_id, user_id)
+                                                    PRIMARY KEY (chat_id, user_id)
 );
 
 CREATE TABLE IF NOT EXISTS messages (
@@ -95,12 +94,13 @@ CREATE TABLE IF NOT EXISTS messages (
                                         chat_id TEXT REFERENCES chats(id),
                                         sender_id UUID REFERENCES users(id),
                                         content TEXT,
-                                        message_type VARCHAR(20) DEFAULT 'text' NOT NULL,
+                                        message_type VARCHAR(20) DEFAULT 'TEXT' NOT NULL,
                                         created_at timestamptz DEFAULT now() NOT NULL,
                                         updated_at timestamptz NOT NULL,
                                         is_edited BOOLEAN DEFAULT FALSE NOT NULL,
                                         is_deleted BOOLEAN DEFAULT FALSE NOT NULL,
-                                        reply_to TEXT REFERENCES messages(id)
+                                        reply_to TEXT REFERENCES messages(id),
+                                        is_read bool DEFAULT FALSE
 );
 
 CREATE TABLE IF NOT EXISTS message_attachments (
@@ -118,12 +118,6 @@ CREATE TABLE IF NOT EXISTS message_reads (
                                              user_id UUID REFERENCES users(id),
                                              message_id TEXT REFERENCES messages(id),
                                              chat_id TEXT REFERENCES chats(id),
-                                             read_at timestamptz DEFAULT now(),
+                                             read_at timestamptz,
                                              PRIMARY KEY (user_id, message_id)
 );
-
-ALTER TABLE messages
-    ALTER COLUMN content DROP NOT NULL;
-
-ALTER TABLE message_attachments
-    ADD COLUMN chat_id text REFERENCES chats(id);
