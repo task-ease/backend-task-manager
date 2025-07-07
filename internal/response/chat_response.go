@@ -19,6 +19,7 @@ type GetChats struct {
 	LastMessageAttachment *string            `json:"lastMessageAttachment"`
 	IsOnline              bool               `json:"isOnline"`
 	ParticipantID         *string            `json:"participantId"`
+	UnreadForUser         int                `json:"unreadForUser"`
 }
 
 type GetChatsSearch struct {

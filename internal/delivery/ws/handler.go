@@ -40,6 +40,7 @@ type MessageNotification struct {
 	LastMessageTime       time.Time         `json:"lastMessageTime"`
 	LastMessageType       types.MessageType `json:"lastMessageType"`
 	LastMessageAttachment *string           `json:"lastMessageAttachment"`
+	LastMessageSenderId   uuid.UUID         `json:"lastMessageSenderId"`
 }
 
 var upgrader = websocket.Upgrader{
@@ -117,42 +118,52 @@ func (h *WebSocketHandler) HandleWS(c *gin.Context) {
 			break
 		}
 
-		msg := WebSocketMessage{
-			Type:   types.TypeMessage,
-			UserID: client.ID,
-			Data:   string(raw),
-			RoomID: roomId,
-		}
-		sendJSONToRoom(roomId, msg)
-
-		var message domain.Message
-		err = json.Unmarshal(raw, &message)
-
-		var lastAttachmentURL *string
-		if len(message.Attachments) > 0 {
-			lastAttachmentURL = &message.Attachments[0].FileUrl
-		} else {
-			lastAttachmentURL = nil
+		var incomingMsg WebSocketMessage
+		err = json.Unmarshal(raw, &incomingMsg)
+		if err != nil {
+			log.Println("Invalid message format:", err)
+			continue
 		}
 
-		messageNotificationData := MessageNotification{
-			ChatID:                roomId,
-			LastMessage:           message.Content,
-			LastMessageType:       message.MessageType,
-			LastMessageTime:       time.Now().UTC(),
-			LastMessageAttachment: lastAttachmentURL,
+		incomingMsg.UserID = client.ID
+		incomingMsg.RoomID = roomId
+
+		sendJSONToRoom(roomId, incomingMsg)
+
+		if incomingMsg.Type == types.TypeMessage {
+			var message domain.Message
+			err := json.Unmarshal([]byte(incomingMsg.Data), &message)
+			if err != nil {
+				log.Println("Invalid message content:", err)
+				continue
+			}
+
+			var lastAttachmentURL *string
+			if len(message.Attachments) > 0 {
+				lastAttachmentURL = &message.Attachments[0].FileUrl
+			}
+
+			messageNotificationData := MessageNotification{
+				ChatID:                roomId,
+				LastMessage:           message.Content,
+				LastMessageType:       message.MessageType,
+				LastMessageTime:       time.Now().UTC(),
+				LastMessageAttachment: lastAttachmentURL,
+				LastMessageSenderId:   userId,
+			}
+
+			dataStr, _ := json.Marshal(messageNotificationData)
+
+			msgNotificationGlobal := WebSocketMessage{
+				Type:   types.TypeMessageNotification,
+				UserID: client.ID,
+				Data:   string(dataStr),
+				RoomID: "global",
+			}
+
+			sendJSONToRoom("global", msgNotificationGlobal)
 		}
 
-		dataStr, _ := json.Marshal(messageNotificationData)
-
-		msgNotificationGlobal := WebSocketMessage{
-			Type:   types.TypeMessageNotification,
-			UserID: client.ID,
-			Data:   string(dataStr),
-			RoomID: "global",
-		}
-
-		sendJSONToRoom("global", msgNotificationGlobal)
 	}
 
 	roomsMu.Lock()

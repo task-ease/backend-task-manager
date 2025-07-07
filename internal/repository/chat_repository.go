@@ -93,7 +93,7 @@ func (r *chatRepo) GetAllUserChats(userId uuid.UUID, workspaceId uuid.UUID) ([]r
 		if err := rows.Scan(&chat.ID, &chat.Muted, &chat.Pinned, &chat.Notification, &chat.Role, &chat.Type, &chat.IsOnline, &chat.ParticipantID); err != nil {
 			return nil, err
 		}
-		if err = r.getLastMessageInfo(&chat); err != nil {
+		if err = r.getLastMessageInfo(&chat, userId); err != nil {
 			return nil, err
 		}
 		switch chat.Type {
@@ -117,19 +117,31 @@ func (r *chatRepo) getUserNameById(chatId string, userId uuid.UUID, name *string
 	return err
 }
 
-func (r *chatRepo) getLastMessageInfo(chat *response.GetChats) error {
+func (r *chatRepo) getLastMessageInfo(chat *response.GetChats, userID uuid.UUID) error {
 	err := r.conn.QueryRow(context.Background(), `
 		SELECT
 		    m.content,
 		    m.message_type, 
 		    m.created_at,
-			COALESCE(ma.file_url, '') as lastMessageAttachment
+		    COALESCE(ma.file_url, '') as lastMessageAttachment,
+		    (
+				SELECT COUNT(*) 
+				FROM message_reads
+				WHERE chat_id = $1 AND user_id = $3 AND read_at IS NULL
+			) AS unread_count
 		FROM messages m
 		LEFT JOIN message_attachments ma
 			ON ma.message_id = m.id AND m.message_type = $2
 		WHERE m.chat_id = $1
 		ORDER BY m.created_at DESC
-		LIMIT 1`, chat.ID, types.MessageImage).Scan(&chat.LastMessage, &chat.LastMessageType, &chat.LastMessageTime, &chat.LastMessageAttachment)
+		LIMIT 1`,
+		chat.ID, types.MessageImage, userID).Scan(
+		&chat.LastMessage,
+		&chat.LastMessageType,
+		&chat.LastMessageTime,
+		&chat.LastMessageAttachment,
+		&chat.UnreadForUser, // типа int
+	)
 	return err
 }
 
