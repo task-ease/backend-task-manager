@@ -15,8 +15,10 @@ type Task struct {
 	IsFinished  bool       `json:"isFinished"`
 	Description *string    `json:"description"`
 	DueDate     *time.Time `json:"dueDate"`
-	Priority    *int64     `json:"priority"`
+	Status      *int       `json:"status"`
+	Priority    *int       `json:"priority"`
 	UpdatedAt   time.Time  `json:"updatedAt"`
+	Position    int        `json:"position"`
 }
 
 type TaskColumn struct {
@@ -25,6 +27,7 @@ type TaskColumn struct {
 	Name        string    `json:"name"`
 	Position    int       `json:"position"`
 	Color       string    `json:"color"`
+	IsDone      bool      `json:"isDone"`
 }
 
 type TaskRepository interface {
@@ -33,10 +36,8 @@ type TaskRepository interface {
 	GetAllColumns(workspaceId uuid.UUID) ([]*TaskColumn, error)
 	GetAllTasks(workspaceId uuid.UUID) ([]*Task, error)
 
-	UpdateTaskTitle(taskId uuid.UUID, title string) error
-	UpdateTaskColumn(taskId uuid.UUID, columnId uuid.UUID) error
-	UpdateTaskDescription(taskId uuid.UUID, description string) error
-	UpdateTaskIsFinished(taskId uuid.UUID, isFinished bool) error
-	UpdateTaskDueDate(taskId uuid.UUID, dueDate time.Time) error
-	UpdateTaskPriority(taskId uuid.UUID, priority int) error
+	ReorderTasks(columnId uuid.UUID, orderedTaskIDs []uuid.UUID) error
+	UpdateTask(task *Task) error
+	MarkColumnAsDone(columnID uuid.UUID, isDone bool) error
+	UpdateColumn(id, name, color string) error
 }
