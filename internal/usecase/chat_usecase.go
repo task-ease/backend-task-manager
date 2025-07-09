@@ -25,3 +25,7 @@ func (c *ChatUsecase) AddUserToChat(userId uuid.UUID, chatId string, workspaceId
 func (c *ChatUsecase) GetAllUserChats(userId uuid.UUID, workspaceId uuid.UUID) ([]response.GetChats, error) {
 	return c.chatRepo.GetAllUserChats(userId, workspaceId)
 }
+
+func (c *ChatUsecase) GetChatsBySearch(userID uuid.UUID, workspaceId uuid.UUID, value string) ([]response.GetChatsSearch, error) {
+	return c.chatRepo.GetChatsBySearch(userID, workspaceId, value)
+}

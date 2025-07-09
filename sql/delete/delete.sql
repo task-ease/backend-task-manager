@@ -1,1 +1,0 @@
-DROP TABLE users, workspaces, user_workspaces, tasks, tasks_assignment;

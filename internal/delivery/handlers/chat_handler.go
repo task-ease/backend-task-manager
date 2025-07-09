@@ -1,6 +1,7 @@
-package http
+package handlers
 
 import (
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"go-postgres-test/infrastructure/auth"
@@ -24,6 +25,7 @@ func (h *ChatHandler) RegisterRoutes(router *gin.RouterGroup) {
 	protected := router.Group("/chat", middleware.JWTMiddleware(authService))
 
 	protected.GET("/get-all-user-chats/:workspaceId", h.GetAllUserChats)
+	protected.GET("/get-all-user-chats-search/:value", h.GetChatsBySearch)
 
 	protected.POST("/create-chat/:participantId", h.CreateChat)
 	protected.POST("/add-user-to-chat", h.AddUserToChat)
@@ -113,9 +115,35 @@ func (h *ChatHandler) GetAllUserChats(c *gin.Context) {
 	chatList, err := h.uc.GetAllUserChats(userId, workspaceId)
 
 	if err != nil {
+		fmt.Println("Error, ", err.Error())
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
+	c.JSON(http.StatusOK, chatList)
+}
+
+func (h *ChatHandler) GetChatsBySearch(c *gin.Context) {
+	value := c.Param("value")
+	workspaceId, err := uuid.Parse(c.Query("workspaceId"))
+	userIdStr, exists := c.Get("userId")
+
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "user not found"})
+		return
+	}
+
+	userId, err := uuid.Parse(userIdStr.(string))
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	chatList, err := h.uc.GetChatsBySearch(userId, workspaceId, value)
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	}
 	c.JSON(http.StatusOK, chatList)
 }

@@ -1,4 +1,4 @@
-package http
+package handlers
 
 import (
 	"github.com/gin-gonic/gin"
@@ -28,6 +28,7 @@ func (h *UserHandler) RegisterRoutes(router *gin.RouterGroup) {
 	protected := router.Group("/users", middleware.JWTMiddleware(authService))
 
 	protected.GET("/search-user-by-email/:value", h.SearchUserByEmail)
+	protected.GET("/user-id", h.GetUserId)
 }
 
 func (h *UserHandler) IsAuthorized(c *gin.Context) {
@@ -115,4 +116,15 @@ func (h *UserHandler) SearchUserByEmail(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, users)
+}
+
+func (h *UserHandler) GetUserId(c *gin.Context) {
+	userIdStr, exists := c.Get("userId")
+
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, userIdStr)
 }
