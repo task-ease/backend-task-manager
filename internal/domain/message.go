@@ -8,18 +8,19 @@ import (
 )
 
 type Message struct {
-	ID          string            `db:"ID" json:"ID"`
-	ChatID      string            `db:"chatID" json:"chatID"`
-	SenderID    uuid.UUID         `db:"senderID" json:"senderID"`
-	Content     string            `db:"content" json:"content"`
-	MessageType types.MessageType `db:"messageType" json:"messageType"`
-	CreatedAt   time.Time         `db:"createdAt" json:"createdAt"`
-	UpdatedAt   time.Time         `db:"updatedAt" json:"updatedAt"`
-	IsEdited    bool              `db:"isEdited" json:"isEdited"`
-	IsDeleted   bool              `db:"isDeleted" json:"isDeleted"`
-	IsRead      bool              `db:"isRead" json:"isRead"`
-	ReplyTo     *uuid.UUID        `db:"replyTo" json:"replyTo"`
-	Attachments []Attachment      `db:"attachments" json:"attachments"`
+	ID             string            `db:"ID" json:"ID"`
+	ChatID         string            `db:"chatID" json:"chatID"`
+	SenderID       uuid.UUID         `db:"senderID" json:"senderID"`
+	Content        string            `db:"content" json:"content"`
+	MessageType    types.MessageType `db:"messageType" json:"messageType"`
+	CreatedAt      time.Time         `db:"createdAt" json:"createdAt"`
+	UpdatedAt      time.Time         `db:"updatedAt" json:"updatedAt"`
+	IsEdited       bool              `db:"isEdited" json:"isEdited"`
+	IsDeleted      bool              `db:"isDeleted" json:"isDeleted"`
+	IsRead         bool              `db:"isRead" json:"isRead"`
+	ReplyTo        *uuid.UUID        `db:"replyTo" json:"replyTo"`
+	Attachments    []Attachment      `db:"attachments" json:"attachments"`
+	UnreadUsersIds []uuid.UUID       `db:"unreadUsersIds" json:"unreadUsersIds"`
 }
 
 type Attachment struct {

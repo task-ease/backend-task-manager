@@ -41,7 +41,6 @@ func (r *chatRepo) CreateChat(chat *domain.Chat, participantId uuid.UUID) error 
 	if err = r.AddUserToChat(chat.CreatorID, chat.ID, chat.WorkspaceID); err != nil {
 		return err
 	}
-
 	if err = r.AddUserToChat(participantId, chat.ID, chat.WorkspaceID); err != nil {
 		return err
 	}

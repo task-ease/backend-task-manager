@@ -4,6 +4,7 @@ import (
 	"github.com/google/uuid"
 	"go-postgres-test/internal/response"
 	"go-postgres-test/internal/types"
+	"go-postgres-test/internal/types/user"
 	"time"
 )
 
@@ -24,13 +25,13 @@ type GroupChat struct {
 }
 
 type UserChat struct {
-	ChatID       uuid.UUID          `db:"chat_id"`
-	UserID       uuid.UUID          `db:"user_id"`
-	Muted        bool               `db:"muted"`
-	Pinned       bool               `db:"pinned"`
-	Notification bool               `db:"notification"`
-	Role         types.UserChatRole `db:"role"`
-	JoinedAt     time.Time          `db:"joined_at"`
+	ChatID       uuid.UUID     `db:"chat_id"`
+	UserID       uuid.UUID     `db:"user_id"`
+	Muted        bool          `db:"muted"`
+	Pinned       bool          `db:"pinned"`
+	Notification bool          `db:"notification"`
+	Role         user.ChatRole `db:"role"`
+	JoinedAt     time.Time     `db:"joined_at"`
 }
 
 type ChatRepository interface {

@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go-postgres-test/internal/domain"
@@ -52,15 +53,31 @@ func (r *messageRepo) AddMessage(message *domain.Message) error {
 
 	_, err = r.conn.Exec(context.Background(),
 		`UPDATE chats SET updated_at = $1 WHERE id = $2`, message.UpdatedAt, message.ChatID)
+	fmt.Println(err.Error())
 	return err
 }
 
 func (r *messageRepo) GetAllMessages(chatId string) ([]*domain.Message, error) {
 	rows, err := r.conn.Query(context.Background(), `
-		SELECT id, sender_id, content, message_type, created_at, is_read
-		FROM messages
-		WHERE chat_id = $1
-		ORDER BY created_at
+		SELECT 
+		    m.id,
+		    m.sender_id, 
+		    m.content, 
+		    m.message_type, 
+		    m.created_at, 
+			m.is_read,
+			ARRAY_AGG(mr.user_id) FILTER (WHERE mr.read_at IS NULL) AS unread_by
+		FROM messages m
+		JOIN message_reads mr ON mr.message_id = m.id		
+		WHERE m.chat_id = $1
+		GROUP BY 
+    		m.id, 
+    		m.sender_id, 
+    		m.content, 
+    		m.message_type, 
+    		m.created_at, 
+    		m.is_read
+		ORDER BY m.created_at
 		`, chatId)
 	if err != nil {
 		return nil, err
@@ -70,7 +87,7 @@ func (r *messageRepo) GetAllMessages(chatId string) ([]*domain.Message, error) {
 	var messages []*domain.Message
 	for rows.Next() {
 		var message domain.Message
-		if err = rows.Scan(&message.ID, &message.SenderID, &message.Content, &message.MessageType, &message.CreatedAt, &message.IsRead); err != nil {
+		if err = rows.Scan(&message.ID, &message.SenderID, &message.Content, &message.MessageType, &message.CreatedAt, &message.IsRead, &message.UnreadUsersIds); err != nil {
 			return nil, err
 		}
 
@@ -80,6 +97,7 @@ func (r *messageRepo) GetAllMessages(chatId string) ([]*domain.Message, error) {
 
 		messages = append(messages, &message)
 	}
+	fmt.Println(messages)
 	return messages, nil
 }
 

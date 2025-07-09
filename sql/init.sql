@@ -1,10 +1,16 @@
+-- CREATE TYPE chat_types AS ENUM ('PRIVATE', 'GROUP');
+-- CREATE TYPE message_types AS ENUM ('TEXT', 'IMAGE', 'FILE', 'SYSTEM');
+-- CREATE TYPE user_roles AS ENUM ('USER', 'ADMIN');
+-- CREATE TYPE workspace_user_roles AS ENUM ('CREATOR', 'ADMIN', 'MEMBER');
+-- CREATE TYPE chat_user_roles AS ENUM ('USER', 'ADMIN');
+
 CREATE TABLE IF NOT EXISTS users (
                                      id uuid PRIMARY KEY,
                                      username VARCHAR(50) NOT NULL,
                                      email VARCHAR(100) NOT NULL UNIQUE,
                                      password_hash TEXT NOT NULL,
                                      user_icon_url TEXT,
-                                     role VARCHAR(20) DEFAULT 'user',
+                                     role user_roles,
                                      created_at timestamptz DEFAULT NOW(),
                                      last_online_at timestamptz,
                                      is_online BOOLEAN DEFAULT FALSE
@@ -20,7 +26,7 @@ CREATE TABLE IF NOT EXISTS workspaces (
 CREATE TABLE IF NOT EXISTS user_workspaces (
                                                user_id uuid REFERENCES users(id),
                                                workspace_id uuid REFERENCES workspaces(id),
-                                               role VARCHAR(20) DEFAULT 'member',
+                                               role workspace_user_roles NOT NULL,
                                                position VARCHAR(50),
                                                joined_at timestamptz DEFAULT NOW(),
                                                PRIMARY KEY (user_id, workspace_id)
@@ -58,7 +64,7 @@ CREATE TABLE IF NOT EXISTS chats (
                                      id TEXT PRIMARY KEY,
                                      workspace_id UUID REFERENCES workspaces(id),
                                      creator_id UUID REFERENCES users(id),
-                                     type VARCHAR(20) DEFAULT 'PRIVATE' NOT NULL,
+                                     type chat_types NOT NULL,
                                      created_at timestamptz DEFAULT now() NOT NULL,
                                      updated_at timestamptz DEFAULT now() NOT NULL,
                                      last_message_time timestamptz NOT NULL
@@ -77,7 +83,7 @@ CREATE TABLE IF NOT EXISTS user_chats (
                                           muted BOOLEAN DEFAULT FALSE NOT NULL,
                                           pinned BOOLEAN DEFAULT FALSE NOT NULL,
                                           notification BOOLEAN DEFAULT TRUE NOT NULL,
-                                          role TEXT DEFAULT 'USER' NOT NULL,
+                                          role chat_user_roles NOT NULL,
                                           joined_at timestamptz NOT NULL DEFAULT NOW(),
                                           PRIMARY KEY (chat_id, user_id, workspace_id)
 );
@@ -94,7 +100,7 @@ CREATE TABLE IF NOT EXISTS messages (
                                         chat_id TEXT REFERENCES chats(id),
                                         sender_id UUID REFERENCES users(id),
                                         content TEXT,
-                                        message_type VARCHAR(20) DEFAULT 'TEXT' NOT NULL,
+                                        message_type message_types NOT NULL,
                                         created_at timestamptz DEFAULT now() NOT NULL,
                                         updated_at timestamptz NOT NULL,
                                         is_edited BOOLEAN DEFAULT FALSE NOT NULL,
