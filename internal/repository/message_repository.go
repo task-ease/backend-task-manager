@@ -53,7 +53,6 @@ func (r *messageRepo) AddMessage(message *domain.Message) error {
 
 	_, err = r.conn.Exec(context.Background(),
 		`UPDATE chats SET updated_at = $1 WHERE id = $2`, message.UpdatedAt, message.ChatID)
-	fmt.Println(err.Error())
 	return err
 }
 

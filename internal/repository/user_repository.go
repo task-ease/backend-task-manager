@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go-postgres-test/internal/domain"
+	"go-postgres-test/internal/types/user"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -99,4 +100,12 @@ func (r *userRepo) ChangeOnlineStatus(userId uuid.UUID, status bool) error {
 	_, err := r.conn.Exec(context.Background(),
 		`UPDATE users SET is_online = $1 WHERE id = $2`, status, userId)
 	return err
+}
+
+func (r *userRepo) GetWorkspaceUserRole(userID uuid.UUID, workspaceId uuid.UUID) (user.WorkspaceRole, error) {
+	var userRole user.WorkspaceRole
+	err := r.conn.QueryRow(context.Background(),
+		`SELECT role FROM user_workspaces WHERE user_id = $1 AND workspace_id = $2`,
+		userID, workspaceId).Scan(&userRole)
+	return userRole, err
 }

@@ -3,6 +3,7 @@ package usecase
 import (
 	"github.com/google/uuid"
 	"go-postgres-test/internal/domain"
+	"go-postgres-test/internal/types/user"
 )
 
 type UserUseCase struct {
@@ -23,4 +24,8 @@ func (uc *UserUseCase) LogIn(user domain.AuthUser) (uuid.UUID, error) {
 
 func (uc *UserUseCase) SearchUserByEmail(value string) ([]domain.User, error) {
 	return uc.repo.SearchUserByEmail(value)
+}
+
+func (uc *UserUseCase) GetWorkspaceUserRole(userID uuid.UUID, workspaceID uuid.UUID) (user.WorkspaceRole, error) {
+	return uc.repo.GetWorkspaceUserRole(userID, workspaceID)
 }

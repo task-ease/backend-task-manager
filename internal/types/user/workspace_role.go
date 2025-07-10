@@ -3,7 +3,7 @@ package user
 type WorkspaceRole string
 
 const (
-	workspaceCreator WorkspaceRole = "CREATOR"
-	workspaceAdmin   WorkspaceRole = "ADMIN"
-	workspaceMember  WorkspaceRole = "MEMBER"
+	WorkspaceCreator WorkspaceRole = "CREATOR"
+	WorkspaceAdmin   WorkspaceRole = "ADMIN"
+	WorkspaceMember  WorkspaceRole = "MEMBER"
 )

@@ -7,6 +7,7 @@ import (
 	"go-postgres-test/internal/domain"
 	"go-postgres-test/internal/response"
 	"go-postgres-test/internal/types"
+	"go-postgres-test/internal/types/user"
 	"time"
 )
 
@@ -38,10 +39,10 @@ func (r *chatRepo) CreateChat(chat *domain.Chat, participantId uuid.UUID) error 
 		return err
 	}
 
-	if err = r.AddUserToChat(chat.CreatorID, chat.ID, chat.WorkspaceID); err != nil {
+	if err = r.AddUserToChat(chat.CreatorID, chat.ID, chat.WorkspaceID, user.ChatUser); err != nil {
 		return err
 	}
-	if err = r.AddUserToChat(participantId, chat.ID, chat.WorkspaceID); err != nil {
+	if err = r.AddUserToChat(participantId, chat.ID, chat.WorkspaceID, user.ChatUser); err != nil {
 		return err
 	}
 
@@ -58,9 +59,9 @@ func (r *chatRepo) CreateChat(chat *domain.Chat, participantId uuid.UUID) error 
 	return err
 }
 
-func (r *chatRepo) AddUserToChat(userId uuid.UUID, chatId string, workspaceId uuid.UUID) error {
+func (r *chatRepo) AddUserToChat(userId uuid.UUID, chatId string, workspaceId uuid.UUID, role user.ChatRole) error {
 	_, err := r.conn.Exec(context.Background(),
-		`INSERT INTO user_chats (user_id, chat_id, workspace_id) VALUES ($1, $2, $3)`, userId, chatId, workspaceId)
+		`INSERT INTO user_chats (user_id, chat_id, workspace_id, role) VALUES ($1, $2, $3, $4)`, userId, chatId, workspaceId, role)
 	return err
 }
 

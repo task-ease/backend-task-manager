@@ -3,6 +3,6 @@ package user
 type UserRoles string
 
 const (
-	user  UserRoles = "USER"
-	admin UserRoles = "ADMIN"
+	User  UserRoles = "USER"
+	Admin UserRoles = "ADMIN"
 )

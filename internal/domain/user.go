@@ -30,4 +30,5 @@ type UserRepository interface {
 	LogIn(user AuthUser) (uuid.UUID, error)
 	SearchUserByEmail(value string) ([]User, error)
 	ChangeOnlineStatus(userId uuid.UUID, status bool) error
+	GetWorkspaceUserRole(userID uuid.UUID, workspaceId uuid.UUID) (user.WorkspaceRole, error)
 }
