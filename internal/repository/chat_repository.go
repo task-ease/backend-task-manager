@@ -55,7 +55,7 @@ func (r *chatRepo) CreateChat(chat *domain.Chat, participantId uuid.UUID) error 
 		UpdatedAt:   time.Now().UTC(),
 	}
 
-	err = r.messageRepo.AddMessage(&systemMessage)
+	_, err = r.messageRepo.AddMessage(&systemMessage)
 	return err
 }
 

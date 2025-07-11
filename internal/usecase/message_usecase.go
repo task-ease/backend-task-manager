@@ -14,7 +14,7 @@ func NewMessageUsecase(repo domain.MessageRepository) *MessageUsecase {
 	return &MessageUsecase{repo: repo}
 }
 
-func (uc *MessageUsecase) AddMessage(message *domain.Message) error {
+func (uc *MessageUsecase) AddMessage(message *domain.Message) (*[]uuid.UUID, error) {
 	return uc.repo.AddMessage(message)
 }
 
@@ -30,6 +30,6 @@ func (uc *MessageUsecase) AddAttachment(attachment *domain.Attachment) error {
 	return uc.repo.AddAttachment(attachment)
 }
 
-func (uc *MessageUsecase) SetMessagesRead(messages *[]domain.Message, userId uuid.UUID) (*[]string, error) {
+func (uc *MessageUsecase) SetMessagesRead(messages *[]domain.Message, userId uuid.UUID) error {
 	return uc.repo.SetMessagesRead(messages, userId)
 }

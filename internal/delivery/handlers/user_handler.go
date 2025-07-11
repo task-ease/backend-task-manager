@@ -36,7 +36,7 @@ func (h *UserHandler) RegisterRoutes(router *gin.RouterGroup) {
 func (h *UserHandler) IsAuthorized(c *gin.Context) {
 	token, err := c.Cookie("token")
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"status": "unauthorized"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
 
@@ -46,7 +46,7 @@ func (h *UserHandler) IsAuthorized(c *gin.Context) {
 
 	if err != nil {
 		c.SetCookie("token", "", -1, "/", "localhost", false, true)
-		c.JSON(http.StatusUnauthorized, gin.H{"status": "unauthorized"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
 
@@ -57,14 +57,14 @@ func (h *UserHandler) LogIn(c *gin.Context) {
 	var user domain.AuthUser
 
 	if err := c.ShouldBindJSON(&user); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"status": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	userId, err := h.uc.LogIn(user)
 
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"status": err.Error()})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
 

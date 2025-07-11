@@ -36,10 +36,10 @@ type Attachment struct {
 }
 
 type MessageRepository interface {
-	AddMessage(message *Message) error
+	AddMessage(message *Message) (*[]uuid.UUID, error)
 	UploadImage(image io.Reader) (string, error)
 	GetAllMessages(chatId string) ([]*Message, error)
 	AddAttachment(attachment *Attachment) error
-	SetMessageRead(message *Message, userId uuid.UUID) (*string, error)
-	SetMessagesRead(messages *[]Message, userId uuid.UUID) (*[]string, error)
+	SetMessageRead(message *Message, userId uuid.UUID) error
+	SetMessagesRead(messages *[]Message, userId uuid.UUID) error
 }

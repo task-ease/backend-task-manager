@@ -72,11 +72,13 @@ func (h *MessageHandler) UploadImageList(c *gin.Context) {
 		UpdatedAt:   time.Now().UTC(),
 	}
 
-	err = h.uc.AddMessage(&message)
+	unreadUserIds, err := h.uc.AddMessage(&message)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to add message"})
 		return
 	}
+
+	message.UnreadUsersIds = *unreadUserIds
 
 	form, err := c.MultipartForm()
 	if err != nil {
@@ -126,16 +128,22 @@ func (h *MessageHandler) UploadImageList(c *gin.Context) {
 func (h *MessageHandler) AddMessage(c *gin.Context) {
 	var message domain.Message
 	if err := c.ShouldBindJSON(&message); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"status": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	err := h.uc.AddMessage(&message)
+	unreadUserIds, err := h.uc.AddMessage(&message)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"status": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"messageId": message.ID})
+
+	c.JSON(http.StatusOK, gin.H{
+		"messageInfo": gin.H{
+			"messageId":      message.ID,
+			"unreadUsersIds": unreadUserIds,
+		},
+	})
 }
 
 func (h *MessageHandler) SetMessagesRead(c *gin.Context) {
@@ -159,12 +167,12 @@ func (h *MessageHandler) SetMessagesRead(c *gin.Context) {
 		return
 	}
 
-	readList, err := h.uc.SetMessagesRead(&messages, userId)
+	err = h.uc.SetMessagesRead(&messages, userId)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"status": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, readList)
+	c.JSON(http.StatusOK, "success")
 }

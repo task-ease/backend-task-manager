@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go-postgres-test/internal/domain"
@@ -25,35 +24,51 @@ func NewMessageRepository(conn *pgxpool.Pool, imageStorageKey string) domain.Mes
 	return &messageRepo{conn: conn, imageStorageKey: imageStorageKey}
 }
 
-func (r *messageRepo) AddMessage(message *domain.Message) error {
+func (r *messageRepo) AddMessage(message *domain.Message) (*[]uuid.UUID, error) {
 	message.ID = "m-" + uuid.New().String()
+
 	_, err := r.conn.Exec(context.Background(),
 		`INSERT INTO messages (id, chat_id, sender_id, content, message_type, created_at, updated_at)
-			VALUES ($1, $2, $3, $4, $5, $6, $7)`, message.ID, message.ChatID, message.SenderID, message.Content, message.MessageType, message.CreatedAt, message.UpdatedAt)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+		message.ID, message.ChatID, message.SenderID, message.Content, message.MessageType, message.CreatedAt, message.UpdatedAt)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	_, err = r.conn.Exec(context.Background(), `
+	rows, err := r.conn.Query(context.Background(), `
 		INSERT INTO message_reads (user_id, message_id, chat_id)
 		SELECT uc.user_id, $1, $2
 		FROM user_chats uc
 		WHERE uc.chat_id = $2
-	  		AND uc.workspace_id = (
-	      	SELECT c.workspace_id
-	      	FROM chats c
-	      	WHERE c.id = $2
-	  	)
-	  	AND uc.user_id != $3;
-		`, message.ID, message.ChatID, message.SenderID)
-
+			AND uc.workspace_id = (
+				SELECT c.workspace_id
+				FROM chats c
+				WHERE c.id = $2
+			)
+			AND uc.user_id != $3
+		RETURNING user_id;
+	`, message.ID, message.ChatID, message.SenderID)
 	if err != nil {
-		return err
+		return nil, err
+	}
+	defer rows.Close()
+
+	var unreadUserIds []uuid.UUID
+	for rows.Next() {
+		var userID uuid.UUID
+		if err := rows.Scan(&userID); err != nil {
+			return nil, err
+		}
+		unreadUserIds = append(unreadUserIds, userID)
 	}
 
 	_, err = r.conn.Exec(context.Background(),
 		`UPDATE chats SET updated_at = $1 WHERE id = $2`, message.UpdatedAt, message.ChatID)
-	return err
+	if err != nil {
+		return nil, err
+	}
+
+	return &unreadUserIds, nil
 }
 
 func (r *messageRepo) GetAllMessages(chatId string) ([]*domain.Message, error) {
@@ -96,7 +111,6 @@ func (r *messageRepo) GetAllMessages(chatId string) ([]*domain.Message, error) {
 
 		messages = append(messages, &message)
 	}
-	fmt.Println(messages)
 	return messages, nil
 }
 
@@ -172,14 +186,14 @@ func (r *messageRepo) getAttachments(messageId string, attachments *[]domain.Att
 	return nil
 }
 
-func (r *messageRepo) SetMessageRead(message *domain.Message, userId uuid.UUID) (*string, error) {
+func (r *messageRepo) SetMessageRead(message *domain.Message, userId uuid.UUID) error {
 	_, err := r.conn.Exec(context.Background(), `
 		UPDATE message_reads 
 		SET read_at = $1 
 		WHERE message_id = $2 AND user_id = $3`,
 		time.Now().UTC(), message.ID, userId)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	var isRead bool
@@ -191,7 +205,7 @@ func (r *messageRepo) SetMessageRead(message *domain.Message, userId uuid.UUID) 
 		message.ID).Scan(&isRead)
 
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	if isRead {
@@ -201,23 +215,20 @@ func (r *messageRepo) SetMessageRead(message *domain.Message, userId uuid.UUID) 
 		WHERE id = $1
 	`, message.ID)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		return &message.ID, nil
+		return nil
 	}
 
-	return nil, nil
+	return nil
 }
 
-func (r *messageRepo) SetMessagesRead(messages *[]domain.Message, userId uuid.UUID) (*[]string, error) {
-	var readList []string
+func (r *messageRepo) SetMessagesRead(messages *[]domain.Message, userId uuid.UUID) error {
 	for _, m := range *messages {
-		isReadID, err := r.SetMessageRead(&m, userId)
+		err := r.SetMessageRead(&m, userId)
 		if err != nil {
-			return nil, err
-		} else if isReadID != nil {
-			readList = append(readList, *isReadID)
+			return err
 		}
 	}
-	return &readList, nil
+	return nil
 }
