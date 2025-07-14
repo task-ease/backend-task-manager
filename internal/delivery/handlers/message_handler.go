@@ -27,6 +27,7 @@ func (h *MessageHandler) RegisterRoutes(router *gin.RouterGroup) {
 	protected := router.Group("/message", middleware.JWTMiddleware(authService))
 
 	protected.GET("/get-all-messages/:chatId", h.GetAllMessages)
+	protected.GET("/chat-images/:chatId", h.GetAllChatImages)
 	protected.PATCH("/upload-image-list/:chatId", h.UploadImageList)
 	protected.PATCH("/add-message", h.AddMessage)
 	protected.PATCH("/set-read", h.SetMessagesRead)
@@ -175,4 +176,16 @@ func (h *MessageHandler) SetMessagesRead(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, "success")
+}
+
+func (h *MessageHandler) GetAllChatImages(c *gin.Context) {
+	chatId := c.Param("chatId")
+	images, err := h.uc.GetAllChatImages(chatId)
+	if err != nil {
+		fmt.Println(err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, images)
 }

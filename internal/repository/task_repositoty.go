@@ -22,6 +22,7 @@ func (r *taskRepository) CreateTask(task *domain.Task) (bool, error) {
 	task.UpdatedAt = time.Now().UTC()
 
 	var maxPos int
+	//TODO убрать max position, и передавать просто длину списка тасок на фронте
 	err := r.conn.QueryRow(
 		context.Background(),
 		`SELECT MAX(position) FROM tasks WHERE column_id = $1`,

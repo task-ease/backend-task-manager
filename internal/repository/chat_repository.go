@@ -140,7 +140,7 @@ func (r *chatRepo) getLastMessageInfo(chat *response.GetChats, userID uuid.UUID)
 		&chat.LastMessageType,
 		&chat.LastMessageTime,
 		&chat.LastMessageAttachment,
-		&chat.UnreadForUser, // типа int
+		&chat.UnreadForUser,
 	)
 	return err
 }

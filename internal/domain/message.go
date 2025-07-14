@@ -42,4 +42,5 @@ type MessageRepository interface {
 	AddAttachment(attachment *Attachment) error
 	SetMessageRead(message *Message, userId uuid.UUID) error
 	SetMessagesRead(messages *[]Message, userId uuid.UUID) error
+	GetAllChatImages(chatId string) (*[]Attachment, error)
 }

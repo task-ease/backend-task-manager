@@ -232,3 +232,24 @@ func (r *messageRepo) SetMessagesRead(messages *[]domain.Message, userId uuid.UU
 	}
 	return nil
 }
+
+func (r *messageRepo) GetAllChatImages(chatId string) (*[]domain.Attachment, error) {
+	rows, err := r.conn.Query(context.Background(), `
+		SELECT id, file_url, file_type, file_name, uploaded_at from  message_attachments 
+		WHERE chat_id = $1`, chatId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var images []domain.Attachment
+	for rows.Next() {
+		var attachment domain.Attachment
+		if err := rows.Scan(&attachment.ID, &attachment.FileUrl, &attachment.FileType, &attachment.FileName, &attachment.UploadedAt); err != nil {
+			return nil, err
+		}
+		images = append(images, attachment)
+	}
+
+	return &images, err
+}

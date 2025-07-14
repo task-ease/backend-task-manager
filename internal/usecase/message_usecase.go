@@ -33,3 +33,7 @@ func (uc *MessageUsecase) AddAttachment(attachment *domain.Attachment) error {
 func (uc *MessageUsecase) SetMessagesRead(messages *[]domain.Message, userId uuid.UUID) error {
 	return uc.repo.SetMessagesRead(messages, userId)
 }
+
+func (uc *MessageUsecase) GetAllChatImages(chatId string) (*[]domain.Attachment, error) {
+	return uc.repo.GetAllChatImages(chatId)
+}
