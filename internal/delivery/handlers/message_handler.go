@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"go-postgres-test/infrastructure/auth"
@@ -37,7 +36,6 @@ func (h *MessageHandler) GetAllMessages(c *gin.Context) {
 	chatId := c.Param("chatId")
 	messageList, err := h.uc.GetAllMessages(chatId)
 	if err != nil {
-		fmt.Println("Error, ", err.Error())
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "internal server error"})
 		return
 	}
@@ -114,7 +112,6 @@ func (h *MessageHandler) UploadImageList(c *gin.Context) {
 		}
 
 		if err := h.uc.AddAttachment(&newAttachment); err != nil {
-			fmt.Println(err)
 			continue
 		}
 
@@ -182,7 +179,6 @@ func (h *MessageHandler) GetAllChatImages(c *gin.Context) {
 	chatId := c.Param("chatId")
 	images, err := h.uc.GetAllChatImages(chatId)
 	if err != nil {
-		fmt.Println(err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
 	}

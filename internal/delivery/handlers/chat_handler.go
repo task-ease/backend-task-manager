@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"go-postgres-test/infrastructure/auth"
@@ -116,7 +115,6 @@ func (h *ChatHandler) GetAllUserChats(c *gin.Context) {
 	chatList, err := h.uc.GetAllUserChats(userId, workspaceId)
 
 	if err != nil {
-		fmt.Println("Error, ", err.Error())
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}

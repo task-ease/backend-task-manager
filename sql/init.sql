@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS user_workspaces (
 CREATE TABLE IF NOT EXISTS task_columns (
                                             id UUID PRIMARY KEY,
                                             workspace_id UUID REFERENCES workspaces(id),
+                                            project_id UUID REFERENCES projects(id),
                                             name TEXT NOT NULL,
                                             position INTEGER DEFAULT 0,
                                             color VARCHAR(7)
@@ -44,14 +45,17 @@ CREATE TABLE IF NOT EXISTS tasks (
                                      id UUID PRIMARY KEY,
                                      column_id UUID REFERENCES task_columns(id),
                                      workspace_id UUID REFERENCES workspaces(id),
+                                     project_id UUID REFERENCES projects(id),
+                                     sprint_id UUID REFERENCES sprints(id),
                                      author_id UUID REFERENCES users(id),
                                      created_at TIMESTAMPTZ DEFAULT NOW(),
+                                     updated_at TIMESTAMPTZ DEFAULT NOW(),
                                      title VARCHAR(30) NOT NULL,
                                      description TEXT,
-                                     is_finished BOOLEAN DEFAULT FALSE NOT NULL,
+                                     is_done BOOLEAN DEFAULT FALSE NOT NULL,
                                      due_date TIMESTAMPTZ,
                                      priority INTEGER DEFAULT 0,
-                                     updated_at TIMESTAMPTZ DEFAULT NOW()
+                                     position INT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS tasks_assignment (
@@ -127,3 +131,31 @@ CREATE TABLE IF NOT EXISTS message_reads (
                                              read_at timestamptz,
                                              PRIMARY KEY (user_id, message_id)
 );
+
+CREATE TABLE IF NOT EXISTS projects (
+                                        id UUID PRIMARY KEY,
+                                        workspace_id UUID REFERENCES workspaces(id) NOT NULL,
+                                        creator_id UUID REFERENCES users(id) NOT NULL,
+                                        name VARCHAR(100) NOT NULL,
+                                        description TEXT,
+                                        is_done BOOLEAN DEFAULT FALSE NOT NULL,
+                                        created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+                                        updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+                                        prefix VARCHAR(10) NOT NULL UNIQUE
+);
+
+CREATE TABLE IF NOT EXISTS sprints (
+                                       id UUID PRIMARY KEY,
+                                       project_id UUID REFERENCES projects(id) NOT NULL,
+                                       name VARCHAR(100) NOT NULL,
+                                       start_date DATE NOT NULL,
+                                       end_date DATE NOT NULL,
+                                       is_done BOOLEAN DEFAULT FALSE NOT NULL,
+                                       created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+                                       updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_tasks_project_id ON tasks(project_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_sprint_id ON tasks(sprint_id);
+
+-- TODO ALTER TABLE tasks ALTER COLUMN position SET NOT NULL;

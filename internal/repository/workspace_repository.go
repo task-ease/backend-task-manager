@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go-postgres-test/internal/domain"
+	"go-postgres-test/internal/types/user"
 )
 
 type workSpaceRepo struct {
@@ -42,7 +43,7 @@ func (r *workSpaceRepo) CreateWorkSpace(workSpace domain.WorkSpace) (uuid.UUID, 
 		return uuid.Nil, err
 	}
 
-	_, err = r.AddUserToWorkSpace(workSpace.ID.String(), workSpace.CreatorId.String(), "admin")
+	_, err = r.AddUserToWorkSpace(workSpace.ID.String(), workSpace.CreatorId.String(), user.WorkspaceCreator)
 
 	if err != nil {
 		return uuid.Nil, err
@@ -51,7 +52,7 @@ func (r *workSpaceRepo) CreateWorkSpace(workSpace domain.WorkSpace) (uuid.UUID, 
 	return workSpace.ID, nil
 }
 
-func (r *workSpaceRepo) AddUserToWorkSpace(workSpaceId string, userId string, role string) (bool, error) {
+func (r *workSpaceRepo) AddUserToWorkSpace(workSpaceId string, userId string, role user.WorkspaceRole) (bool, error) {
 	_, err := r.conn.Exec(context.Background(),
 		"INSERT INTO user_workspaces (user_id, workspace_id, role) VALUES ($1, $2, $3)",
 		userId,
@@ -155,7 +156,7 @@ func (r *workSpaceRepo) HasUserWorkspace(userId string, workspaceId string) (boo
 	return exists, nil
 }
 
-func (r *workSpaceRepo) ChangeUserRole(workSpaceId string, userId string, role string) (bool, error) {
+func (r *workSpaceRepo) ChangeUserRole(workSpaceId string, userId string, role user.WorkspaceRole) (bool, error) {
 	_, err := r.conn.Exec(context.Background(),
 		`UPDATE user_workspaces
 				SET role = $1

@@ -43,6 +43,10 @@ func main() {
 	workSpaceUC := usecase.NewWorkSpaceUsecase(workSpaceRepo)
 	workSpaceHandler := handlers.NewWorkSpaceHandler(workSpaceUC)
 
+	projectRepo := repository.NewProjectRepository(dbPool)
+	projectUC := usecase.NewProjectUseCase(projectRepo)
+	projectHandler := handlers.NewProjectHandler(*projectUC)
+
 	wsHandler := ws.NewWebSocketHandler(messageRepo, userRepo)
 
 	r := gin.Default()
@@ -63,6 +67,7 @@ func main() {
 	workSpaceHandler.RegisterRoutes(api)
 	chatHandler.RegisterRoutes(api)
 	messageHandler.RegisterRoutes(api)
+	projectHandler.RegisterRoutes(api)
 
 	fmt.Println("Running server")
 	if err := r.Run(":8080"); err != nil {

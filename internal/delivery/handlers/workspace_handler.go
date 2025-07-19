@@ -6,6 +6,7 @@ import (
 	"go-postgres-test/infrastructure/auth"
 	"go-postgres-test/internal/domain"
 	"go-postgres-test/internal/middleware"
+	"go-postgres-test/internal/types/user"
 	"go-postgres-test/internal/usecase"
 	"net/http"
 )
@@ -19,9 +20,9 @@ type createWorkSpaceInput struct {
 }
 
 type BindInput struct {
-	WorkSpaceId string `json:"workSpaceId"`
-	UserId      string `json:"userId"`
-	Role        string `json:"role"`
+	WorkSpaceId string             `json:"workSpaceId"`
+	UserId      string             `json:"userId"`
+	Role        user.WorkspaceRole `json:"role"`
 }
 
 type RemoveUserInput struct {
