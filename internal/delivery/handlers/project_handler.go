@@ -22,6 +22,8 @@ func (h *ProjectHandler) RegisterRoutes(router *gin.RouterGroup) {
 	authService := auth.NewJWTService()
 	protected := router.Group("/project", middleware.JWTMiddleware(authService))
 
+	protected.GET("/:workspaceId", h.GetAllUserProjects)
+
 	protected.POST("", h.CreateProject)
 	protected.POST("/user", h.AddUserToProject)
 }
@@ -67,4 +69,26 @@ func (h *ProjectHandler) AddUserToProject(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, gin.H{"status": true})
+}
+
+func (h *ProjectHandler) GetAllUserProjects(c *gin.Context) {
+	userId, err := mixins.ParseUserId(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	workspaceId, err := mixins.ParamToUUID(c, "workspaceId")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	projects, err := h.uc.GetAllUserProjects(userId, workspaceId)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"projects": projects})
 }

@@ -29,3 +29,12 @@ func QueryToUUID(c *gin.Context, name string) (uuid.UUID, error) {
 	}
 	return value, nil
 }
+
+func ParamToUUID(c *gin.Context, name string) (uuid.UUID, error) {
+	valueStr := c.Param(name)
+	value, err := uuid.Parse(valueStr)
+	if err != nil {
+		return uuid.Nil, err
+	}
+	return value, nil
+}

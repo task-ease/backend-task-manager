@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go-postgres-test/internal/domain"
+	"go-postgres-test/internal/response"
 	"go-postgres-test/internal/types/user"
 	"time"
 )
@@ -48,4 +49,26 @@ func (r *projectRepo) AddUserToProject(projectId uuid.UUID, userId uuid.UUID, ro
 			INSERT INTO project_members (id, project_id, user_id, role, joined_at)
 			VALUES ($1, $2, $3, $4, $5)`, uuid.New(), projectId, userId, role, time.Now().UTC())
 	return err
+}
+
+func (r *projectRepo) GetAllUserProjects(userId, workspaceId uuid.UUID) ([]response.GetAllProjects, error) {
+	rows, err := r.conn.Query(context.Background(), `
+		SELECT p.id, p.name, p.prefix, p.description FROM projects p
+		JOIN project_members pm ON p.id = pm.project_id
+		WHERE pm.user_id  = $1 AND p.workspace_id = $2`, userId, workspaceId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var projects []response.GetAllProjects
+	for rows.Next() {
+		var project response.GetAllProjects
+		if err = rows.Scan(&project.ID, &project.Name, &project.Prefix, &project.Description); err != nil {
+			return nil, err
+		}
+		projects = append(projects, project)
+	}
+
+	return projects, nil
 }
