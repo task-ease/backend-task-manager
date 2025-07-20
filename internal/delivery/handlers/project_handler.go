@@ -20,9 +20,10 @@ func NewProjectHandler(uc usecase.ProjectUseCase) *ProjectHandler {
 
 func (h *ProjectHandler) RegisterRoutes(router *gin.RouterGroup) {
 	authService := auth.NewJWTService()
-	protected := router.Group("/projects", middleware.JWTMiddleware(authService))
+	protected := router.Group("/project", middleware.JWTMiddleware(authService))
 
-	protected.POST("/create", h.CreateProject)
+	protected.POST("", h.CreateProject)
+	protected.POST("/user", h.AddUserToProject)
 }
 
 func (h *ProjectHandler) CreateProject(c *gin.Context) {
@@ -38,8 +39,32 @@ func (h *ProjectHandler) CreateProject(c *gin.Context) {
 	}
 	projectId, err := h.uc.CreateProject(userId, input.WorkspaceId, input.Name, input.Prefix)
 	if err != nil {
+		if err.Error() == "409" {
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		}
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusCreated, gin.H{"projectId": projectId})
+}
+
+func (h *ProjectHandler) AddUserToProject(c *gin.Context) {
+	var input request.AddUserToProject
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	userId, err := mixins.ParseUserId(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.uc.AddUserToProject(userId, input.ProjectId, input.Role); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"status": true})
 }

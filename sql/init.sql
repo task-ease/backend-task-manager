@@ -3,6 +3,7 @@
 -- CREATE TYPE user_roles AS ENUM ('USER', 'ADMIN');
 -- CREATE TYPE workspace_user_roles AS ENUM ('CREATOR', 'ADMIN', 'MEMBER');
 -- CREATE TYPE chat_user_roles AS ENUM ('USER', 'ADMIN');
+-- CREATE TYPE project_user_roles AS ENUM ('CREATOR', 'EDITOR', 'VIEWER');
 
 CREATE TABLE IF NOT EXISTS users (
                                      id uuid PRIMARY KEY,
@@ -153,6 +154,15 @@ CREATE TABLE IF NOT EXISTS sprints (
                                        is_done BOOLEAN DEFAULT FALSE NOT NULL,
                                        created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
                                        updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS project_members (
+                                               id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                                               project_id UUID REFERENCES projects(id) ON DELETE CASCADE NOT NULL,
+                                               user_id UUID REFERENCES users(id) ON DELETE CASCADE NOT NULL,
+                                               role project_user_roles NOT NULL DEFAULT 'VIEWER',
+                                               joined_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+                                               UNIQUE (project_id, user_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_tasks_project_id ON tasks(project_id);

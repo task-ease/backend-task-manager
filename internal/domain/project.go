@@ -2,6 +2,7 @@ package domain
 
 import (
 	"github.com/google/uuid"
+	"go-postgres-test/internal/types/user"
 	"time"
 )
 
@@ -17,4 +18,6 @@ type Project struct {
 
 type ProjectRepository interface {
 	CreateProject(creatorId, workSpaceId uuid.UUID, name, prefix string) (uuid.UUID, error)
+	AddUserToProject(projectId uuid.UUID, userId uuid.UUID, role user.ProjectRole) error
+	//GetAllUserProjects(projectId uuid.UUID) error
 }
