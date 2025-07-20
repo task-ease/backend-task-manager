@@ -72,3 +72,24 @@ func (r *projectRepo) GetAllUserProjects(userId, workspaceId uuid.UUID) ([]respo
 
 	return projects, nil
 }
+
+func (r *projectRepo) GetUserRole(userId, projectId uuid.UUID) (user.ProjectRole, error) {
+	var role user.ProjectRole
+	err := r.conn.QueryRow(context.Background(), `
+		SELECT 
+			CASE 
+				WHEN uw.role IN ('ADMIN', 'CREATOR') THEN 'ADMIN'
+				ELSE COALESCE(pm.role::text, 'NO_ACCESS')
+			END AS effective_role
+		FROM projects p
+		LEFT JOIN user_workspaces uw ON uw.workspace_id = p.workspace_id AND uw.user_id = $1
+		LEFT JOIN project_members pm ON p.id = pm.project_id AND pm.user_id = $1
+		WHERE p.id = $2
+		LIMIT 1`, userId, projectId).Scan(&role)
+
+	if err != nil {
+		return role, err
+	}
+
+	return role, nil
+}

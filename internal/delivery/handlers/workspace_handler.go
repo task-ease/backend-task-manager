@@ -8,6 +8,7 @@ import (
 	"go-postgres-test/internal/middleware"
 	"go-postgres-test/internal/types/user"
 	"go-postgres-test/internal/usecase"
+	"go-postgres-test/mixins"
 	"net/http"
 )
 
@@ -42,6 +43,7 @@ func (h *WorkSpaceHandler) RegisterRoutes(router *gin.RouterGroup) {
 	protected.GET("/get-all-user-workspaces", h.GetAllUserSpaces)
 	protected.GET("/get-all-workspace-members/:id", h.GetAllSpaceMembers)
 	protected.GET("/has-user-workspace/:id", h.HasUserWorkspace)
+	protected.GET("/search-user/:value", h.SearchWorkspaceMember)
 
 	protected.POST("/change-user-role", h.ChangeUserRole)
 	protected.POST("/create-workspace", h.CreateWorkSpace)
@@ -233,4 +235,27 @@ func (h *WorkSpaceHandler) ChangeUserRole(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, ok)
+}
+
+func (h *WorkSpaceHandler) SearchWorkspaceMember(c *gin.Context) {
+	workspaceId, err := mixins.QueryToUUID(c, "workspaceId")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	userId, err := mixins.ParseUserId(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	value := c.Param("value")
+	members, err := h.uc.SearchWorkspaceMember(workspaceId, userId, value)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, members)
 }

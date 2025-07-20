@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go-postgres-test/internal/domain"
+	"go-postgres-test/internal/response"
 	"go-postgres-test/internal/types/user"
 )
 
@@ -167,4 +168,29 @@ func (r *workSpaceRepo) ChangeUserRole(workSpaceId string, userId string, role u
 	}
 
 	return true, nil
+}
+
+func (r *workSpaceRepo) SearchWorkspaceMember(workSpaceId, userId uuid.UUID, value string) ([]response.FindWorkspaceMemberResponse, error) {
+	value = "%" + value + "%"
+	rows, err := r.conn.Query(context.Background(), `
+		SELECT u.id, u.username 
+		FROM users u
+		JOIN user_workspaces uw ON u.id = uw.user_id
+		WHERE uw.workspace_id = $1 AND (u.username ILIKE $2 OR u.email ILIKE $2) AND u.id != $3
+		ORDER BY u.username
+		LIMIT 5`,
+		workSpaceId, value, userId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var members []response.FindWorkspaceMemberResponse
+	for rows.Next() {
+		var member response.FindWorkspaceMemberResponse
+		if err := rows.Scan(&member.ID, &member.Name); err != nil {
+			return nil, err
+		}
+		members = append(members, member)
+	}
+	return members, nil
 }

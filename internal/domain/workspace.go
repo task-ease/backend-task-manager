@@ -2,6 +2,7 @@ package domain
 
 import (
 	"github.com/google/uuid"
+	"go-postgres-test/internal/response"
 	"go-postgres-test/internal/types/user"
 	"time"
 )
@@ -13,8 +14,6 @@ type WorkSpace struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-// TODO во всех домейнах прописать тайпсы что бы потом по оишбкам добавлять
-
 type WorkSpaceRepository interface {
 	CreateWorkSpace(workspace WorkSpace) (uuid.UUID, error)
 	GetAllUserSpaces(userId uuid.UUID) ([]WorkSpace, error)
@@ -23,4 +22,5 @@ type WorkSpaceRepository interface {
 	RemoveUser(workSpaceId string, userId string) (bool, error)
 	HasUserWorkspace(userId string, workspaceId string) (bool, error)
 	ChangeUserRole(workSpaceId string, userId string, role user.WorkspaceRole) (bool, error)
+	SearchWorkspaceMember(workSpaceId, userId uuid.UUID, value string) ([]response.FindWorkspaceMemberResponse, error)
 }

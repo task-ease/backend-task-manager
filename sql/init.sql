@@ -3,7 +3,8 @@
 -- CREATE TYPE user_roles AS ENUM ('USER', 'ADMIN');
 -- CREATE TYPE workspace_user_roles AS ENUM ('CREATOR', 'ADMIN', 'MEMBER');
 -- CREATE TYPE chat_user_roles AS ENUM ('USER', 'ADMIN');
--- CREATE TYPE project_user_roles AS ENUM ('CREATOR', 'EDITOR', 'VIEWER');
+-- CREATE TYPE project_user_roles AS ENUM ('CREATOR', 'EDITOR', 'VIEWER', 'ADMIN);
+
 
 CREATE TABLE IF NOT EXISTS users (
                                      id uuid PRIMARY KEY,

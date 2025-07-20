@@ -3,6 +3,7 @@ package usecase
 import (
 	"github.com/google/uuid"
 	"go-postgres-test/internal/domain"
+	"go-postgres-test/internal/response"
 	"go-postgres-test/internal/types/user"
 )
 
@@ -40,4 +41,8 @@ func (uc *WorkSpaceUsecase) HasUserWorkspace(userId string, workspaceId string) 
 
 func (uc *WorkSpaceUsecase) ChangeUserRole(workSpaceId string, userId string, role user.WorkspaceRole) (bool, error) {
 	return uc.repo.ChangeUserRole(workSpaceId, userId, role)
+}
+
+func (uc *WorkSpaceUsecase) SearchWorkspaceMember(workSpaceId, userId uuid.UUID, value string) ([]response.FindWorkspaceMemberResponse, error) {
+	return uc.repo.SearchWorkspaceMember(workSpaceId, userId, value)
 }
