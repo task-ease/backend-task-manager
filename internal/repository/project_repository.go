@@ -90,6 +90,35 @@ func (r *projectRepo) GetUserRole(userId, projectId uuid.UUID) (user.ProjectRole
 	if err != nil {
 		return role, err
 	}
-
 	return role, nil
+}
+
+func (r *projectRepo) GetAllProjectMembers(projectId uuid.UUID) ([]response.GetAllProjectUsers, error) {
+	rows, err := r.conn.Query(context.Background(), `
+		SELECT DISTINCT ON (u.id)
+    		u.id,
+    		u.username,
+    		u.email,
+    		uw.role::text AS workspace_role,
+    		pm.role::text AS project_role
+		FROM users u
+        	JOIN project_members pm ON pm.user_id = u.id
+        	JOIN projects p ON pm.project_id = p.id
+        	JOIN user_workspaces uw ON uw.user_id = u.id AND uw.workspace_id = p.workspace_id
+		WHERE p.id = $1
+		ORDER BY u.id`, projectId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var projectUsers []response.GetAllProjectUsers
+	for rows.Next() {
+		var projectUser response.GetAllProjectUsers
+		if err := rows.Scan(&projectUser.ID, &projectUser.Name, &projectUser.Email, &projectUser.WorkspaceRole, &projectUser.ProjectRole); err != nil {
+			return nil, err
+		}
+		projectUsers = append(projectUsers, projectUser)
+	}
+	return projectUsers, nil
 }

@@ -25,7 +25,7 @@ func (h *ProjectHandler) RegisterRoutes(router *gin.RouterGroup) {
 
 	protected.GET("/:workspaceId", h.GetAllUserProjects)
 	protected.GET("/role/:projectId", h.GetUserRole)
-	protected.GET("/members/:projectId")
+	protected.GET("/members/:projectId", h.GetAllProjectMembers)
 
 	protected.POST("", h.CreateProject)
 	protected.POST("/user", h.AddUserToProject)
@@ -60,13 +60,7 @@ func (h *ProjectHandler) AddUserToProject(c *gin.Context) {
 		return
 	}
 
-	userId, err := mixins.ParseUserId(c)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	if err := h.uc.AddUserToProject(userId, input.ProjectId, input.Role); err != nil {
+	if err := h.uc.AddUserToProject(input.ProjectId, input.UserId, user.ProjectRoleEditor); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -119,6 +113,21 @@ func (h *ProjectHandler) GetUserRole(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "NO_ACCESS"})
 		return
 	}
-
 	c.JSON(http.StatusOK, gin.H{"role": role})
+}
+
+func (h *ProjectHandler) GetAllProjectMembers(c *gin.Context) {
+	projectId, err := mixins.ParamToUUID(c, "projectId")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	members, err := h.uc.GetAllProjectMembers(projectId)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"members": members})
 }

@@ -24,4 +24,5 @@ type ProjectRepository interface {
 	AddUserToProject(projectId uuid.UUID, userId uuid.UUID, role user.ProjectRole) error
 	GetAllUserProjects(userId, workspaceId uuid.UUID) ([]response.GetAllProjects, error)
 	GetUserRole(userId, projectId uuid.UUID) (user.ProjectRole, error)
+	GetAllProjectMembers(projectId uuid.UUID) ([]response.GetAllProjectUsers, error)
 }

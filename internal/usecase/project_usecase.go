@@ -30,3 +30,7 @@ func (uc *ProjectUseCase) GetAllUserProjects(userId, workspaceId uuid.UUID) ([]r
 func (uc *ProjectUseCase) GetUserRole(userId, projectId uuid.UUID) (user.ProjectRole, error) {
 	return uc.repo.GetUserRole(userId, projectId)
 }
+
+func (uc *ProjectUseCase) GetAllProjectMembers(projectId uuid.UUID) ([]response.GetAllProjectUsers, error) {
+	return uc.repo.GetAllProjectMembers(projectId)
+}
