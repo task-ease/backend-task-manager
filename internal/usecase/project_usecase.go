@@ -34,3 +34,7 @@ func (uc *ProjectUseCase) GetUserRole(userId, projectId uuid.UUID) (user.Project
 func (uc *ProjectUseCase) GetAllProjectMembers(projectId uuid.UUID) ([]response.GetAllProjectUsers, error) {
 	return uc.repo.GetAllProjectMembers(projectId)
 }
+
+func (uc *ProjectUseCase) ChangeUserRole(userId, projectId uuid.UUID, role user.ProjectRole) error {
+	return uc.repo.ChangeUserRole(userId, projectId, role)
+}

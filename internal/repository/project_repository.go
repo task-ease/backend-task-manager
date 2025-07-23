@@ -122,3 +122,9 @@ func (r *projectRepo) GetAllProjectMembers(projectId uuid.UUID) ([]response.GetA
 	}
 	return projectUsers, nil
 }
+
+func (r *projectRepo) ChangeUserRole(userId, projectId uuid.UUID, role user.ProjectRole) error {
+	_, err := r.conn.Exec(context.Background(), `
+		UPDATE project_members SET role = $1 WHERE user_id = $2 AND project_id = $3`, role, userId, projectId)
+	return err
+}

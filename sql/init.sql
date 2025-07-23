@@ -4,7 +4,10 @@
 -- CREATE TYPE workspace_user_roles AS ENUM ('CREATOR', 'ADMIN', 'MEMBER');
 -- CREATE TYPE chat_user_roles AS ENUM ('USER', 'ADMIN');
 -- CREATE TYPE project_user_roles AS ENUM ('CREATOR', 'EDITOR', 'VIEWER', 'ADMIN);
+-- CREATE TYPE task_types AS ENUM ('EPIC', 'TASK', 'SUBTASK', 'BUG', 'FEATURE', 'CHORE', 'SPIKE');
+-- CREATE TYPE task_priority_types AS ENUM ('VERY_LOW', 'LOW', 'MID', 'HIGH', 'VERY_HIGH');
 
+-- drop table tasks_assignment, task_comments, tasks, task_columns, task_columns_templates;
 
 CREATE TABLE IF NOT EXISTS users (
                                      id uuid PRIMARY KEY,
@@ -34,36 +37,59 @@ CREATE TABLE IF NOT EXISTS user_workspaces (
                                                PRIMARY KEY (user_id, workspace_id)
 );
 
+CREATE TABLE IF NOT EXISTS task_columns_templates (
+                                                      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                                                      workspace_id UUID NOT NULL REFERENCES workspaces(id),
+                                                      name TEXT NOT NULL,
+                                                      color varchar(7),
+                                                      position INTEGER DEFAULT 0,
+                                                      is_required BOOLEAN DEFAULT FALSE,
+                                                      is_active BOOLEAN DEFAULT TRUE,
+                                                      created_at timestamptz DEFAULT NOW(),
+                                                      updated_at timestamptz DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS task_columns (
                                             id UUID PRIMARY KEY,
-                                            workspace_id UUID REFERENCES workspaces(id),
                                             project_id UUID REFERENCES projects(id),
-                                            name TEXT NOT NULL,
-                                            position INTEGER DEFAULT 0,
-                                            color VARCHAR(7)
+                                            template_id UUID REFERENCES task_columns_templates(id),
+                                            UNIQUE (project_id, template_id)
 );
 
 CREATE TABLE IF NOT EXISTS tasks (
-                                     id UUID PRIMARY KEY,
-                                     column_id UUID REFERENCES task_columns(id),
-                                     workspace_id UUID REFERENCES workspaces(id),
+                                     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                                     column_id UUID NOT NULL REFERENCES task_columns(id),
+                                     workspace_id UUID NOT NULL REFERENCES workspaces(id),
                                      project_id UUID REFERENCES projects(id),
                                      sprint_id UUID REFERENCES sprints(id),
-                                     author_id UUID REFERENCES users(id),
-                                     created_at TIMESTAMPTZ DEFAULT NOW(),
-                                     updated_at TIMESTAMPTZ DEFAULT NOW(),
-                                     title VARCHAR(30) NOT NULL,
+                                     author_id UUID NOT NULL REFERENCES users(id),
+                                     parent_id UUID REFERENCES tasks(id),
+                                     type task_types NOT NULL DEFAULT 'TASK',
+                                     title VARCHAR(100) NOT NULL,
                                      description TEXT,
-                                     is_done BOOLEAN DEFAULT FALSE NOT NULL,
+                                     is_done BOOLEAN NOT NULL DEFAULT FALSE,
+                                     deleted_at TIMESTAMPTZ,
                                      due_date TIMESTAMPTZ,
-                                     priority INTEGER DEFAULT 0,
-                                     position INT NOT NULL
+                                     priority task_priority_types DEFAULT 'MID',
+                                     position INTEGER NOT NULL,
+                                     created_at TIMESTAMPTZ DEFAULT NOW(),
+                                     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS tasks_assignment (
                                                 task_id UUID REFERENCES tasks(id),
                                                 user_id UUID REFERENCES users(id),
+                                                assigned_at TIMESTAMPTZ DEFAULT NOW(),
                                                 PRIMARY KEY (task_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS task_comments (
+                               id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                               task_id UUID NOT NULL REFERENCES tasks(id),
+                               author_id UUID NOT NULL REFERENCES users(id),
+                               content TEXT NOT NULL,
+                               created_at TIMESTAMPTZ DEFAULT NOW(),
+                               updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS chats (
@@ -119,6 +145,7 @@ CREATE TABLE IF NOT EXISTS message_attachments (
                                                    id UUID PRIMARY KEY,
                                                    message_id TEXT REFERENCES messages(id),
                                                    file_url TEXT NOT NULL,
+                                                   --TODO добавить тип
                                                    file_type VARCHAR(20) NOT NULL,
                                                    file_name TEXT NOT NULL,
                                                    file_size INTEGER NOT NULL,
@@ -168,5 +195,3 @@ CREATE TABLE IF NOT EXISTS project_members (
 
 CREATE INDEX IF NOT EXISTS idx_tasks_project_id ON tasks(project_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_sprint_id ON tasks(sprint_id);
-
--- TODO ALTER TABLE tasks ALTER COLUMN position SET NOT NULL;

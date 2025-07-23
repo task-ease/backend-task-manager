@@ -27,6 +27,8 @@ func (h *ProjectHandler) RegisterRoutes(router *gin.RouterGroup) {
 	protected.GET("/role/:projectId", h.GetUserRole)
 	protected.GET("/members/:projectId", h.GetAllProjectMembers)
 
+	protected.PATCH("/role", h.ChangeUserRole)
+
 	protected.POST("", h.CreateProject)
 	protected.POST("/user", h.AddUserToProject)
 }
@@ -130,4 +132,19 @@ func (h *ProjectHandler) GetAllProjectMembers(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"members": members})
+}
+
+func (h *ProjectHandler) ChangeUserRole(c *gin.Context) {
+	var input request.ChangeUserProjectRole
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.uc.ChangeUserRole(input.UserId, input.ProjectId, input.Role); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Status(http.StatusOK)
 }

@@ -36,7 +36,7 @@ func (h *MessageHandler) GetAllMessages(c *gin.Context) {
 	chatId := c.Param("chatId")
 	messageList, err := h.uc.GetAllMessages(chatId)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "internal server error"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
 	}
 
