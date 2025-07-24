@@ -6,8 +6,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go-postgres-test/internal/domain"
+	"go-postgres-test/internal/enums"
 	"go-postgres-test/internal/response"
-	"go-postgres-test/internal/types/user"
 )
 
 type workSpaceRepo struct {
@@ -36,15 +36,11 @@ func (r *workSpaceRepo) CreateWorkSpace(workSpace domain.WorkSpace) (uuid.UUID, 
 		return uuid.Nil, err
 	}
 
-	_, err = r.taskRepo.CreateColumn("Planning", workSpace.ID, 0, "38BDF8")
-	_, err = r.taskRepo.CreateColumn("To do", workSpace.ID, 1, "FACC15")
-	_, err = r.taskRepo.CreateColumn("Done", workSpace.ID, 2, "22C55E")
+	//_, err = r.taskRepo.CreateColumn("Planning", workSpace.ID, 0, "38BDF8")
+	//_, err = r.taskRepo.CreateColumn("To do", workSpace.ID, 1, "FACC15")
+	//_, err = r.taskRepo.CreateColumn("Done", workSpace.ID, 2, "22C55E")
 
-	if err != nil {
-		return uuid.Nil, err
-	}
-
-	_, err = r.AddUserToWorkSpace(workSpace.ID.String(), workSpace.CreatorId.String(), user.WorkspaceCreator)
+	_, err = r.AddUserToWorkSpace(workSpace.ID.String(), workSpace.CreatorId.String(), enums.WorkspaceCreator)
 
 	if err != nil {
 		return uuid.Nil, err
@@ -53,7 +49,7 @@ func (r *workSpaceRepo) CreateWorkSpace(workSpace domain.WorkSpace) (uuid.UUID, 
 	return workSpace.ID, nil
 }
 
-func (r *workSpaceRepo) AddUserToWorkSpace(workSpaceId string, userId string, role user.WorkspaceRole) (bool, error) {
+func (r *workSpaceRepo) AddUserToWorkSpace(workSpaceId string, userId string, role enums.WorkspaceRole) (bool, error) {
 	_, err := r.conn.Exec(context.Background(),
 		"INSERT INTO user_workspaces (user_id, workspace_id, role) VALUES ($1, $2, $3)",
 		userId,
@@ -140,7 +136,7 @@ func (r *workSpaceRepo) RemoveUser(workSpaceId string, userId string) (bool, err
 	return true, nil
 }
 
-func (r *workSpaceRepo) HasUserWorkspace(userId string, workspaceId string) (user.WorkspaceRole, error) {
+func (r *workSpaceRepo) HasUserWorkspace(userId string, workspaceId string) (enums.WorkspaceRole, error) {
 	var exists bool
 
 	err := r.conn.QueryRow(context.Background(), `
@@ -151,19 +147,19 @@ func (r *workSpaceRepo) HasUserWorkspace(userId string, workspaceId string) (use
 		userId, workspaceId).Scan(&exists)
 
 	if err != nil {
-		return user.WorkspaceNotAllowed, err
+		return enums.WorkspaceNotAllowed, err
 	}
 
-	var role user.WorkspaceRole
+	var role enums.WorkspaceRole
 	if err = r.conn.QueryRow(context.Background(), `
 		SELECT role FROM user_workspaces WHERE user_id = $1`, userId).Scan(&role); err != nil {
-		return user.WorkspaceNotAllowed, err
+		return enums.WorkspaceNotAllowed, err
 	}
 
 	return role, nil
 }
 
-func (r *workSpaceRepo) ChangeUserRole(workSpaceId string, userId string, role user.WorkspaceRole) (bool, error) {
+func (r *workSpaceRepo) ChangeUserRole(workSpaceId string, userId string, role enums.WorkspaceRole) (bool, error) {
 	_, err := r.conn.Exec(context.Background(),
 		`UPDATE user_workspaces
 				SET role = $1

@@ -3,7 +3,7 @@ package usecase
 import (
 	"github.com/google/uuid"
 	"go-postgres-test/internal/domain"
-	"go-postgres-test/internal/types/user"
+	"go-postgres-test/internal/enums"
 )
 
 type UserUseCase struct {
@@ -26,6 +26,6 @@ func (uc *UserUseCase) SearchUserByEmail(value string) ([]domain.User, error) {
 	return uc.repo.SearchUserByEmail(value)
 }
 
-func (uc *UserUseCase) GetWorkspaceUserRole(userID uuid.UUID, workspaceID uuid.UUID) (user.WorkspaceRole, error) {
+func (uc *UserUseCase) GetWorkspaceUserRole(userID uuid.UUID, workspaceID uuid.UUID) (enums.WorkspaceRole, error) {
 	return uc.repo.GetWorkspaceUserRole(userID, workspaceID)
 }

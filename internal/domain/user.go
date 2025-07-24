@@ -2,7 +2,7 @@ package domain
 
 import (
 	"github.com/google/uuid"
-	"go-postgres-test/internal/types/user"
+	"go-postgres-test/internal/enums"
 	"time"
 )
 
@@ -20,9 +20,9 @@ type AuthUser struct {
 }
 type MemberUser struct {
 	User
-	JoinedAt time.Time      `json:"joined_at"`
-	Role     user.UserRoles `json:"role"`
-	Position *string        `json:"position"`
+	JoinedAt time.Time       `json:"joined_at"`
+	Role     enums.UserRoles `json:"role"`
+	Position *string         `json:"position"`
 }
 
 type UserRepository interface {
@@ -30,5 +30,5 @@ type UserRepository interface {
 	LogIn(user AuthUser) (uuid.UUID, error)
 	SearchUserByEmail(value string) ([]User, error)
 	ChangeOnlineStatus(userId uuid.UUID, status bool) error
-	GetWorkspaceUserRole(userID uuid.UUID, workspaceId uuid.UUID) (user.WorkspaceRole, error)
+	GetWorkspaceUserRole(userID uuid.UUID, workspaceId uuid.UUID) (enums.WorkspaceRole, error)
 }

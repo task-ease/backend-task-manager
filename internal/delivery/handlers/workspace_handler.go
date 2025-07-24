@@ -5,8 +5,8 @@ import (
 	"github.com/google/uuid"
 	"go-postgres-test/infrastructure/auth"
 	"go-postgres-test/internal/domain"
+	"go-postgres-test/internal/enums"
 	"go-postgres-test/internal/middleware"
-	"go-postgres-test/internal/types/user"
 	"go-postgres-test/internal/usecase"
 	"go-postgres-test/mixins"
 	"net/http"
@@ -21,9 +21,9 @@ type createWorkSpaceInput struct {
 }
 
 type BindInput struct {
-	WorkSpaceId string             `json:"workSpaceId"`
-	UserId      string             `json:"userId"`
-	Role        user.WorkspaceRole `json:"role"`
+	WorkSpaceId string              `json:"workSpaceId"`
+	UserId      string              `json:"userId"`
+	Role        enums.WorkspaceRole `json:"role"`
 }
 
 type RemoveUserInput struct {

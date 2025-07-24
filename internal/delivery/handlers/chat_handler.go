@@ -5,8 +5,8 @@ import (
 	"github.com/google/uuid"
 	"go-postgres-test/infrastructure/auth"
 	"go-postgres-test/internal/domain"
+	"go-postgres-test/internal/enums"
 	"go-postgres-test/internal/middleware"
-	"go-postgres-test/internal/types/user"
 	"go-postgres-test/internal/usecase"
 	"net/http"
 )
@@ -81,7 +81,7 @@ func (h *ChatHandler) AddUserToChat(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	}
 
-	err := h.uc.AddUserToChat(input.UserID, input.ChatID, input.WorkspaceID, user.ChatUser)
+	err := h.uc.AddUserToChat(input.UserID, input.ChatID, input.WorkspaceID, enums.ChatUser)
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})

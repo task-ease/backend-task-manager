@@ -2,7 +2,7 @@ package request
 
 import (
 	"github.com/google/uuid"
-	"go-postgres-test/internal/types/user"
+	"go-postgres-test/internal/enums"
 )
 
 type CreateProject struct {
@@ -17,7 +17,7 @@ type AddUserToProject struct {
 }
 
 type ChangeUserProjectRole struct {
-	ProjectId uuid.UUID        `json:"projectId"`
-	UserId    uuid.UUID        `json:"userId"`
-	Role      user.ProjectRole `json:"role"`
+	ProjectId uuid.UUID         `json:"projectId"`
+	UserId    uuid.UUID         `json:"userId"`
+	Role      enums.ProjectRole `json:"role"`
 }

@@ -3,8 +3,8 @@ package usecase
 import (
 	"github.com/google/uuid"
 	"go-postgres-test/internal/domain"
+	"go-postgres-test/internal/enums"
 	"go-postgres-test/internal/response"
-	"go-postgres-test/internal/types/user"
 )
 
 type ProjectUseCase struct {
@@ -19,7 +19,7 @@ func (uc *ProjectUseCase) CreateProject(creatorId, workSpaceId uuid.UUID, name, 
 	return uc.repo.CreateProject(creatorId, workSpaceId, name, prefix)
 }
 
-func (uc *ProjectUseCase) AddUserToProject(projectId uuid.UUID, userId uuid.UUID, role user.ProjectRole) error {
+func (uc *ProjectUseCase) AddUserToProject(projectId uuid.UUID, userId uuid.UUID, role enums.ProjectRole) error {
 	return uc.repo.AddUserToProject(projectId, userId, role)
 }
 
@@ -27,7 +27,7 @@ func (uc *ProjectUseCase) GetAllUserProjects(userId, workspaceId uuid.UUID) ([]r
 	return uc.repo.GetAllUserProjects(userId, workspaceId)
 }
 
-func (uc *ProjectUseCase) GetUserRole(userId, projectId uuid.UUID) (user.ProjectRole, error) {
+func (uc *ProjectUseCase) GetUserRole(userId, projectId uuid.UUID) (enums.ProjectRole, error) {
 	return uc.repo.GetUserRole(userId, projectId)
 }
 
@@ -35,6 +35,6 @@ func (uc *ProjectUseCase) GetAllProjectMembers(projectId uuid.UUID) ([]response.
 	return uc.repo.GetAllProjectMembers(projectId)
 }
 
-func (uc *ProjectUseCase) ChangeUserRole(userId, projectId uuid.UUID, role user.ProjectRole) error {
+func (uc *ProjectUseCase) ChangeUserRole(userId, projectId uuid.UUID, role enums.ProjectRole) error {
 	return uc.repo.ChangeUserRole(userId, projectId, role)
 }

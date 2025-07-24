@@ -5,9 +5,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go-postgres-test/internal/domain"
+	"go-postgres-test/internal/enums"
 	"go-postgres-test/internal/response"
-	"go-postgres-test/internal/types"
-	"go-postgres-test/internal/types/user"
 	"time"
 )
 
@@ -39,17 +38,17 @@ func (r *chatRepo) CreateChat(chat *domain.Chat, participantId uuid.UUID) error 
 		return err
 	}
 
-	if err = r.AddUserToChat(chat.CreatorID, chat.ID, chat.WorkspaceID, user.ChatUser); err != nil {
+	if err = r.AddUserToChat(chat.CreatorID, chat.ID, chat.WorkspaceID, enums.ChatUser); err != nil {
 		return err
 	}
-	if err = r.AddUserToChat(participantId, chat.ID, chat.WorkspaceID, user.ChatUser); err != nil {
+	if err = r.AddUserToChat(participantId, chat.ID, chat.WorkspaceID, enums.ChatUser); err != nil {
 		return err
 	}
 
 	systemMessage := domain.Message{
 		ChatID:      chat.ID,
 		SenderID:    chat.CreatorID,
-		MessageType: types.MessageSystem,
+		MessageType: enums.MessageSystem,
 		Content:     "chat created",
 		CreatedAt:   time.Now().UTC(),
 		UpdatedAt:   time.Now().UTC(),
@@ -59,7 +58,7 @@ func (r *chatRepo) CreateChat(chat *domain.Chat, participantId uuid.UUID) error 
 	return err
 }
 
-func (r *chatRepo) AddUserToChat(userId uuid.UUID, chatId string, workspaceId uuid.UUID, role user.ChatRole) error {
+func (r *chatRepo) AddUserToChat(userId uuid.UUID, chatId string, workspaceId uuid.UUID, role enums.ChatRole) error {
 	_, err := r.conn.Exec(context.Background(),
 		`INSERT INTO user_chats (user_id, chat_id, workspace_id, role) VALUES ($1, $2, $3, $4)`, userId, chatId, workspaceId, role)
 	return err
@@ -97,7 +96,7 @@ func (r *chatRepo) GetAllUserChats(userId uuid.UUID, workspaceId uuid.UUID) ([]r
 			return nil, err
 		}
 		switch chat.Type {
-		case types.TypePrivate:
+		case enums.TypePrivate:
 			if err := r.getUserNameById(chat.ID, userId, &chat.Name); err != nil {
 				chat.Name = "error"
 			}
@@ -135,7 +134,7 @@ func (r *chatRepo) getLastMessageInfo(chat *response.GetChats, userID uuid.UUID)
 		WHERE m.chat_id = $1
 		ORDER BY m.created_at DESC
 		LIMIT 1`,
-		chat.ID, types.MessageImage, userID).Scan(
+		chat.ID, enums.MessageImage, userID).Scan(
 		&chat.LastMessage,
 		&chat.LastMessageType,
 		&chat.LastMessageTime,

@@ -3,9 +3,9 @@ package handlers
 import (
 	"github.com/gin-gonic/gin"
 	"go-postgres-test/infrastructure/auth"
+	"go-postgres-test/internal/enums"
 	"go-postgres-test/internal/middleware"
 	"go-postgres-test/internal/request"
-	"go-postgres-test/internal/types/user"
 	"go-postgres-test/internal/usecase"
 	"go-postgres-test/mixins"
 	"net/http"
@@ -62,7 +62,7 @@ func (h *ProjectHandler) AddUserToProject(c *gin.Context) {
 		return
 	}
 
-	if err := h.uc.AddUserToProject(input.ProjectId, input.UserId, user.ProjectRoleEditor); err != nil {
+	if err := h.uc.AddUserToProject(input.ProjectId, input.UserId, enums.ProjectRoleEditor); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -111,7 +111,7 @@ func (h *ProjectHandler) GetUserRole(c *gin.Context) {
 		return
 	}
 
-	if role == user.ProjectRoleNoAccess {
+	if role == enums.ProjectRoleNoAccess {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "NO_ACCESS"})
 		return
 	}

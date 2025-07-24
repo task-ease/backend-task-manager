@@ -2,31 +2,15 @@ package handlers
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"go-postgres-test/infrastructure/auth"
+	"go-postgres-test/internal/entities"
 	"go-postgres-test/internal/middleware"
 	"go-postgres-test/internal/usecase"
-	"time"
+	"net/http"
 )
 
 type TaskHandler struct {
 	uc *usecase.TaskUseCase
-}
-
-type RawTask struct {
-	ColumnID    uuid.UUID  `json:"columnId"`
-	WorkspaceID uuid.UUID  `json:"workspaceId"`
-	Title       string     `json:"title"`
-	IsFinished  bool       `json:"isFinished"`
-	Description *string    `json:"description"`
-	DueDate     *time.Time `json:"dueDate"`
-	Priority    int        `json:"priority"`
-	Status      int        `json:"status"`
-}
-
-type ReorderRequest struct {
-	ColumnID uuid.UUID   `json:"columnId"`
-	TaskIDs  []uuid.UUID `json:"taskIds"`
 }
 
 func NewTaskHandler(uc *usecase.TaskUseCase) *TaskHandler { return &TaskHandler{uc: uc} }
@@ -40,5 +24,17 @@ func (h *TaskHandler) RegisterRoutes(router *gin.RouterGroup) {
 }
 
 func (h *TaskHandler) CreateColumnTemplate(c *gin.Context) {
+	var input entities.ColumnTemplate
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 
+	id, err := h.uc.CreateColumnTemplate(input)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"id": id})
 }

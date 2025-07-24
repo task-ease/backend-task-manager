@@ -6,8 +6,8 @@ import (
 	"github.com/google/uuid"
 	"go-postgres-test/infrastructure/auth"
 	"go-postgres-test/internal/domain"
+	"go-postgres-test/internal/enums"
 	"go-postgres-test/internal/middleware"
-	"go-postgres-test/internal/types"
 	"log"
 	"net/http"
 	"sync"
@@ -28,7 +28,7 @@ type Client struct {
 }
 
 type WebSocketMessage struct {
-	Type   types.WsMessageTypes `json:"type"`
+	Type   enums.WsMessageTypes `json:"type"`
 	UserID uuid.UUID            `json:"userId"`
 	Data   string               `json:"data"`
 	RoomID string               `json:"roomId"`
@@ -38,7 +38,7 @@ type MessageNotification struct {
 	ChatID                string            `json:"chatID"`
 	LastMessage           string            `json:"lastMessage"`
 	LastMessageTime       time.Time         `json:"lastMessageTime"`
-	LastMessageType       types.MessageType `json:"lastMessageType"`
+	LastMessageType       enums.MessageType `json:"lastMessageType"`
 	LastMessageAttachment *string           `json:"lastMessageAttachment"`
 	LastMessageSenderId   uuid.UUID         `json:"lastMessageSenderId"`
 }
@@ -96,7 +96,7 @@ func (h *WebSocketHandler) HandleWS(c *gin.Context) {
 	roomsMu.Unlock()
 
 	msg := WebSocketMessage{
-		Type:   types.TypeConnected,
+		Type:   enums.TypeConnected,
 		UserID: client.ID,
 		Data:   "",
 		RoomID: roomId,
@@ -108,7 +108,7 @@ func (h *WebSocketHandler) HandleWS(c *gin.Context) {
 		_, raw, err := conn.ReadMessage()
 		if err != nil {
 			msg := WebSocketMessage{
-				Type:   types.TypeDisconnected,
+				Type:   enums.TypeDisconnected,
 				UserID: client.ID,
 				Data:   "",
 				RoomID: roomId,
@@ -130,7 +130,7 @@ func (h *WebSocketHandler) HandleWS(c *gin.Context) {
 
 		sendJSONToRoom(roomId, incomingMsg)
 
-		if incomingMsg.Type == types.TypeMessage {
+		if incomingMsg.Type == enums.TypeMessage {
 			var message domain.Message
 			err := json.Unmarshal([]byte(incomingMsg.Data), &message)
 			if err != nil {
@@ -155,7 +155,7 @@ func (h *WebSocketHandler) HandleWS(c *gin.Context) {
 			dataStr, _ := json.Marshal(messageNotificationData)
 
 			msgNotificationGlobal := WebSocketMessage{
-				Type:   types.TypeMessageNotification,
+				Type:   enums.TypeMessageNotification,
 				UserID: client.ID,
 				Data:   string(dataStr),
 				RoomID: "global",

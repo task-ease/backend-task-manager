@@ -2,7 +2,7 @@ package domain
 
 import (
 	"github.com/google/uuid"
-	"go-postgres-test/internal/types"
+	"go-postgres-test/internal/enums"
 	"io"
 	"time"
 )
@@ -12,7 +12,7 @@ type Message struct {
 	ChatID         string            `db:"chatID" json:"chatID"`
 	SenderID       uuid.UUID         `db:"senderID" json:"senderID"`
 	Content        string            `db:"content" json:"content"`
-	MessageType    types.MessageType `db:"messageType" json:"messageType"`
+	MessageType    enums.MessageType `db:"messageType" json:"messageType"`
 	CreatedAt      time.Time         `db:"createdAt" json:"createdAt"`
 	UpdatedAt      time.Time         `db:"updatedAt" json:"updatedAt"`
 	IsEdited       bool              `db:"isEdited" json:"isEdited"`
@@ -28,7 +28,7 @@ type Attachment struct {
 	MessageID  string            `json:"messageID"`
 	ChatID     string            `json:"chatID"`
 	FileUrl    string            `json:"fileUrl"`
-	FileType   types.MessageType `json:"fileType"`
+	FileType   enums.MessageType `json:"fileType"`
 	FileSize   int64             `json:"fileSize"`
 	FileName   string            `json:"fileName"`
 	Size       int64             `json:"size"`

@@ -3,8 +3,8 @@ package usecase
 import (
 	"github.com/google/uuid"
 	"go-postgres-test/internal/domain"
+	"go-postgres-test/internal/enums"
 	"go-postgres-test/internal/response"
-	"go-postgres-test/internal/types/user"
 )
 
 type WorkSpaceUsecase struct {
@@ -23,7 +23,7 @@ func (uc *WorkSpaceUsecase) GetAllUserSpaces(userId uuid.UUID) ([]domain.WorkSpa
 	return uc.repo.GetAllUserSpaces(userId)
 }
 
-func (uc *WorkSpaceUsecase) AddUserToWorkSpace(workSpaceId string, userId string, role user.WorkspaceRole) (bool, error) {
+func (uc *WorkSpaceUsecase) AddUserToWorkSpace(workSpaceId string, userId string, role enums.WorkspaceRole) (bool, error) {
 	return uc.repo.AddUserToWorkSpace(workSpaceId, userId, role)
 }
 
@@ -35,11 +35,11 @@ func (uc *WorkSpaceUsecase) RemoveUser(workSpaceId string, userId string) (bool,
 	return uc.repo.RemoveUser(workSpaceId, userId)
 }
 
-func (uc *WorkSpaceUsecase) HasUserWorkspace(userId string, workspaceId string) (user.WorkspaceRole, error) {
+func (uc *WorkSpaceUsecase) HasUserWorkspace(userId string, workspaceId string) (enums.WorkspaceRole, error) {
 	return uc.repo.HasUserWorkspace(userId, workspaceId)
 }
 
-func (uc *WorkSpaceUsecase) ChangeUserRole(workSpaceId string, userId string, role user.WorkspaceRole) (bool, error) {
+func (uc *WorkSpaceUsecase) ChangeUserRole(workSpaceId string, userId string, role enums.WorkspaceRole) (bool, error) {
 	return uc.repo.ChangeUserRole(workSpaceId, userId, role)
 }
 

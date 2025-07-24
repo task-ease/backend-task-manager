@@ -6,8 +6,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go-postgres-test/internal/domain"
+	"go-postgres-test/internal/enums"
 	"go-postgres-test/internal/response"
-	"go-postgres-test/internal/types/user"
 	"time"
 )
 
@@ -38,13 +38,13 @@ func (r *projectRepo) CreateProject(creatorId, workSpaceId uuid.UUID, name, pref
 	if err != nil {
 		return uuid.Nil, err
 	}
-	if err = r.AddUserToProject(id, creatorId, user.ProjectRoleCreator); err != nil {
+	if err = r.AddUserToProject(id, creatorId, enums.ProjectRoleCreator); err != nil {
 		return uuid.Nil, err
 	}
 	return id, nil
 }
 
-func (r *projectRepo) AddUserToProject(projectId uuid.UUID, userId uuid.UUID, role user.ProjectRole) error {
+func (r *projectRepo) AddUserToProject(projectId uuid.UUID, userId uuid.UUID, role enums.ProjectRole) error {
 	_, err := r.conn.Exec(context.Background(), `
 			INSERT INTO project_members (id, project_id, user_id, role, joined_at)
 			VALUES ($1, $2, $3, $4, $5)`, uuid.New(), projectId, userId, role, time.Now().UTC())
@@ -73,8 +73,8 @@ func (r *projectRepo) GetAllUserProjects(userId, workspaceId uuid.UUID) ([]respo
 	return projects, nil
 }
 
-func (r *projectRepo) GetUserRole(userId, projectId uuid.UUID) (user.ProjectRole, error) {
-	var role user.ProjectRole
+func (r *projectRepo) GetUserRole(userId, projectId uuid.UUID) (enums.ProjectRole, error) {
+	var role enums.ProjectRole
 	err := r.conn.QueryRow(context.Background(), `
 		SELECT 
 			CASE 
@@ -123,7 +123,7 @@ func (r *projectRepo) GetAllProjectMembers(projectId uuid.UUID) ([]response.GetA
 	return projectUsers, nil
 }
 
-func (r *projectRepo) ChangeUserRole(userId, projectId uuid.UUID, role user.ProjectRole) error {
+func (r *projectRepo) ChangeUserRole(userId, projectId uuid.UUID, role enums.ProjectRole) error {
 	_, err := r.conn.Exec(context.Background(), `
 		UPDATE project_members SET role = $1 WHERE user_id = $2 AND project_id = $3`, role, userId, projectId)
 	return err

@@ -5,8 +5,8 @@ import (
 	"github.com/google/uuid"
 	"go-postgres-test/infrastructure/auth"
 	"go-postgres-test/internal/domain"
+	"go-postgres-test/internal/enums"
 	"go-postgres-test/internal/middleware"
-	"go-postgres-test/internal/types"
 	"go-postgres-test/internal/usecase"
 	"net/http"
 	"time"
@@ -66,7 +66,7 @@ func (h *MessageHandler) UploadImageList(c *gin.Context) {
 		ChatID:      chatId,
 		SenderID:    userId,
 		Content:     content,
-		MessageType: types.MessageImage,
+		MessageType: enums.MessageImage,
 		CreatedAt:   time.Now().UTC(),
 		UpdatedAt:   time.Now().UTC(),
 	}
@@ -104,7 +104,7 @@ func (h *MessageHandler) UploadImageList(c *gin.Context) {
 			ID:         uuid.New(),
 			MessageID:  message.ID,
 			FileUrl:    url,
-			FileType:   types.MessageImage,
+			FileType:   enums.MessageImage,
 			FileName:   fileHeader.Filename,
 			FileSize:   fileHeader.Size,
 			UploadedAt: time.Now().UTC(),
