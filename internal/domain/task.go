@@ -2,6 +2,7 @@ package domain
 
 import (
 	"github.com/google/uuid"
+	"go-postgres-test/internal/enums"
 	"time"
 )
 
@@ -21,23 +22,6 @@ type Task struct {
 	Position    int        `json:"position"`
 }
 
-type TaskColumn struct {
-	ID          uuid.UUID `json:"id"`
-	WorkspaceId uuid.UUID `json:"workspaceId"`
-	Name        string    `json:"name"`
-	Position    int       `json:"position"`
-	Color       string    `json:"color"`
-	IsDone      bool      `json:"isDone"`
-}
-
 type TaskRepository interface {
-	CreateTask(task *Task) (bool, error)
-	CreateColumn(name string, workspaceId uuid.UUID, position int, color string) (bool, error)
-	GetAllColumns(workspaceId uuid.UUID) ([]*TaskColumn, error)
-	GetAllTasks(workspaceId uuid.UUID) ([]*Task, error)
-
-	ReorderTasks(columnId uuid.UUID, orderedTaskIDs []uuid.UUID) error
-	UpdateTask(task *Task) error
-	MarkColumnAsDone(columnID uuid.UUID, isDone bool) error
-	UpdateColumn(id, name, color string) error
+	CreateColumnTemplate(workspaceId uuid.UUID, columnTmp enums.ColumnTemplate) error
 }

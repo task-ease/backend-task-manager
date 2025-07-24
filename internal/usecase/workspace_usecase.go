@@ -35,7 +35,7 @@ func (uc *WorkSpaceUsecase) RemoveUser(workSpaceId string, userId string) (bool,
 	return uc.repo.RemoveUser(workSpaceId, userId)
 }
 
-func (uc *WorkSpaceUsecase) HasUserWorkspace(userId string, workspaceId string) (bool, error) {
+func (uc *WorkSpaceUsecase) HasUserWorkspace(userId string, workspaceId string) (user.WorkspaceRole, error) {
 	return uc.repo.HasUserWorkspace(userId, workspaceId)
 }
 

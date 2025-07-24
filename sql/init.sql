@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS task_columns_templates (
                                                       position INTEGER DEFAULT 0,
                                                       is_required BOOLEAN DEFAULT FALSE,
                                                       is_active BOOLEAN DEFAULT TRUE,
+                                                      is_done BOOLEAN DEFAULT FALSE,
                                                       created_at timestamptz DEFAULT NOW(),
                                                       updated_at timestamptz DEFAULT NOW()
 );

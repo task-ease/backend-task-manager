@@ -20,7 +20,7 @@ type WorkSpaceRepository interface {
 	AddUserToWorkSpace(workSpaceId string, userId string, role user.WorkspaceRole) (bool, error)
 	GetAllSpaceMembers(workSpaceId uuid.UUID) ([]MemberUser, error)
 	RemoveUser(workSpaceId string, userId string) (bool, error)
-	HasUserWorkspace(userId string, workspaceId string) (bool, error)
+	HasUserWorkspace(userId string, workspaceId string) (user.WorkspaceRole, error)
 	ChangeUserRole(workSpaceId string, userId string, role user.WorkspaceRole) (bool, error)
 	SearchWorkspaceMember(workSpaceId, userId uuid.UUID, value string) ([]response.FindWorkspaceMemberResponse, error)
 }

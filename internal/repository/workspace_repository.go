@@ -140,7 +140,7 @@ func (r *workSpaceRepo) RemoveUser(workSpaceId string, userId string) (bool, err
 	return true, nil
 }
 
-func (r *workSpaceRepo) HasUserWorkspace(userId string, workspaceId string) (bool, error) {
+func (r *workSpaceRepo) HasUserWorkspace(userId string, workspaceId string) (user.WorkspaceRole, error) {
 	var exists bool
 
 	err := r.conn.QueryRow(context.Background(), `
@@ -151,10 +151,16 @@ func (r *workSpaceRepo) HasUserWorkspace(userId string, workspaceId string) (boo
 		userId, workspaceId).Scan(&exists)
 
 	if err != nil {
-		return false, err
+		return user.WorkspaceNotAllowed, err
 	}
 
-	return exists, nil
+	var role user.WorkspaceRole
+	if err = r.conn.QueryRow(context.Background(), `
+		SELECT role FROM user_workspaces WHERE user_id = $1`, userId).Scan(&role); err != nil {
+		return user.WorkspaceNotAllowed, err
+	}
+
+	return role, nil
 }
 
 func (r *workSpaceRepo) ChangeUserRole(workSpaceId string, userId string, role user.WorkspaceRole) (bool, error) {

@@ -209,14 +209,14 @@ func (h *WorkSpaceHandler) HasUserWorkspace(c *gin.Context) {
 		return
 	}
 
-	ok, err := h.uc.HasUserWorkspace(userId, workSpaceId)
+	role, err := h.uc.HasUserWorkspace(userId, workSpaceId)
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, ok)
+	c.JSON(http.StatusOK, gin.H{"role": role})
 }
 
 func (h *WorkSpaceHandler) ChangeUserRole(c *gin.Context) {
