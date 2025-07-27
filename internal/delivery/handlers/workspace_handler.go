@@ -7,6 +7,7 @@ import (
 	"go-postgres-test/internal/domain"
 	"go-postgres-test/internal/enums"
 	"go-postgres-test/internal/middleware"
+	"go-postgres-test/internal/request"
 	"go-postgres-test/internal/usecase"
 	"go-postgres-test/mixins"
 	"net/http"
@@ -44,10 +45,14 @@ func (h *WorkSpaceHandler) RegisterRoutes(router *gin.RouterGroup) {
 	protected.GET("/get-all-workspace-members/:id", h.GetAllSpaceMembers)
 	protected.GET("/has-user-workspace/:id", h.HasUserWorkspace)
 	protected.GET("/search-user/:value", h.SearchWorkspaceMember)
+	protected.GET("/column-tmpl/:workspaceId", h.GetAllColumnTemplates)
 
 	protected.POST("/change-user-role", h.ChangeUserRole)
 	protected.POST("/create-workspace", h.CreateWorkSpace)
 	protected.POST("/add-user-to-workspace", h.AddUserToWorkSpace)
+
+	protected.PATCH("/status/:method", h.UpdateColumnStatus)
+	protected.PATCH("/name", h.UpdateColumnName)
 
 	protected.DELETE("/remove-user-from-workspace", h.RemoveUser)
 }
@@ -258,4 +263,63 @@ func (h *WorkSpaceHandler) SearchWorkspaceMember(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, members)
+}
+
+func (h *WorkSpaceHandler) GetAllColumnTemplates(c *gin.Context) {
+	workspaceId, err := mixins.ParamToUUID(c, "workspaceId")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	columnList, err := h.uc.GetAllColumnTemplates(workspaceId)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"columnList": columnList})
+}
+
+func (h *WorkSpaceHandler) UpdateColumnStatus(c *gin.Context) {
+	var input request.UpdateColumnStatusRequest
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	method := c.Param("method")
+	if method == "required" {
+		if err := h.uc.UpdateColumnStatusRequired(input.ColumnId, input.Status); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+	} else if method == "active" {
+		if err := h.uc.UpdateColumnStatusActive(input.ColumnId, input.Status); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+	} else if method == "done" {
+		if err := h.uc.UpdateColumnStatusDone(input.ColumnId); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+	}
+
+	c.Status(http.StatusOK)
+}
+
+func (h *WorkSpaceHandler) UpdateColumnName(c *gin.Context) {
+	var input request.UpdateColumnNameRequest
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.uc.UpdateColumnName(input.ColumnId, input.Name); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Status(http.StatusOK)
 }

@@ -6,8 +6,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go-postgres-test/internal/domain"
+	"go-postgres-test/internal/entities"
 	"go-postgres-test/internal/enums"
 	"go-postgres-test/internal/response"
+	"time"
 )
 
 type workSpaceRepo struct {
@@ -21,6 +23,11 @@ func NewWorkSpaceRepository(conn *pgxpool.Pool, taskRepo domain.TaskRepository) 
 		taskRepo: taskRepo,
 	}
 }
+
+const createColumnTemplateQuery = `
+		INSERT INTO task_columns_templates (
+		     id, workspace_id, name, color, position, is_required, is_active, is_done, created_at,  updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 
 func (r *workSpaceRepo) CreateWorkSpace(workSpace domain.WorkSpace) (uuid.UUID, error) {
 	workSpace.ID = uuid.New()
@@ -195,4 +202,100 @@ func (r *workSpaceRepo) SearchWorkspaceMember(workSpaceId, userId uuid.UUID, val
 		members = append(members, member)
 	}
 	return members, nil
+}
+
+func (r *workSpaceRepo) CreateColumnTemplate(columnTmp entities.ColumnTemplate) (uuid.UUID, error) {
+	id := uuid.New()
+	_, err := r.conn.Exec(context.Background(), createColumnTemplateQuery,
+		id,
+		columnTmp.WorkspaceId,
+		columnTmp.Name,
+		columnTmp.Color,
+		columnTmp.Position,
+		columnTmp.IsRequired,
+		columnTmp.IsActive,
+		columnTmp.IsDone,
+		time.Now().UTC(),
+		time.Now().UTC())
+	if err != nil {
+		return uuid.Nil, err
+	}
+	return id, nil
+}
+
+func (r *workSpaceRepo) GetAllColumnTemplates(workSpaceId uuid.UUID) ([]entities.ColumnTemplate, error) {
+	rows, err := r.conn.Query(context.Background(), `
+		SELECT id, name, color, position, is_required, is_active, created_at, updated_at, is_done FROM task_columns_templates 
+		WHERE workspace_id = $1
+		ORDER BY position`, workSpaceId)
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var columnList []entities.ColumnTemplate
+	for rows.Next() {
+		var column entities.ColumnTemplate
+		if err := rows.Scan(&column.Id, &column.Name, &column.Color, &column.Position, &column.IsRequired, &column.IsActive, &column.CreatedAt, &column.UpdatedAt, &column.IsDone); err != nil {
+			return nil, err
+		}
+		columnList = append(columnList, column)
+	}
+
+	return columnList, nil
+}
+
+func (r *workSpaceRepo) UpdateColumnStatusRequired(columnId uuid.UUID, status bool) error {
+	_, err := r.conn.Exec(context.Background(), `
+		UPDATE task_columns_templates
+		SET is_required = $1
+		WHERE id = $2`, status, columnId)
+	return err
+}
+
+func (r *workSpaceRepo) UpdateColumnStatusDone(columnId uuid.UUID) error {
+	var workspaceId uuid.UUID
+	err := r.conn.QueryRow(context.Background(), `
+		SELECT workspace_id
+		FROM task_columns_templates
+		WHERE id = $1
+	`, columnId).Scan(&workspaceId)
+	if err != nil {
+		return err
+	}
+
+	_, err = r.conn.Exec(context.Background(), `
+		UPDATE task_columns_templates
+		SET is_done = false
+		WHERE workspace_id = $1
+	`, workspaceId)
+	if err != nil {
+		return err
+	}
+
+	_, err = r.conn.Exec(context.Background(), `
+		UPDATE task_columns_templates
+		SET is_done = true, is_required = true
+		WHERE id = $1
+	`, columnId)
+	return err
+}
+
+func (r *workSpaceRepo) UpdateColumnStatusActive(columnId uuid.UUID, status bool) error {
+	_, err := r.conn.Exec(context.Background(), `
+		UPDATE task_columns_templates
+		SET is_active = $1
+		WHERE id = $2
+	`, status, columnId)
+	return err
+}
+
+func (r *workSpaceRepo) UpdateColumnName(columnId uuid.UUID, name string) error {
+	_, err := r.conn.Exec(context.Background(), `
+		UPDATE task_columns_templates
+		SET name = $1
+		WHERE id = $2
+	`, name, columnId)
+	return err
 }
