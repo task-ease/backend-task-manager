@@ -1,34 +1,18 @@
 package domain
 
 import (
+	"context"
 	"github.com/google/uuid"
+	"go-postgres-test/internal/entities"
 	"go-postgres-test/internal/enums"
-	"time"
 )
 
-type User struct {
-	ID           uuid.UUID `json:"id"`
-	Username     string    `json:"username"`
-	Email        string    `json:"email"`
-	UserIconUrl  *string   `json:"userIconUrl"`
-	IsOnline     bool      `json:"isOnline"`
-	LastOnlineAt time.Time `json:"lastOnlineAt"`
-}
-type AuthUser struct {
-	User
-	Password string `json:"password"`
-}
-type MemberUser struct {
-	User
-	JoinedAt time.Time       `json:"joined_at"`
-	Role     enums.UserRoles `json:"role"`
-	Position *string         `json:"position"`
-}
-
 type UserRepository interface {
-	CreateUser(user AuthUser) (string, error)
-	LogIn(user AuthUser) (uuid.UUID, error)
-	SearchUserByEmail(value string) ([]User, error)
+	CreateUser(user entities.AuthUser) (string, error)
+	LogIn(user entities.AuthUser) (uuid.UUID, error)
+	SearchUserByEmail(value string) ([]entities.User, error)
 	ChangeOnlineStatus(userId uuid.UUID, status bool) error
 	GetWorkspaceUserRole(userID uuid.UUID, workspaceId uuid.UUID) (enums.WorkspaceRole, error)
+
+	CreateUserTx(ctx context.Context, exec entities.Execer, user entities.AuthUser) (string, error)
 }

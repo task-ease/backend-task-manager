@@ -8,6 +8,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go-postgres-test/internal/domain"
+	"go-postgres-test/internal/entities"
+	"go-postgres-test/mixins"
 	"io"
 	"net/http"
 	"net/url"
@@ -24,10 +26,26 @@ func NewMessageRepository(conn *pgxpool.Pool, imageStorageKey string) domain.Mes
 	return &messageRepo{conn: conn, imageStorageKey: imageStorageKey}
 }
 
-func (r *messageRepo) AddMessage(message *domain.Message) (*[]uuid.UUID, error) {
+func (r *messageRepo) AddMessage(message *domain.Message) (result *[]uuid.UUID, err error) {
+	ctx := context.Background()
+
+	tx, err := r.conn.Begin(ctx)
+	if err != nil {
+		empty := make([]uuid.UUID, 0)
+		return &empty, err
+	}
+
+	defer func() {
+		_ = mixins.TXReturn(tx, ctx, err)
+	}()
+
+	return r.AddMessageTx(context.Background(), tx, message)
+}
+
+func (r *messageRepo) AddMessageTx(ctx context.Context, exec entities.Execer, message *domain.Message) (*[]uuid.UUID, error) {
 	message.ID = "m-" + uuid.New().String()
 
-	_, err := r.conn.Exec(context.Background(),
+	_, err := exec.Exec(ctx,
 		`INSERT INTO messages (id, chat_id, sender_id, content, message_type, created_at, updated_at)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 		message.ID, message.ChatID, message.SenderID, message.Content, message.MessageType, message.CreatedAt, message.UpdatedAt)
@@ -35,7 +53,7 @@ func (r *messageRepo) AddMessage(message *domain.Message) (*[]uuid.UUID, error) 
 		return nil, err
 	}
 
-	rows, err := r.conn.Query(context.Background(), `
+	rows, err := exec.Query(ctx, `
 		INSERT INTO message_reads (user_id, message_id, chat_id)
 		SELECT uc.user_id, $1, $2
 		FROM user_chats uc
@@ -62,7 +80,7 @@ func (r *messageRepo) AddMessage(message *domain.Message) (*[]uuid.UUID, error) 
 		unreadUserIds = append(unreadUserIds, userID)
 	}
 
-	_, err = r.conn.Exec(context.Background(),
+	_, err = exec.Exec(ctx,
 		`UPDATE chats SET updated_at = $1 WHERE id = $2`, message.UpdatedAt, message.ChatID)
 	if err != nil {
 		return nil, err
@@ -72,7 +90,23 @@ func (r *messageRepo) AddMessage(message *domain.Message) (*[]uuid.UUID, error) 
 }
 
 func (r *messageRepo) GetAllMessages(chatId string) ([]*domain.Message, error) {
-	rows, err := r.conn.Query(context.Background(), `
+	ctx := context.Background()
+
+	tx, err := r.conn.Begin(ctx)
+	if err != nil {
+		empty := make([]*domain.Message, 0)
+		return empty, err
+	}
+
+	defer func() {
+		_ = mixins.TXReturn(tx, ctx, err)
+	}()
+
+	return r.GetAllMessagesTx(ctx, tx, chatId)
+}
+
+func (r *messageRepo) GetAllMessagesTx(ctx context.Context, exec entities.Execer, chatId string) ([]*domain.Message, error) {
+	rows, err := exec.Query(ctx, `
 		SELECT 
 		    m.id,
 		    m.sender_id, 
@@ -105,7 +139,7 @@ func (r *messageRepo) GetAllMessages(chatId string) ([]*domain.Message, error) {
 			return nil, err
 		}
 
-		if err := r.getAttachments(message.ID, &message.Attachments); err != nil {
+		if err := r.GetAttachmentsTx(ctx, exec, message.ID, &message.Attachments); err != nil {
 			message.Attachments = nil
 		}
 
@@ -160,8 +194,12 @@ func (r *messageRepo) AddAttachment(attachment *domain.Attachment) error {
 	return err
 }
 
-func (r *messageRepo) getAttachments(messageId string, attachments *[]domain.Attachment) error {
-	rows, err := r.conn.Query(context.Background(), `
+func (r *messageRepo) GetAttachments(messageId string, attachments *[]domain.Attachment) error {
+	return r.GetAttachmentsTx(context.Background(), r.conn, messageId, attachments)
+}
+
+func (r *messageRepo) GetAttachmentsTx(ctx context.Context, exec entities.Execer, messageId string, attachments *[]domain.Attachment) error {
+	rows, err := exec.Query(ctx, `
 		SELECT id, message_id, uploaded_at, file_size, file_name, file_type, file_url
 		FROM message_attachments
 		WHERE message_id = $1`, messageId)
@@ -187,7 +225,22 @@ func (r *messageRepo) getAttachments(messageId string, attachments *[]domain.Att
 }
 
 func (r *messageRepo) SetMessageRead(message *domain.Message, userId uuid.UUID) error {
-	_, err := r.conn.Exec(context.Background(), `
+	ctx := context.Background()
+
+	tx, err := r.conn.Begin(ctx)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		_ = mixins.TXReturn(tx, ctx, err)
+	}()
+
+	return r.SetMessageReadTx(ctx, tx, message, userId)
+}
+
+func (r *messageRepo) SetMessageReadTx(ctx context.Context, exec entities.Execer, message *domain.Message, userId uuid.UUID) error {
+	_, err := exec.Exec(ctx, `
 		UPDATE message_reads 
 		SET read_at = $1 
 		WHERE message_id = $2 AND user_id = $3`,
@@ -198,7 +251,7 @@ func (r *messageRepo) SetMessageRead(message *domain.Message, userId uuid.UUID) 
 
 	var isRead bool
 
-	err = r.conn.QueryRow(context.Background(), `
+	err = exec.QueryRow(ctx, `
 			SELECT COUNT(*) = 0
 			FROM message_reads
 			WHERE message_id = $1 AND read_at IS NULL`,
@@ -209,7 +262,7 @@ func (r *messageRepo) SetMessageRead(message *domain.Message, userId uuid.UUID) 
 	}
 
 	if isRead {
-		_, err := r.conn.Exec(context.Background(), `
+		_, err := exec.Exec(ctx, `
 		UPDATE messages
 		SET is_read = true
 		WHERE id = $1
@@ -224,8 +277,19 @@ func (r *messageRepo) SetMessageRead(message *domain.Message, userId uuid.UUID) 
 }
 
 func (r *messageRepo) SetMessagesRead(messages *[]domain.Message, userId uuid.UUID) error {
+	ctx := context.Background()
+
+	tx, err := r.conn.Begin(ctx)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		_ = mixins.TXReturn(tx, ctx, err)
+	}()
+
 	for _, m := range *messages {
-		err := r.SetMessageRead(&m, userId)
+		err := r.SetMessageReadTx(ctx, tx, &m, userId)
 		if err != nil {
 			return err
 		}

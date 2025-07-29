@@ -43,4 +43,5 @@ type ColumnTemplate struct {
 	IsDone      bool      `json:"isDone"`
 	CreatedAt   time.Time `json:"createdAt"`
 	UpdatedAt   time.Time `json:"updatedAt"`
+	GlobalTasks bool      `json:"globalTasks"`
 }

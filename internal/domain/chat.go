@@ -1,7 +1,9 @@
 package domain
 
 import (
+	"context"
 	"github.com/google/uuid"
+	"go-postgres-test/internal/entities"
 	"go-postgres-test/internal/enums"
 	"go-postgres-test/internal/response"
 	"time"
@@ -38,4 +40,7 @@ type ChatRepository interface {
 	AddUserToChat(userId uuid.UUID, chatId string, workspaceId uuid.UUID, role enums.ChatRole) error
 	GetAllUserChats(userId uuid.UUID, workspaceId uuid.UUID) ([]response.GetChats, error)
 	GetChatsBySearch(userID uuid.UUID, workspaceId uuid.UUID, value string) ([]response.GetChatsSearch, error)
+
+	CreateChatTx(ctx context.Context, exec entities.Execer, chat *Chat, participantId uuid.UUID) error
+	AddUserToChatTx(ctx context.Context, exec entities.Execer, userId uuid.UUID, chatId string, workspaceId uuid.UUID, role enums.ChatRole) error
 }

@@ -5,6 +5,7 @@ import (
 	"github.com/google/uuid"
 	"go-postgres-test/infrastructure/auth"
 	"go-postgres-test/internal/domain"
+	"go-postgres-test/internal/entities"
 	"go-postgres-test/internal/enums"
 	"go-postgres-test/internal/middleware"
 	"go-postgres-test/internal/request"
@@ -41,23 +42,27 @@ func (h *WorkSpaceHandler) RegisterRoutes(router *gin.RouterGroup) {
 
 	protected := router.Group("/workspace", middleware.JWTMiddleware(authService))
 
-	protected.GET("/get-all-user-workspaces", h.GetAllUserSpaces)
-	protected.GET("/get-all-workspace-members/:id", h.GetAllSpaceMembers)
-	protected.GET("/has-user-workspace/:id", h.HasUserWorkspace)
-	protected.GET("/search-user/:value", h.SearchWorkspaceMember)
-	protected.GET("/column-tmpl/:workspaceId", h.GetAllColumnTemplates)
+	protected.GET("/get-all-user-workspaces", h.getAllUserSpaces)
+	protected.GET("/get-all-workspace-members/:id", h.getAllSpaceMembers)
+	protected.GET("/has-user-workspace/:id", h.hasUserWorkspace)
+	protected.GET("/search-user/:value", h.searchWorkspaceMember)
+	protected.GET("/columns/:workspaceId", h.getWorkSpaceColumns)
 
-	protected.POST("/change-user-role", h.ChangeUserRole)
-	protected.POST("/create-workspace", h.CreateWorkSpace)
-	protected.POST("/add-user-to-workspace", h.AddUserToWorkSpace)
+	protected.POST("/change-user-role", h.changeUserRole)
+	protected.POST("/create-workspace", h.createWorkSpace)
+	protected.POST("/add-user-to-workspace", h.addUserToWorkSpace)
 
-	protected.PATCH("/status/:method", h.UpdateColumnStatus)
-	protected.PATCH("/name", h.UpdateColumnName)
+	protected.DELETE("/remove-user-from-workspace", h.removeUser)
 
-	protected.DELETE("/remove-user-from-workspace", h.RemoveUser)
+	//Column Template Methods
+	protected.GET("/column-tmpl/:workspaceId", h.getAllColumnTemplates)
+	protected.GET("/column-tmpl/position/:workspaceId", h.renumberColumnTemplatesPositions)
+	protected.POST("/column-tmpl", h.createColumnTemplate)
+	protected.PATCH("/column-tmpl/status/:method", h.updateColumnTemplateStatus)
+	protected.PATCH("/column-tmpl/name", h.updateColumnTemplateName)
 }
 
-func (h *WorkSpaceHandler) CreateWorkSpace(c *gin.Context) {
+func (h *WorkSpaceHandler) createWorkSpace(c *gin.Context) {
 	var input createWorkSpaceInput
 
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -94,7 +99,7 @@ func (h *WorkSpaceHandler) CreateWorkSpace(c *gin.Context) {
 	c.JSON(http.StatusCreated, status)
 }
 
-func (h *WorkSpaceHandler) GetAllUserSpaces(c *gin.Context) {
+func (h *WorkSpaceHandler) getAllUserSpaces(c *gin.Context) {
 	userIdStr, exists := c.Get("userId")
 
 	if !exists {
@@ -119,7 +124,7 @@ func (h *WorkSpaceHandler) GetAllUserSpaces(c *gin.Context) {
 	c.JSON(http.StatusOK, workSpacesList)
 }
 
-func (h *WorkSpaceHandler) AddUserToWorkSpace(c *gin.Context) {
+func (h *WorkSpaceHandler) addUserToWorkSpace(c *gin.Context) {
 	var input BindInput
 
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -139,7 +144,7 @@ func (h *WorkSpaceHandler) AddUserToWorkSpace(c *gin.Context) {
 
 //TODO добавить функцию которая будет возвращать не отфильтрованный список, либо просто в workspace_handler передавать либо true либо false
 
-func (h *WorkSpaceHandler) GetAllSpaceMembers(c *gin.Context) {
+func (h *WorkSpaceHandler) getAllSpaceMembers(c *gin.Context) {
 	workSpaceId := c.Param("id")
 
 	id, err := uuid.Parse(workSpaceId)
@@ -169,7 +174,7 @@ func (h *WorkSpaceHandler) GetAllSpaceMembers(c *gin.Context) {
 		return
 	}
 
-	membersFiltered := make([]domain.MemberUser, 0)
+	membersFiltered := make([]entities.MemberUser, 0)
 	for _, m := range members {
 		if m.ID != parsedUserId {
 			membersFiltered = append(membersFiltered, m)
@@ -179,7 +184,7 @@ func (h *WorkSpaceHandler) GetAllSpaceMembers(c *gin.Context) {
 	c.JSON(http.StatusOK, membersFiltered)
 }
 
-func (h *WorkSpaceHandler) RemoveUser(c *gin.Context) {
+func (h *WorkSpaceHandler) removeUser(c *gin.Context) {
 	var input RemoveUserInput
 
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -197,7 +202,7 @@ func (h *WorkSpaceHandler) RemoveUser(c *gin.Context) {
 	c.JSON(http.StatusOK, status)
 }
 
-func (h *WorkSpaceHandler) HasUserWorkspace(c *gin.Context) {
+func (h *WorkSpaceHandler) hasUserWorkspace(c *gin.Context) {
 	workSpaceId := c.Param("id")
 
 	anyTypeUserId, exists := c.Get("userId")
@@ -224,7 +229,7 @@ func (h *WorkSpaceHandler) HasUserWorkspace(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"role": role})
 }
 
-func (h *WorkSpaceHandler) ChangeUserRole(c *gin.Context) {
+func (h *WorkSpaceHandler) changeUserRole(c *gin.Context) {
 	var input BindInput
 
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -242,7 +247,7 @@ func (h *WorkSpaceHandler) ChangeUserRole(c *gin.Context) {
 	c.JSON(http.StatusOK, ok)
 }
 
-func (h *WorkSpaceHandler) SearchWorkspaceMember(c *gin.Context) {
+func (h *WorkSpaceHandler) searchWorkspaceMember(c *gin.Context) {
 	workspaceId, err := mixins.QueryToUUID(c, "workspaceId")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -265,7 +270,7 @@ func (h *WorkSpaceHandler) SearchWorkspaceMember(c *gin.Context) {
 	c.JSON(http.StatusOK, members)
 }
 
-func (h *WorkSpaceHandler) GetAllColumnTemplates(c *gin.Context) {
+func (h *WorkSpaceHandler) getAllColumnTemplates(c *gin.Context) {
 	workspaceId, err := mixins.ParamToUUID(c, "workspaceId")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -281,7 +286,7 @@ func (h *WorkSpaceHandler) GetAllColumnTemplates(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"columnList": columnList})
 }
 
-func (h *WorkSpaceHandler) UpdateColumnStatus(c *gin.Context) {
+func (h *WorkSpaceHandler) updateColumnTemplateStatus(c *gin.Context) {
 	var input request.UpdateColumnStatusRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -290,17 +295,22 @@ func (h *WorkSpaceHandler) UpdateColumnStatus(c *gin.Context) {
 
 	method := c.Param("method")
 	if method == "required" {
-		if err := h.uc.UpdateColumnStatusRequired(input.ColumnId, input.Status); err != nil {
+		if err := h.uc.UpdateColumnTemplateStatusRequired(input.ColumnId, input.Status); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 	} else if method == "active" {
-		if err := h.uc.UpdateColumnStatusActive(input.ColumnId, input.Status); err != nil {
+		if err := h.uc.UpdateColumnTemplateStatusActive(input.ColumnId, input.Status); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 	} else if method == "done" {
-		if err := h.uc.UpdateColumnStatusDone(input.ColumnId); err != nil {
+		if err := h.uc.UpdateColumnTemplateStatusDone(input.ColumnId); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+	} else if method == "global_tasks" {
+		if err := h.uc.UpdateColumnTemplateStatusGlobalTasks(input.ColumnId, input.Status); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
@@ -309,17 +319,65 @@ func (h *WorkSpaceHandler) UpdateColumnStatus(c *gin.Context) {
 	c.Status(http.StatusOK)
 }
 
-func (h *WorkSpaceHandler) UpdateColumnName(c *gin.Context) {
+func (h *WorkSpaceHandler) updateColumnTemplateName(c *gin.Context) {
 	var input request.UpdateColumnNameRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	if err := h.uc.UpdateColumnName(input.ColumnId, input.Name); err != nil {
+	if err := h.uc.UpdateColumnTemplateName(input.ColumnId, input.Name); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.Status(http.StatusOK)
+}
+
+func (h *WorkSpaceHandler) createColumnTemplate(c *gin.Context) {
+	var input request.CreateNewColumnTemplate
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	id, err := h.uc.CreateColumnTemplate(input)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+
+	}
+
+	c.JSON(http.StatusOK, gin.H{"id": id})
+}
+
+func (h *WorkSpaceHandler) renumberColumnTemplatesPositions(c *gin.Context) {
+	workspaceId, err := mixins.ParamToUUID(c, "workspaceId")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.uc.RenumberColumnTemplatesPositions(workspaceId); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Status(http.StatusOK)
+}
+
+func (h *WorkSpaceHandler) getWorkSpaceColumns(c *gin.Context) {
+	workspaceId, err := mixins.ParamToUUID(c, "workspaceId")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	columnList, err := h.uc.GetWorkSpaceColumns(workspaceId)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"columnList": columnList})
 }

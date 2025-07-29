@@ -3,7 +3,7 @@ package handlers
 import (
 	"github.com/gin-gonic/gin"
 	"go-postgres-test/infrastructure/auth"
-	"go-postgres-test/internal/domain"
+	"go-postgres-test/internal/entities"
 	"go-postgres-test/internal/middleware"
 	"go-postgres-test/internal/usecase"
 	"go-postgres-test/mixins"
@@ -54,7 +54,7 @@ func (h *UserHandler) IsAuthorized(c *gin.Context) {
 }
 
 func (h *UserHandler) LogIn(c *gin.Context) {
-	var user domain.AuthUser
+	var user entities.AuthUser
 
 	if err := c.ShouldBindJSON(&user); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -81,7 +81,7 @@ func (h *UserHandler) LogIn(c *gin.Context) {
 }
 
 func (h *UserHandler) CreateUser(c *gin.Context) {
-	var user domain.AuthUser
+	var user entities.AuthUser
 	if err := c.ShouldBindJSON(&user); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

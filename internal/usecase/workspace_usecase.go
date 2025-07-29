@@ -5,6 +5,7 @@ import (
 	"go-postgres-test/internal/domain"
 	"go-postgres-test/internal/entities"
 	"go-postgres-test/internal/enums"
+	"go-postgres-test/internal/request"
 	"go-postgres-test/internal/response"
 	"time"
 )
@@ -33,6 +34,7 @@ func (uc *WorkSpaceUsecase) CreateWorkSpace(workspace domain.WorkSpace) (uuid.UU
 			IsRequired:  true,
 			IsActive:    true,
 			IsDone:      false,
+			GlobalTasks: true,
 			CreatedAt:   time.Time{},
 			UpdatedAt:   time.Time{},
 		},
@@ -41,10 +43,11 @@ func (uc *WorkSpaceUsecase) CreateWorkSpace(workspace domain.WorkSpace) (uuid.UU
 			WorkspaceId: id,
 			Name:        "In Progress",
 			Color:       "#6688cc",
-			Position:    1,
+			Position:    10,
 			IsRequired:  true,
 			IsActive:    true,
 			IsDone:      false,
+			GlobalTasks: true,
 			CreatedAt:   time.Time{},
 			UpdatedAt:   time.Time{},
 		},
@@ -53,10 +56,11 @@ func (uc *WorkSpaceUsecase) CreateWorkSpace(workspace domain.WorkSpace) (uuid.UU
 			WorkspaceId: id,
 			Name:        "Done",
 			Color:       "#00BFA6",
-			Position:    2,
+			Position:    20,
 			IsRequired:  true,
 			IsActive:    true,
 			IsDone:      true,
+			GlobalTasks: true,
 			CreatedAt:   time.Time{},
 			UpdatedAt:   time.Time{},
 		},
@@ -80,7 +84,7 @@ func (uc *WorkSpaceUsecase) AddUserToWorkSpace(workSpaceId string, userId string
 	return uc.repo.AddUserToWorkSpace(workSpaceId, userId, role)
 }
 
-func (uc *WorkSpaceUsecase) GetAllSpaceMembers(workSpaceId uuid.UUID) ([]domain.MemberUser, error) {
+func (uc *WorkSpaceUsecase) GetAllSpaceMembers(workSpaceId uuid.UUID) ([]entities.MemberUser, error) {
 	return uc.repo.GetAllSpaceMembers(workSpaceId)
 }
 
@@ -104,17 +108,42 @@ func (uc *WorkSpaceUsecase) GetAllColumnTemplates(workSpaceId uuid.UUID) ([]enti
 	return uc.repo.GetAllColumnTemplates(workSpaceId)
 }
 
-func (uc *WorkSpaceUsecase) UpdateColumnStatusRequired(columnId uuid.UUID, status bool) error {
-	return uc.repo.UpdateColumnStatusRequired(columnId, status)
+func (uc *WorkSpaceUsecase) UpdateColumnTemplateStatusRequired(columnId uuid.UUID, status bool) error {
+	return uc.repo.UpdateColumnTemplateStatusRequired(columnId, status)
 }
-func (uc *WorkSpaceUsecase) UpdateColumnStatusDone(columnId uuid.UUID) error {
-	return uc.repo.UpdateColumnStatusDone(columnId)
-}
-
-func (uc *WorkSpaceUsecase) UpdateColumnStatusActive(columnId uuid.UUID, status bool) error {
-	return uc.repo.UpdateColumnStatusActive(columnId, status)
+func (uc *WorkSpaceUsecase) UpdateColumnTemplateStatusDone(columnId uuid.UUID) error {
+	return uc.repo.UpdateColumnTemplateStatusDone(columnId)
 }
 
-func (uc *WorkSpaceUsecase) UpdateColumnName(columnId uuid.UUID, name string) error {
-	return uc.repo.UpdateColumnName(columnId, name)
+func (uc *WorkSpaceUsecase) UpdateColumnTemplateStatusActive(columnId uuid.UUID, status bool) error {
+	return uc.repo.UpdateColumnTemplateStatusActive(columnId, status)
+}
+
+func (uc *WorkSpaceUsecase) UpdateColumnTemplateStatusGlobalTasks(columnId uuid.UUID, status bool) error {
+	return uc.repo.UpdateColumnTemplateStatusGlobalTasks(columnId, status)
+}
+
+func (uc *WorkSpaceUsecase) UpdateColumnTemplateName(columnId uuid.UUID, name string) error {
+	return uc.repo.UpdateColumnTemplateName(columnId, name)
+}
+
+func (uc *WorkSpaceUsecase) CreateColumnTemplate(columnTmpReq request.CreateNewColumnTemplate) (uuid.UUID, error) {
+	columnTmp := entities.ColumnTemplate{
+		WorkspaceId: columnTmpReq.WorkspaceId,
+		Name:        columnTmpReq.Name,
+		Color:       columnTmpReq.Color,
+		Position:    columnTmpReq.Position,
+		IsRequired:  columnTmpReq.IsRequired,
+		IsDone:      columnTmpReq.IsDone,
+		IsActive:    true,
+	}
+	return uc.repo.CreateColumnTemplate(columnTmp)
+}
+
+func (uc *WorkSpaceUsecase) RenumberColumnTemplatesPositions(workspaceId uuid.UUID) error {
+	return uc.repo.RenumberColumnTemplatesPositions(workspaceId)
+}
+
+func (uc *WorkSpaceUsecase) GetWorkSpaceColumns(workspaceId uuid.UUID) ([]response.GetWorkSpaceColumns, error) {
+	return uc.repo.GetWorkSpaceColumns(workspaceId)
 }

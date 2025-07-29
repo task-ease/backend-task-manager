@@ -6,7 +6,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go-postgres-test/internal/domain"
+	"go-postgres-test/internal/entities"
 	"go-postgres-test/internal/enums"
+	"go-postgres-test/mixins"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -16,11 +18,26 @@ func NewUserRepository(conn *pgxpool.Pool) domain.UserRepository {
 	return &userRepo{conn: conn}
 }
 
-func (r *userRepo) CreateUser(user domain.AuthUser) (string, error) {
+func (r *userRepo) CreateUser(user entities.AuthUser) (id string, err error) {
+	ctx := context.Background()
+
+	tx, err := r.conn.Begin(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	defer func() {
+		_ = mixins.TXReturn(tx, ctx, err)
+	}()
+
+	return r.CreateUserTx(ctx, tx, user)
+}
+
+func (r *userRepo) CreateUserTx(ctx context.Context, exec entities.Execer, user entities.AuthUser) (string, error) {
 	id := uuid.New().String()
 	var exists bool
 
-	err := r.conn.QueryRow(context.Background(),
+	err := exec.QueryRow(ctx,
 		`SELECT EXISTS (SELECT 1 FROM users WHERE email = $1)`,
 		user.Email,
 	).Scan(&exists)
@@ -39,7 +56,7 @@ func (r *userRepo) CreateUser(user domain.AuthUser) (string, error) {
 		return "", err
 	}
 
-	_, err = r.conn.Exec(context.Background(),
+	_, err = exec.Exec(ctx,
 		"INSERT INTO users (id, username, email, password_hash) VALUES ($1, $2, $3, $4)",
 		id,
 		user.Username,
@@ -50,7 +67,7 @@ func (r *userRepo) CreateUser(user domain.AuthUser) (string, error) {
 	return id, err
 }
 
-func (r *userRepo) LogIn(user domain.AuthUser) (uuid.UUID, error) {
+func (r *userRepo) LogIn(user entities.AuthUser) (uuid.UUID, error) {
 	var passwordHash string
 	var userId uuid.UUID
 
@@ -71,7 +88,7 @@ func (r *userRepo) LogIn(user domain.AuthUser) (uuid.UUID, error) {
 	return userId, nil
 }
 
-func (r *userRepo) SearchUserByEmail(value string) ([]domain.User, error) {
+func (r *userRepo) SearchUserByEmail(value string) ([]entities.User, error) {
 	pattern := value + "%"
 
 	rows, err := r.conn.Query(context.Background(),
@@ -83,9 +100,9 @@ func (r *userRepo) SearchUserByEmail(value string) ([]domain.User, error) {
 	}
 	defer rows.Close()
 
-	var users []domain.User
+	var users []entities.User
 	for rows.Next() {
-		var user domain.User
+		var user entities.User
 		if err := rows.Scan(&user.Email, &user.ID, &user.Username); err != nil {
 			return nil, err
 		}

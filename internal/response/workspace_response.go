@@ -6,3 +6,11 @@ type FindWorkspaceMemberResponse struct {
 	ID   uuid.UUID `json:"id"`
 	Name string    `json:"username"`
 }
+
+type GetWorkSpaceColumns struct {
+	Id       uuid.UUID `json:"id"`
+	Name     string    `json:"name"`
+	Color    string    `json:"color"`
+	IsDone   bool      `json:"isDone"`
+	Position int       `json:"position"`
+}

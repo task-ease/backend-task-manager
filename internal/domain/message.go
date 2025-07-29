@@ -1,7 +1,9 @@
 package domain
 
 import (
+	"context"
 	"github.com/google/uuid"
+	"go-postgres-test/internal/entities"
 	"go-postgres-test/internal/enums"
 	"io"
 	"time"
@@ -43,4 +45,9 @@ type MessageRepository interface {
 	SetMessageRead(message *Message, userId uuid.UUID) error
 	SetMessagesRead(messages *[]Message, userId uuid.UUID) error
 	GetAllChatImages(chatId string) (*[]Attachment, error)
+
+	AddMessageTx(ctx context.Context, exec entities.Execer, message *Message) (*[]uuid.UUID, error)
+	GetAllMessagesTx(ctx context.Context, exec entities.Execer, chatId string) ([]*Message, error)
+	GetAttachmentsTx(ctx context.Context, exec entities.Execer, messageId string, attachments *[]Attachment) error
+	SetMessageReadTx(ctx context.Context, exec entities.Execer, message *Message, userId uuid.UUID) error
 }

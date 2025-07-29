@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS users (
                                      username VARCHAR(50) NOT NULL,
                                      email VARCHAR(100) NOT NULL UNIQUE,
                                      password_hash TEXT NOT NULL,
-                                     user_icon_url TEXT,
+                                     icon_url TEXT,
                                      role user_roles,
                                      created_at timestamptz DEFAULT NOW(),
                                      last_online_at timestamptz,
@@ -42,12 +42,14 @@ CREATE TABLE IF NOT EXISTS task_columns_templates (
                                                       workspace_id UUID NOT NULL REFERENCES workspaces(id),
                                                       name TEXT NOT NULL,
                                                       color varchar(7),
-                                                      position INTEGER DEFAULT 0,
+                                                      position INTEGER NOT NULL,
                                                       is_required BOOLEAN DEFAULT FALSE,
                                                       is_active BOOLEAN DEFAULT TRUE,
                                                       is_done BOOLEAN DEFAULT FALSE,
+                                                      global_tasks BOOLEAN DEFAULT TRUE,
                                                       created_at timestamptz DEFAULT NOW(),
-                                                      updated_at timestamptz DEFAULT NOW()
+                                                      updated_at timestamptz DEFAULT NOW(),
+                                                      UNIQUE (workspace_id, position)
 );
 
 CREATE TABLE IF NOT EXISTS task_columns (

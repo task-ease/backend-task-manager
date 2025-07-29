@@ -1,7 +1,9 @@
 package domain
 
 import (
+	"context"
 	"github.com/google/uuid"
+	"go-postgres-test/internal/entities"
 	"go-postgres-test/internal/enums"
 	"go-postgres-test/internal/response"
 	"time"
@@ -26,4 +28,7 @@ type ProjectRepository interface {
 	GetAllUserProjects(userId, workspaceId uuid.UUID) ([]response.GetAllProjects, error)
 	GetUserRole(userId, projectId uuid.UUID) (enums.ProjectRole, error)
 	GetAllProjectMembers(projectId uuid.UUID) ([]response.GetAllProjectUsers, error)
+
+	AddUserToProjectTx(ctx context.Context, exec entities.Execer, projectId uuid.UUID, userId uuid.UUID, role enums.ProjectRole) error
+	CreateProjectTx(ctx context.Context, exec entities.Execer, creatorId, workSpaceId uuid.UUID, name, prefix string) (uuid.UUID, error)
 }

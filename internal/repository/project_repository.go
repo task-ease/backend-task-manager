@@ -6,8 +6,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go-postgres-test/internal/domain"
+	"go-postgres-test/internal/entities"
 	"go-postgres-test/internal/enums"
 	"go-postgres-test/internal/response"
+	"go-postgres-test/mixins"
 	"time"
 )
 
@@ -19,9 +21,24 @@ func NewProjectRepository(conn *pgxpool.Pool) domain.ProjectRepository {
 	return &projectRepo{conn: conn}
 }
 
-func (r *projectRepo) CreateProject(creatorId, workSpaceId uuid.UUID, name, prefix string) (uuid.UUID, error) {
+func (r *projectRepo) CreateProject(creatorId, workSpaceId uuid.UUID, name, prefix string) (id uuid.UUID, err error) {
+	ctx := context.Background()
+
+	tx, err := r.conn.Begin(ctx)
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	defer func() {
+		_ = mixins.TXReturn(tx, ctx, err)
+	}()
+
+	return r.CreateProjectTx(ctx, tx, creatorId, workSpaceId, name, prefix)
+
+}
+func (r *projectRepo) CreateProjectTx(ctx context.Context, exec entities.Execer, creatorId, workSpaceId uuid.UUID, name, prefix string) (uuid.UUID, error) {
 	var exists bool
-	err := r.conn.QueryRow(context.Background(), `
+	err := exec.QueryRow(ctx, `
 		SELECT EXISTS (SELECT 1 FROM projects WHERE prefix = $1)`, prefix).Scan(&exists)
 	if err != nil {
 		return uuid.Nil, err
@@ -32,20 +49,24 @@ func (r *projectRepo) CreateProject(creatorId, workSpaceId uuid.UUID, name, pref
 	}
 
 	var id = uuid.New()
-	_, err = r.conn.Exec(context.Background(), `
+	_, err = exec.Exec(ctx, `
 		INSERT INTO projects (id, workspace_id, creator_id, name, created_at, updated_at, prefix)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)`, id, workSpaceId, creatorId, name, time.Now().UTC(), time.Now().UTC(), prefix)
 	if err != nil {
 		return uuid.Nil, err
 	}
-	if err = r.AddUserToProject(id, creatorId, enums.ProjectRoleCreator); err != nil {
+	if err = r.AddUserToProjectTx(ctx, exec, id, creatorId, enums.ProjectRoleCreator); err != nil {
 		return uuid.Nil, err
 	}
 	return id, nil
 }
 
 func (r *projectRepo) AddUserToProject(projectId uuid.UUID, userId uuid.UUID, role enums.ProjectRole) error {
-	_, err := r.conn.Exec(context.Background(), `
+	return r.AddUserToProjectTx(context.Background(), r.conn, projectId, userId, role)
+}
+
+func (r *projectRepo) AddUserToProjectTx(ctx context.Context, exec entities.Execer, projectId uuid.UUID, userId uuid.UUID, role enums.ProjectRole) error {
+	_, err := exec.Exec(ctx, `
 			INSERT INTO project_members (id, project_id, user_id, role, joined_at)
 			VALUES ($1, $2, $3, $4, $5)`, uuid.New(), projectId, userId, role, time.Now().UTC())
 	return err
