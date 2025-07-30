@@ -255,9 +255,9 @@ func (r *workSpaceRepo) CreateColumnTemplateTx(ctx context.Context, exec entitie
 	id := uuid.New()
 	_, err := exec.Exec(ctx, `
 		INSERT INTO task_columns_templates (
-		     id, workspace_id, name, color, position, is_required, is_active, is_done, created_at, updated_at, global_tasks)
+		     id, workspace_id, name, color, position, is_required, is_done, created_at, updated_at, global_tasks)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-		`, id, columnTmp.WorkspaceId, columnTmp.Name, columnTmp.Color, columnTmp.Position, columnTmp.IsRequired, columnTmp.IsActive, columnTmp.IsDone, time.Now().UTC(), time.Now().UTC(), columnTmp.GlobalTasks)
+		`, id, columnTmp.WorkspaceId, columnTmp.Name, columnTmp.Color, columnTmp.Position, columnTmp.IsRequired, columnTmp.IsDone, time.Now().UTC(), time.Now().UTC(), columnTmp.GlobalTasks)
 	if err != nil {
 		return uuid.Nil, err
 	}
@@ -448,4 +448,13 @@ func (r *workSpaceRepo) GetWorkSpaceColumns(workspaceId uuid.UUID) ([]response.G
 	}
 
 	return columnList, nil
+}
+
+func (r *workSpaceRepo) UpdateColumnTemplateColor(columnId uuid.UUID, color string) error {
+	_, err := r.conn.Exec(context.Background(), `
+			UPDATE task_columns_templates
+			SET color = $1
+			WHERE id = $2	
+		`, color, columnId)
+	return err
 }

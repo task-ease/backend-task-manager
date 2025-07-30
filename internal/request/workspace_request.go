@@ -21,4 +21,5 @@ type CreateNewColumnTemplate struct {
 	IsDone      bool      `json:"isDone"`
 	Position    int       `json:"position"`
 	WorkspaceId uuid.UUID `json:"workspaceId"`
+	GlobalTasks bool      `json:"globalTasks"`
 }

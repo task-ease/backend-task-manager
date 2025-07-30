@@ -135,7 +135,7 @@ func (uc *WorkSpaceUsecase) CreateColumnTemplate(columnTmpReq request.CreateNewC
 		Position:    columnTmpReq.Position,
 		IsRequired:  columnTmpReq.IsRequired,
 		IsDone:      columnTmpReq.IsDone,
-		IsActive:    true,
+		GlobalTasks: columnTmpReq.GlobalTasks,
 	}
 	return uc.repo.CreateColumnTemplate(columnTmp)
 }
@@ -146,4 +146,8 @@ func (uc *WorkSpaceUsecase) RenumberColumnTemplatesPositions(workspaceId uuid.UU
 
 func (uc *WorkSpaceUsecase) GetWorkSpaceColumns(workspaceId uuid.UUID) ([]response.GetWorkSpaceColumns, error) {
 	return uc.repo.GetWorkSpaceColumns(workspaceId)
+}
+
+func (uc *WorkSpaceUsecase) UpdateColumnTemplateColor(columnId uuid.UUID, color string) error {
+	return uc.repo.UpdateColumnTemplateColor(columnId, color)
 }

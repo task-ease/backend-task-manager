@@ -35,6 +35,7 @@ type WorkSpaceRepository interface {
 	UpdateColumnTemplateStatusActive(columnId uuid.UUID, status bool) error
 	UpdateColumnTemplateStatusGlobalTasks(columnId uuid.UUID, status bool) error
 	UpdateColumnTemplateName(columnId uuid.UUID, name string) error
+	UpdateColumnTemplateColor(columnId uuid.UUID, color string) error
 	RenumberColumnTemplatesPositions(workspaceId uuid.UUID) error
 
 	CreateWorkSpaceTx(ctx context.Context, exec entities.Execer, workSpace WorkSpace) (uuid.UUID, error)

@@ -58,6 +58,7 @@ func (h *WorkSpaceHandler) RegisterRoutes(router *gin.RouterGroup) {
 	protected.GET("/column-tmpl/:workspaceId", h.getAllColumnTemplates)
 	protected.GET("/column-tmpl/position/:workspaceId", h.renumberColumnTemplatesPositions)
 	protected.POST("/column-tmpl", h.createColumnTemplate)
+	protected.PUT("/column-tmpl/color/:columnId", h.updateColumnTemplateColor)
 	protected.PATCH("/column-tmpl/status/:method", h.updateColumnTemplateStatus)
 	protected.PATCH("/column-tmpl/name", h.updateColumnTemplateName)
 }
@@ -380,4 +381,20 @@ func (h *WorkSpaceHandler) getWorkSpaceColumns(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"columnList": columnList})
+}
+
+func (h *WorkSpaceHandler) updateColumnTemplateColor(c *gin.Context) {
+	columnId, err := mixins.ParamToUUID(c, "columnId")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	color := c.Query("color")
+	if err := h.uc.UpdateColumnTemplateColor(columnId, color); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Status(http.StatusOK)
 }
