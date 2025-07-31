@@ -52,16 +52,16 @@ CREATE TABLE IF NOT EXISTS task_columns_templates (
                                                       UNIQUE (workspace_id, position)
 );
 
-CREATE TABLE IF NOT EXISTS task_columns (
-                                            id UUID PRIMARY KEY,
-                                            project_id UUID REFERENCES projects(id),
-                                            template_id UUID REFERENCES task_columns_templates(id),
-                                            UNIQUE (project_id, template_id)
-);
+-- CREATE TABLE IF NOT EXISTS task_columns (
+--                                             id UUID PRIMARY KEY,
+--                                             project_id UUID REFERENCES projects(id),
+--                                             template_id UUID REFERENCES task_columns_templates(id),
+--                                             UNIQUE (project_id, template_id)
+-- );
 
 CREATE TABLE IF NOT EXISTS tasks (
                                      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                                     column_id UUID NOT NULL REFERENCES task_columns(id),
+                                     column_id UUID NOT NULL REFERENCES task_columns_templates(id),
                                      workspace_id UUID NOT NULL REFERENCES workspaces(id),
                                      project_id UUID REFERENCES projects(id),
                                      sprint_id UUID REFERENCES sprints(id),

@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go-postgres-test/infrastructure/auth"
 	"go-postgres-test/internal/middleware"
+	"go-postgres-test/internal/request"
 	"go-postgres-test/internal/usecase"
 	"go-postgres-test/mixins"
 	"net/http"
@@ -21,6 +22,7 @@ func (h *TaskHandler) RegisterRoutes(router *gin.RouterGroup) {
 	protected := router.Group("/task", middleware.JWTMiddleware(authService))
 
 	protected.GET("/workspace/:workspaceId", h.GetWorkSpaceTasks)
+	protected.POST("/", h.CreateTask)
 }
 
 func (h *TaskHandler) GetWorkSpaceTasks(c *gin.Context) {
@@ -37,4 +39,20 @@ func (h *TaskHandler) GetWorkSpaceTasks(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"tasks": taskList})
+}
+
+func (h *TaskHandler) CreateTask(c *gin.Context) {
+	var input request.CreateTask
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	id, err := h.uc.CreateTask(input)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, id)
 }
