@@ -75,6 +75,7 @@ CREATE TABLE IF NOT EXISTS tasks (
                                      due_date TIMESTAMPTZ,
                                      priority task_priority_types DEFAULT 'MID',
                                      position INTEGER NOT NULL,
+                                     prefix_number INT,
                                      created_at TIMESTAMPTZ DEFAULT NOW(),
                                      updated_at TIMESTAMPTZ DEFAULT NOW()
 );

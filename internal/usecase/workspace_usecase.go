@@ -42,7 +42,7 @@ func (uc *WorkSpaceUsecase) CreateWorkSpace(workspace domain.WorkSpace) (uuid.UU
 			Id:          uuid.Nil,
 			WorkspaceId: id,
 			Name:        "In Progress",
-			Color:       "#6688cc",
+			Color:       "#3d66b8",
 			Position:    10,
 			IsRequired:  true,
 			IsActive:    true,

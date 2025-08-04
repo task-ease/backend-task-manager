@@ -86,6 +86,11 @@ func (r *taskRepository) GetWorkSpaceTasks(workspaceId uuid.UUID) ([]response.Ge
 	return tasks, nil
 }
 
+// TODO: префикс нужно получать с количества записей в бд тасок, а не из количества элементов в списке на фронте
+// Нужно получать число количества тасок где:
+// workspaceId == task.workspaceId, projectId == task.projectId, sprintId == task.sprintId
+// (если null projectId или sprintId то и в сравнении будет null, то есть равенство выполниться)
+
 func (r *taskRepository) CreateTask(task request.CreateTask) (uuid.UUID, error) {
 	id := uuid.New()
 
@@ -106,9 +111,10 @@ func (r *taskRepository) CreateTask(task request.CreateTask) (uuid.UUID, error) 
 		 priority, 
 		 position, 
 		 created_at, 
-		 updated_at
+		 updated_at,
+		 prefix_number
 		 )
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
 	`,
 		id,
 		task.Title,
@@ -125,6 +131,7 @@ func (r *taskRepository) CreateTask(task request.CreateTask) (uuid.UUID, error) 
 		task.Position,
 		time.Now().UTC(),
 		time.Now().UTC(),
+		task.PrefixNumber,
 	)
 
 	return id, err
