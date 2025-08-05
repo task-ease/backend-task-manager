@@ -5,8 +5,11 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go-postgres-test/internal/domain"
+	"go-postgres-test/internal/entities"
+	"go-postgres-test/internal/enums"
 	"go-postgres-test/internal/request"
 	"go-postgres-test/internal/response"
+	"go-postgres-test/mixins"
 	"time"
 )
 
@@ -135,4 +138,131 @@ func (r *taskRepository) CreateTask(task request.CreateTask) (uuid.UUID, error) 
 	)
 
 	return id, err
+}
+
+func (r *taskRepository) UpdateTaskTitle(taskId uuid.UUID, value string) error {
+	_, err := r.conn.Exec(context.Background(), `
+		UPDATE tasks 
+		SET title = $1
+		WHERE id = $2
+	`, value, taskId)
+	return err
+}
+
+func (r *taskRepository) UpdateTaskDescription(taskId uuid.UUID, value string) error {
+	_, err := r.conn.Exec(context.Background(), `
+		UPDATE tasks 
+		SET description = $1
+		WHERE id = $2
+	`, value, taskId)
+	return err
+}
+
+func (r *taskRepository) UpdateTaskColumn(taskId uuid.UUID, columnId uuid.UUID) error {
+	ctx := context.Background()
+
+	tx, err := r.conn.Begin(ctx)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		_ = mixins.TXReturn(tx, ctx, err)
+	}()
+
+	return r.UpdateTaskColumnTx(ctx, tx, taskId, columnId)
+}
+
+func (r *taskRepository) UpdateTaskColumnTx(ctx context.Context, exec entities.Execer, taskId uuid.UUID, columnId uuid.UUID) error {
+	_, err := exec.Exec(ctx, `
+		UPDATE tasks
+		SET column_id = $1
+		WHERE id = $2
+	`, columnId, taskId)
+
+	var isDoneColumn bool
+	err = exec.QueryRow(ctx, `
+		SELECT is_done
+		FROM task_columns_templates
+		WHERE id = $1
+	`, columnId).Scan(&isDoneColumn)
+
+	if err != nil {
+		return err
+	}
+
+	if isDoneColumn {
+		_, err = exec.Exec(ctx, `
+			UPDATE tasks
+			SET is_done = true
+			WHERE id = $1
+		`, taskId)
+		if err != nil {
+			return err
+		}
+	} else {
+		var isDoneTask bool
+		err = exec.QueryRow(ctx, `
+			SELECT is_done
+			FROM tasks
+			WHERE id = $1
+		`, taskId).Scan(&isDoneTask)
+		if err != nil {
+			return err
+		}
+		if isDoneTask {
+			_, err = exec.Exec(ctx, `
+				UPDATE tasks
+				SET is_done = false
+				WHERE id = $1
+			`, taskId)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return err
+}
+
+func (r *taskRepository) UpdateTaskPriority(taskId uuid.UUID, priority enums.TaskPriorities) error {
+	_, err := r.conn.Exec(context.Background(), `
+		UPDATE tasks 
+		SET priority = $1
+		WHERE id = $2
+	`, priority, taskId)
+	return err
+}
+
+func (r *taskRepository) UpdateTaskAssigned(taskId uuid.UUID, userId uuid.UUID) error {
+	ctx := context.Background()
+
+	tx, err := r.conn.Begin(ctx)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		_ = mixins.TXReturn(tx, ctx, err)
+	}()
+
+	return r.UpdateTaskAssignedTx(ctx, tx, taskId, userId)
+}
+
+func (r *taskRepository) UpdateTaskAssignedTx(ctx context.Context, exec entities.Execer, taskId uuid.UUID, userId uuid.UUID) error {
+	_, err := exec.Exec(ctx, `
+		DELETE FROM tasks_assignment
+		WHERE task_id = $1
+	`, taskId)
+
+	if err != nil {
+		return err
+	}
+
+	_, err = exec.Exec(ctx, `
+		INSERT INTO tasks_assignment (task_id, user_id, assigned_at)
+		VALUES ($1, $2, $3)
+	`, taskId, userId, time.Now().UTC())
+
+	return err
 }

@@ -3,6 +3,7 @@ package usecase
 import (
 	"github.com/google/uuid"
 	"go-postgres-test/internal/domain"
+	"go-postgres-test/internal/enums"
 	"go-postgres-test/internal/request"
 	"go-postgres-test/internal/response"
 )
@@ -21,4 +22,24 @@ func (uc *TaskUseCase) GetWorkSpaceTasks(workspaceId uuid.UUID) ([]response.GetA
 
 func (uc *TaskUseCase) CreateTask(task request.CreateTask) (uuid.UUID, error) {
 	return uc.repo.CreateTask(task)
+}
+
+func (uc *TaskUseCase) UpdateTaskTitle(taskId uuid.UUID, value string) error {
+	return uc.repo.UpdateTaskTitle(taskId, value)
+}
+
+func (uc *TaskUseCase) UpdateTaskDescription(taskId uuid.UUID, value string) error {
+	return uc.repo.UpdateTaskDescription(taskId, value)
+}
+
+func (uc *TaskUseCase) UpdateTaskColumn(taskId uuid.UUID, columnId uuid.UUID) error {
+	return uc.repo.UpdateTaskColumn(taskId, columnId)
+}
+
+func (uc *TaskUseCase) UpdateTaskPriority(taskId uuid.UUID, priority enums.TaskPriorities) error {
+	return uc.repo.UpdateTaskPriority(taskId, priority)
+}
+
+func (uc *TaskUseCase) UpdateTaskAssigned(taskId uuid.UUID, userId uuid.UUID) error {
+	return uc.repo.UpdateTaskAssigned(taskId, userId)
 }
