@@ -5,6 +5,7 @@ import (
 	"go-postgres-test/internal/domain"
 	"go-postgres-test/internal/enums"
 	"go-postgres-test/internal/request"
+	"go-postgres-test/internal/request/query"
 	"go-postgres-test/internal/response"
 )
 
@@ -16,11 +17,11 @@ func NewTaskUseCase(repo domain.TaskRepository) *TaskUseCase {
 	return &TaskUseCase{repo: repo}
 }
 
-func (uc *TaskUseCase) GetWorkSpaceTasks(workspaceId uuid.UUID) ([]response.GetAllWorkspaceTasks, error) {
-	return uc.repo.GetWorkSpaceTasks(workspaceId)
+func (uc *TaskUseCase) GetAllTasks(data query.TaskLocationQuery) ([]response.GetAllWorkspaceTasks, error) {
+	return uc.repo.GetALlTasks(data)
 }
 
-func (uc *TaskUseCase) CreateTask(task request.CreateTask) (uuid.UUID, error) {
+func (uc *TaskUseCase) CreateTask(task request.CreateTask) (response.CreateTask, error) {
 	return uc.repo.CreateTask(task)
 }
 

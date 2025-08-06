@@ -1,11 +1,13 @@
 package handlers
 
 import (
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"go-postgres-test/infrastructure/auth"
 	"go-postgres-test/internal/enums"
 	"go-postgres-test/internal/middleware"
 	"go-postgres-test/internal/request"
+	"go-postgres-test/internal/request/query"
 	"go-postgres-test/internal/usecase"
 	"go-postgres-test/mixins"
 	"net/http"
@@ -22,25 +24,44 @@ func (h *TaskHandler) RegisterRoutes(router *gin.RouterGroup) {
 
 	protected := router.Group("/task", middleware.JWTMiddleware(authService))
 
-	protected.GET("/workspace/:workspaceId", h.GetWorkSpaceTasks)
+	protected.GET("/", h.GetAllTasks)
 	protected.POST("/", h.CreateTask)
 
 	protected.PATCH("/title/:taskId", h.UpdateTaskTitle)
-	protected.PATCH("/description/:taskId", h.UpdateTaskDescription)
-	protected.PATCH("/column/:taskId", h.UpdateTaskColumns)
+	protected.PATCH("/column/:taskId", h.UpdateTaskColumn)
 	protected.PATCH("/priority/:taskId", h.UpdateTaskPriority)
 	protected.PATCH("/assigned/:taskId", h.UpdateTaskAssigned)
+	protected.PATCH("/description/:taskId", h.UpdateTaskDescription)
 }
 
-func (h *TaskHandler) GetWorkSpaceTasks(c *gin.Context) {
-	workspaceId, err := mixins.ParamToUUID(c, "workspaceId")
+func (h *TaskHandler) GetAllTasks(c *gin.Context) {
+	var queryInput query.TaskLocationQuery
+	var err error
+
+	queryInput.WorkspaceId, err = mixins.QueryToUUID(c, "workspaceId")
 	if err != nil {
+		fmt.Println("error while workspace id: ", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	taskList, err := h.uc.GetWorkSpaceTasks(workspaceId)
+	queryInput.ProjectId, err = mixins.QueryToUUIDCanBeNull(c, "projectId")
 	if err != nil {
+		fmt.Println("error while project id: ", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	queryInput.SprintId, err = mixins.QueryToUUIDCanBeNull(c, "sprintId")
+	if err != nil {
+		fmt.Println("error while sprint id: ", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	taskList, err := h.uc.GetAllTasks(queryInput)
+	if err != nil {
+		fmt.Println(err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -55,13 +76,13 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 		return
 	}
 
-	id, err := h.uc.CreateTask(input)
+	data, err := h.uc.CreateTask(input)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, id)
+	c.JSON(http.StatusOK, data)
 }
 
 func (h *TaskHandler) UpdateTaskTitle(c *gin.Context) {
@@ -98,14 +119,14 @@ func (h *TaskHandler) UpdateTaskDescription(c *gin.Context) {
 	c.Status(http.StatusOK)
 }
 
-func (h *TaskHandler) UpdateTaskColumns(c *gin.Context) {
+func (h *TaskHandler) UpdateTaskColumn(c *gin.Context) {
 	taskId, err := mixins.ParamToUUID(c, "taskId")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	columnId, err := mixins.QueryToUUID(c, "columnId")
+	columnId, err := mixins.QueryToUUID(c, "value")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -126,7 +147,7 @@ func (h *TaskHandler) UpdateTaskPriority(c *gin.Context) {
 		return
 	}
 
-	priorityStr := c.Query("priority")
+	priorityStr := c.Query("value")
 	priority := enums.TaskPriorities(priorityStr)
 
 	if err = h.uc.UpdateTaskPriority(taskId, priority); err != nil {
@@ -144,7 +165,7 @@ func (h *TaskHandler) UpdateTaskAssigned(c *gin.Context) {
 		return
 	}
 
-	userId, err := mixins.QueryToUUID(c, "userId")
+	userId, err := mixins.QueryToUUID(c, "value")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
