@@ -45,3 +45,7 @@ func (uc *TaskUseCase) UpdateTaskPriority(taskId uuid.UUID, priority enums.TaskP
 func (uc *TaskUseCase) UpdateTaskAssigned(taskId uuid.UUID, userId uuid.UUID) error {
 	return uc.repo.UpdateTaskAssigned(taskId, userId)
 }
+
+func (uc *TaskUseCase) RemoveTaskAssigned(taskId uuid.UUID) error {
+	return uc.repo.RemoveTaskAssigned(taskId)
+}

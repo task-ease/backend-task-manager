@@ -33,6 +33,8 @@ func (h *TaskHandler) RegisterRoutes(router *gin.RouterGroup) {
 	protected.PATCH("/priority/:taskId", h.UpdateTaskPriority)
 	protected.PATCH("/assigned/:taskId", h.UpdateTaskAssigned)
 	protected.PATCH("/description/:taskId", h.UpdateTaskDescription)
+
+	protected.DELETE("/assigned/:taskId", h.RemoveTaskAssigned)
 }
 
 func (h *TaskHandler) GetAllTasks(c *gin.Context) {
@@ -173,6 +175,22 @@ func (h *TaskHandler) UpdateTaskAssigned(c *gin.Context) {
 	}
 
 	if err = h.uc.UpdateTaskAssigned(taskId, userId); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Status(http.StatusOK)
+}
+
+func (h *TaskHandler) RemoveTaskAssigned(c *gin.Context) {
+	taskId, err := mixins.ParamToUUID(c, "taskId")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err = h.uc.RemoveTaskAssigned(taskId)
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}

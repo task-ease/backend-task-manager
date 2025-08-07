@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"go-postgres-test/internal/domain"
 	"go-postgres-test/internal/entities"
 	"go-postgres-test/mixins"
@@ -90,20 +91,21 @@ func (r *messageRepo) AddMessageTx(ctx context.Context, exec entities.Execer, me
 	return &unreadUserIds, nil
 }
 
-func (r *messageRepo) GetAllMessages(chatId string) ([]*domain.Message, error) {
+func (r *messageRepo) GetAllMessages(chatId string) (messages []*domain.Message, err error) {
 	ctx := context.Background()
 
 	tx, err := r.conn.Begin(ctx)
 	if err != nil {
-		empty := make([]*domain.Message, 0)
-		return empty, err
+		return nil, err
 	}
 
 	defer func() {
 		_ = mixins.TXReturn(tx, ctx, err)
 	}()
 
-	return r.GetAllMessagesTx(ctx, tx, chatId)
+	messages, err = r.GetAllMessagesTx(ctx, tx, chatId)
+	fmt.Println(err)
+	return
 }
 
 func (r *messageRepo) GetAllMessagesTx(ctx context.Context, exec entities.Execer, chatId string) ([]*domain.Message, error) {
@@ -140,12 +142,19 @@ func (r *messageRepo) GetAllMessagesTx(ctx context.Context, exec entities.Execer
 			return nil, err
 		}
 
-		if err := r.GetAttachmentsTx(ctx, exec, message.ID, &message.Attachments); err != nil {
-			message.Attachments = nil
-		}
-
 		messages = append(messages, &message)
 	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	for _, message := range messages {
+		if err := r.GetAttachmentsTx(ctx, exec, message.ID, &message.Attachments); err != nil {
+			return nil, err
+		}
+	}
+
 	return messages, nil
 }
 

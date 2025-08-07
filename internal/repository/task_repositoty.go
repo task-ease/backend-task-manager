@@ -18,6 +18,14 @@ import (
 
 type taskRepository struct{ conn *pgxpool.Pool }
 
+func (r *taskRepository) RemoveTaskAssigned(taskId uuid.UUID) error {
+	_, err := r.conn.Exec(context.Background(), `
+		DELETE FROM tasks_assignment
+		WHERE task_id = $1
+	`, taskId)
+	return err
+}
+
 func NewTaskRepository(conn *pgxpool.Pool) domain.TaskRepository {
 	return &taskRepository{conn: conn}
 }

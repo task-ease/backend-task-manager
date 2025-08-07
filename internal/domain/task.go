@@ -20,6 +20,7 @@ type TaskRepository interface {
 	UpdateTaskColumn(taskId uuid.UUID, columnId uuid.UUID) error
 	UpdateTaskPriority(taskId uuid.UUID, priority enums.TaskPriorities) error
 	UpdateTaskAssigned(taskId uuid.UUID, userId uuid.UUID) error
+	RemoveTaskAssigned(taskId uuid.UUID) error
 
 	GetALlTasksTx(ctx context.Context, exec entities.Execer, data query.TaskLocationQuery) ([]response.GetAllWorkspaceTasks, error)
 	CreateTaskTx(ctx context.Context, exec entities.Execer, task request.CreateTask) (response.CreateTask, error)
