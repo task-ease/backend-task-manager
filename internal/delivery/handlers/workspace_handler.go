@@ -1,8 +1,6 @@
 package handlers
 
 import (
-	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"go-postgres-test/infrastructure/auth"
 	"go-postgres-test/internal/domain"
 	"go-postgres-test/internal/entities"
@@ -12,6 +10,9 @@ import (
 	"go-postgres-test/internal/usecase"
 	"go-postgres-test/mixins"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type WorkSpaceHandler struct {

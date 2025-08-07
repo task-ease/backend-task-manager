@@ -1,10 +1,11 @@
 package usecase
 
 import (
-	"github.com/google/uuid"
 	"go-postgres-test/internal/domain"
 	"go-postgres-test/internal/entities"
 	"go-postgres-test/internal/enums"
+
+	"github.com/google/uuid"
 )
 
 type UserUseCase struct {

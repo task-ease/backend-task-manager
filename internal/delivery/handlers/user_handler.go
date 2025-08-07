@@ -1,13 +1,14 @@
 package handlers
 
 import (
-	"github.com/gin-gonic/gin"
 	"go-postgres-test/infrastructure/auth"
 	"go-postgres-test/internal/entities"
 	"go-postgres-test/internal/middleware"
 	"go-postgres-test/internal/usecase"
 	"go-postgres-test/mixins"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
 type UserHandler struct {

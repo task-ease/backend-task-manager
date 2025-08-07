@@ -1,8 +1,9 @@
 package request
 
 import (
-	"github.com/google/uuid"
 	"go-postgres-test/internal/enums"
+
+	"github.com/google/uuid"
 )
 
 type CreateProject struct {

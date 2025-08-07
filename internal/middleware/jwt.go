@@ -1,9 +1,10 @@
 package middleware
 
 import (
-	"github.com/gin-gonic/gin"
 	"go-postgres-test/internal/domain"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
 func JWTMiddleware(authService domain.AuthService) gin.HandlerFunc {

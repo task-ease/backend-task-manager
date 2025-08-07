@@ -2,8 +2,9 @@ package db
 
 import (
 	"context"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"log"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func ConnectDB() *pgxpool.Pool {

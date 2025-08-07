@@ -1,9 +1,10 @@
 package usecase
 
 import (
-	"github.com/google/uuid"
 	"go-postgres-test/internal/domain"
 	"io"
+
+	"github.com/google/uuid"
 )
 
 type MessageUsecase struct {

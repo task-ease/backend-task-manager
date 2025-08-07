@@ -2,12 +2,13 @@ package domain
 
 import (
 	"context"
-	"github.com/google/uuid"
 	"go-postgres-test/internal/entities"
 	"go-postgres-test/internal/enums"
 	"go-postgres-test/internal/request"
 	"go-postgres-test/internal/request/query"
 	"go-postgres-test/internal/response"
+
+	"github.com/google/uuid"
 )
 
 type TaskRepository interface {

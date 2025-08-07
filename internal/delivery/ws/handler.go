@@ -2,8 +2,6 @@ package ws
 
 import (
 	"encoding/json"
-	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"go-postgres-test/infrastructure/auth"
 	"go-postgres-test/internal/domain"
 	"go-postgres-test/internal/enums"
@@ -12,6 +10,9 @@ import (
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 
 	"github.com/gorilla/websocket"
 )

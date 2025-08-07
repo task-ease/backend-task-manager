@@ -2,11 +2,12 @@ package domain
 
 import (
 	"context"
-	"github.com/google/uuid"
 	"go-postgres-test/internal/entities"
 	"go-postgres-test/internal/enums"
 	"go-postgres-test/internal/response"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type Chat struct {

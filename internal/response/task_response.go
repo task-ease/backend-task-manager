@@ -1,9 +1,10 @@
 package response
 
 import (
-	"github.com/google/uuid"
 	"go-postgres-test/internal/enums"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type GetAllWorkspaceTasks struct {

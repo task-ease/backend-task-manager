@@ -1,14 +1,15 @@
 package handlers
 
 import (
-	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"go-postgres-test/infrastructure/auth"
 	"go-postgres-test/internal/domain"
 	"go-postgres-test/internal/enums"
 	"go-postgres-test/internal/middleware"
 	"go-postgres-test/internal/usecase"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type ChatHandler struct {

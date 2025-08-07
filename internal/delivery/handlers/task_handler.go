@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"go-postgres-test/infrastructure/auth"
 	"go-postgres-test/internal/enums"
 	"go-postgres-test/internal/middleware"
@@ -11,6 +10,8 @@ import (
 	"go-postgres-test/internal/usecase"
 	"go-postgres-test/mixins"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
 type TaskHandler struct {

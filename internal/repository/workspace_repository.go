@@ -2,15 +2,16 @@ package repository
 
 import (
 	"context"
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"go-postgres-test/internal/domain"
 	"go-postgres-test/internal/entities"
 	"go-postgres-test/internal/enums"
 	"go-postgres-test/internal/response"
 	"go-postgres-test/mixins"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type workSpaceRepo struct {

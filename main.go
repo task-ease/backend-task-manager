@@ -2,9 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/gin-contrib/cors"
-	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
 	"go-postgres-test/infrastructure/db"
 	"go-postgres-test/internal/delivery/handlers"
 	"go-postgres-test/internal/delivery/ws"
@@ -12,6 +9,10 @@ import (
 	"go-postgres-test/internal/usecase"
 	"log"
 	"os"
+
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 )
 
 func main() {

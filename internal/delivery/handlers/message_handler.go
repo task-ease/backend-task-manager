@@ -1,8 +1,6 @@
 package handlers
 
 import (
-	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"go-postgres-test/infrastructure/auth"
 	"go-postgres-test/internal/domain"
 	"go-postgres-test/internal/enums"
@@ -10,6 +8,9 @@ import (
 	"go-postgres-test/internal/usecase"
 	"net/http"
 	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type MessageHandler struct {

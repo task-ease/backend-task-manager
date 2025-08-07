@@ -1,13 +1,14 @@
 package usecase
 
 import (
-	"github.com/google/uuid"
 	"go-postgres-test/internal/domain"
 	"go-postgres-test/internal/entities"
 	"go-postgres-test/internal/enums"
 	"go-postgres-test/internal/request"
 	"go-postgres-test/internal/response"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type WorkSpaceUsecase struct {

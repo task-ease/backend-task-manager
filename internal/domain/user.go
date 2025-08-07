@@ -2,9 +2,10 @@ package domain
 
 import (
 	"context"
-	"github.com/google/uuid"
 	"go-postgres-test/internal/entities"
 	"go-postgres-test/internal/enums"
+
+	"github.com/google/uuid"
 )
 
 type UserRepository interface {

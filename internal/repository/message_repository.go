@@ -5,8 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"go-postgres-test/internal/domain"
 	"go-postgres-test/internal/entities"
 	"go-postgres-test/mixins"
@@ -14,6 +12,9 @@ import (
 	"net/http"
 	"net/url"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type messageRepo struct {
