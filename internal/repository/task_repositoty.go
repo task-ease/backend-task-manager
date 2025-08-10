@@ -8,7 +8,6 @@ import (
 	"go-postgres-test/internal/request"
 	"go-postgres-test/internal/request/query"
 	"go-postgres-test/internal/response"
-	"go-postgres-test/mixins"
 	"strconv"
 	"time"
 
@@ -18,31 +17,12 @@ import (
 
 type taskRepository struct{ conn *pgxpool.Pool }
 
-func (r *taskRepository) RemoveTaskAssigned(taskId uuid.UUID) error {
-	_, err := r.conn.Exec(context.Background(), `
-		DELETE FROM tasks_assignment
-		WHERE task_id = $1
-	`, taskId)
-	return err
-}
-
 func NewTaskRepository(conn *pgxpool.Pool) domain.TaskRepository {
 	return &taskRepository{conn: conn}
 }
 
-func (r *taskRepository) GetALlTasks(data query.TaskLocationQuery) ([]response.GetAllWorkspaceTasks, error) {
-	ctx := context.Background()
-
-	tx, err := r.conn.Begin(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	defer func() {
-		_ = mixins.TXReturn(tx, ctx, err)
-	}()
-
-	return r.GetALlTasksTx(ctx, tx, data)
+func (r *taskRepository) GetALlTasks(ctx context.Context, data query.TaskLocationQuery) ([]response.GetAllWorkspaceTasks, error) {
+	return r.GetALlTasksTx(ctx, r.conn, data)
 }
 
 func (r *taskRepository) GetALlTasksTx(ctx context.Context, exec entities.Execer, data query.TaskLocationQuery) ([]response.GetAllWorkspaceTasks, error) {
@@ -118,7 +98,7 @@ func (r *taskRepository) GetALlTasksTx(ctx context.Context, exec entities.Execer
 	}
 
 	var prefix string
-	if err = r.getPrefixTx(ctx, exec, data.WorkspaceId, data.ProjectId, &prefix); err != nil {
+	if err = r.GetPrefixTx(ctx, exec, data.WorkspaceId, data.ProjectId, &prefix); err != nil {
 		return nil, err
 	}
 
@@ -129,23 +109,12 @@ func (r *taskRepository) GetALlTasksTx(ctx context.Context, exec entities.Execer
 	return tasks, nil
 }
 
-func (r *taskRepository) CreateTask(task request.CreateTask) (response.CreateTask, error) {
-	ctx := context.Background()
-
-	tx, err := r.conn.Begin(ctx)
-	if err != nil {
-		return response.CreateTask{}, err
-	}
-
-	defer func() {
-		_ = mixins.TXReturn(tx, ctx, err)
-	}()
-
-	return r.CreateTaskTx(ctx, tx, task)
+func (r *taskRepository) CreateTask(ctx context.Context, task request.CreateTask, id uuid.UUID) (response.CreateTask, error) {
+	return r.CreateTaskTx(ctx, r.conn, task, id)
 }
 
-func (r *taskRepository) CreateTaskTx(ctx context.Context, exec entities.Execer, task request.CreateTask) (response.CreateTask, error) {
-	id := uuid.New()
+func (r *taskRepository) CreateTaskTx(ctx context.Context, exec entities.Execer, task request.CreateTask, id uuid.UUID) (response.CreateTask, error) {
+	now := time.Now()
 
 	_, err := exec.Exec(ctx, `
 		INSERT INTO tasks (
@@ -189,21 +158,17 @@ func (r *taskRepository) CreateTaskTx(ctx context.Context, exec entities.Execer,
 		task.DueDate,
 		task.Priority,
 		task.Position,
-		time.Now().UTC(),
-		time.Now().UTC(),
+		now,
+		now,
 	)
 
 	var prefix string
-	if err = r.getPrefixTx(ctx, exec, task.WorkspaceId, task.ProjectId, &prefix); err != nil {
+	if err = r.GetPrefixTx(ctx, exec, task.WorkspaceId, task.ProjectId, &prefix); err != nil {
 		return response.CreateTask{}, err
 	}
 
 	var prefixNumber int
-	if err = exec.QueryRow(ctx, `
-		SELECT prefix_number
-		FROM tasks
-		WHERE id = $1
-	`, id).Scan(&prefixNumber); err != nil {
+	if err = r.GetPrefixNumberTx(ctx, exec, task.WorkspaceId, &prefixNumber); err != nil {
 		return response.CreateTask{}, err
 	}
 
@@ -213,7 +178,7 @@ func (r *taskRepository) CreateTaskTx(ctx context.Context, exec entities.Execer,
 	}, err
 }
 
-func (r *taskRepository) getPrefixTx(ctx context.Context, exec entities.Execer, workspaceId uuid.UUID, projectId *uuid.UUID, prefix *string) (err error) {
+func (r *taskRepository) GetPrefixTx(ctx context.Context, exec entities.Execer, workspaceId uuid.UUID, projectId *uuid.UUID, prefix *string) (err error) {
 	if projectId != nil {
 		if err = exec.QueryRow(ctx, `
 			SELECT prefix 
@@ -234,8 +199,17 @@ func (r *taskRepository) getPrefixTx(ctx context.Context, exec entities.Execer, 
 	return err
 }
 
-func (r *taskRepository) UpdateTaskTitle(taskId uuid.UUID, value string) error {
-	_, err := r.conn.Exec(context.Background(), `
+func (r *taskRepository) GetPrefixNumberTx(ctx context.Context, exec entities.Execer, taskId uuid.UUID, prefixNumber *int) error {
+	err := exec.QueryRow(ctx, `
+		SELECT prefix_number
+		FROM tasks
+		WHERE id = $1
+	`, taskId).Scan(&prefixNumber)
+	return err
+}
+
+func (r *taskRepository) UpdateTaskTitle(ctx context.Context, taskId uuid.UUID, value string) error {
+	_, err := r.conn.Exec(ctx, `
 		UPDATE tasks 
 		SET title = $1
 		WHERE id = $2
@@ -243,8 +217,8 @@ func (r *taskRepository) UpdateTaskTitle(taskId uuid.UUID, value string) error {
 	return err
 }
 
-func (r *taskRepository) UpdateTaskDescription(taskId uuid.UUID, value string) error {
-	_, err := r.conn.Exec(context.Background(), `
+func (r *taskRepository) UpdateTaskDescription(ctx context.Context, taskId uuid.UUID, value string) error {
+	_, err := r.conn.Exec(ctx, `
 		UPDATE tasks 
 		SET description = $1
 		WHERE id = $2
@@ -252,75 +226,35 @@ func (r *taskRepository) UpdateTaskDescription(taskId uuid.UUID, value string) e
 	return err
 }
 
-func (r *taskRepository) UpdateTaskColumn(taskId uuid.UUID, columnId uuid.UUID) error {
-	ctx := context.Background()
-
-	tx, err := r.conn.Begin(ctx)
-	if err != nil {
-		return err
-	}
-
-	defer func() {
-		_ = mixins.TXReturn(tx, ctx, err)
-	}()
-
-	return r.UpdateTaskColumnTx(ctx, tx, taskId, columnId)
-}
-
-func (r *taskRepository) UpdateTaskColumnTx(ctx context.Context, exec entities.Execer, taskId uuid.UUID, columnId uuid.UUID) error {
+func (r *taskRepository) UpdateTaskColumnIdTx(ctx context.Context, exec entities.Execer, taskId uuid.UUID, columnId uuid.UUID) error {
 	_, err := exec.Exec(ctx, `
 		UPDATE tasks
 		SET column_id = $1
 		WHERE id = $2
 	`, columnId, taskId)
-
-	var isDoneColumn bool
-	err = exec.QueryRow(ctx, `
-		SELECT is_done
-		FROM task_columns_templates
-		WHERE id = $1
-	`, columnId).Scan(&isDoneColumn)
-
-	if err != nil {
-		return err
-	}
-
-	if isDoneColumn {
-		_, err = exec.Exec(ctx, `
-			UPDATE tasks
-			SET is_done = true
-			WHERE id = $1
-		`, taskId)
-		if err != nil {
-			return err
-		}
-	} else {
-		var isDoneTask bool
-		err = exec.QueryRow(ctx, `
-			SELECT is_done
-			FROM tasks
-			WHERE id = $1
-		`, taskId).Scan(&isDoneTask)
-		if err != nil {
-			return err
-		}
-		if isDoneTask {
-			_, err = exec.Exec(ctx, `
-				UPDATE tasks
-				SET is_done = false
-				WHERE id = $1
-			`, taskId)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
 	return err
 }
 
-func (r *taskRepository) UpdateTaskPriority(taskId uuid.UUID, priority enums.TaskPriorities) error {
-	_, err := r.conn.Exec(context.Background(), `
+func (r *taskRepository) IsTaskDoneTx(ctx context.Context, exec entities.Execer, taskId uuid.UUID, done *bool) error {
+	err := exec.QueryRow(ctx, `
+		SELECT is_done
+		FROM tasks
+		WHERE id = $1
+	`, taskId).Scan(done)
+	return err
+}
+
+func (r *taskRepository) UpdateTaskDoneStatusTx(ctx context.Context, exec entities.Execer, taskId uuid.UUID, to bool) error {
+	_, err := exec.Exec(ctx, `
+		UPDATE tasks
+		SET is_done = $1
+		WHERE id = $2
+	`, to, taskId)
+	return err
+}
+
+func (r *taskRepository) UpdateTaskPriority(ctx context.Context, taskId uuid.UUID, priority enums.TaskPriorities) error {
+	_, err := r.conn.Exec(ctx, `
 		UPDATE tasks 
 		SET priority = $1
 		WHERE id = $2
@@ -328,35 +262,45 @@ func (r *taskRepository) UpdateTaskPriority(taskId uuid.UUID, priority enums.Tas
 	return err
 }
 
-func (r *taskRepository) UpdateTaskAssigned(taskId uuid.UUID, userId uuid.UUID) error {
-	ctx := context.Background()
+func (r *taskRepository) IsColumnDoneTx(ctx context.Context, exec entities.Execer, taskId uuid.UUID, done *bool) error {
+	err := exec.QueryRow(ctx, `
+		SELECT is_done 
+		FROM task_columns_templates
+		WHERE id = $1
+	`, taskId).Scan(done)
+	return err
+}
 
-	tx, err := r.conn.Begin(ctx)
-	if err != nil {
-		return err
-	}
-
-	defer func() {
-		_ = mixins.TXReturn(tx, ctx, err)
-	}()
-
-	return r.UpdateTaskAssignedTx(ctx, tx, taskId, userId)
+func (r *taskRepository) IsTaskHasAssignedTx(ctx context.Context, exec entities.Execer, taskId uuid.UUID, has *bool) error {
+	err := exec.QueryRow(ctx, `
+		SELECT COUNT(*) > 0
+		FROM tasks_assignment
+		WHERE task_id = $1
+	`, taskId).Scan(has)
+	return err
 }
 
 func (r *taskRepository) UpdateTaskAssignedTx(ctx context.Context, exec entities.Execer, taskId uuid.UUID, userId uuid.UUID) error {
 	_, err := exec.Exec(ctx, `
-		DELETE FROM tasks_assignment
-		WHERE task_id = $1
-	`, taskId)
-
-	if err != nil {
-		return err
-	}
-
-	_, err = exec.Exec(ctx, `
 		INSERT INTO tasks_assignment (task_id, user_id, assigned_at)
 		VALUES ($1, $2, $3)
 	`, taskId, userId, time.Now().UTC())
 
+	return err
+}
+
+func (r *taskRepository) RemoveTaskAssigned(ctx context.Context, taskId uuid.UUID) error {
+	_, err := r.conn.Exec(ctx, `
+		DELETE FROM tasks_assignment
+		WHERE task_id = $1
+	`, taskId)
+	return err
+}
+
+func (r *taskRepository) RemoveTaskAssignedTx(ctx context.Context, exec entities.Execer, taskId uuid.UUID) error {
+	_, err := exec.Exec(ctx, `
+		DELETE FROM tasks_assignment
+		WHERE task_id = $1
+	`, taskId)
 	return err
 }

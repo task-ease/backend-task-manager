@@ -3,52 +3,24 @@ package domain
 import (
 	"context"
 	"go-postgres-test/internal/entities"
-	"go-postgres-test/internal/enums"
 	"io"
-	"time"
 
 	"github.com/google/uuid"
 )
 
-type Message struct {
-	ID             string            `db:"ID" json:"ID"`
-	ChatID         string            `db:"chatID" json:"chatID"`
-	SenderID       uuid.UUID         `db:"senderID" json:"senderID"`
-	Content        string            `db:"content" json:"content"`
-	MessageType    enums.MessageType `db:"messageType" json:"messageType"`
-	CreatedAt      time.Time         `db:"createdAt" json:"createdAt"`
-	UpdatedAt      time.Time         `db:"updatedAt" json:"updatedAt"`
-	IsEdited       bool              `db:"isEdited" json:"isEdited"`
-	IsDeleted      bool              `db:"isDeleted" json:"isDeleted"`
-	IsRead         bool              `db:"isRead" json:"isRead"`
-	ReplyTo        *uuid.UUID        `db:"replyTo" json:"replyTo"`
-	Attachments    []Attachment      `db:"attachments" json:"attachments"`
-	UnreadUsersIds []uuid.UUID       `db:"unreadUsersIds" json:"unreadUsersIds"`
-}
-
-type Attachment struct {
-	ID         uuid.UUID         `json:"id"`
-	MessageID  string            `json:"messageID"`
-	ChatID     string            `json:"chatID"`
-	FileUrl    string            `json:"fileUrl"`
-	FileType   enums.MessageType `json:"fileType"`
-	FileSize   int64             `json:"fileSize"`
-	FileName   string            `json:"fileName"`
-	Size       int64             `json:"size"`
-	UploadedAt time.Time         `json:"uploadedAt"`
-}
-
 type MessageRepository interface {
-	AddMessage(message *Message) (*[]uuid.UUID, error)
+	AddMessage(ctx context.Context, message entities.Message) error
 	UploadImage(image io.Reader) (string, error)
-	GetAllMessages(chatId string) ([]*Message, error)
-	AddAttachment(attachment *Attachment) error
-	SetMessageRead(message *Message, userId uuid.UUID) error
-	SetMessagesRead(messages *[]Message, userId uuid.UUID) error
-	GetAllChatImages(chatId string) (*[]Attachment, error)
+	AddAttachment(ctx context.Context, attachment entities.Attachment) error
+	GetAllMessages(ctx context.Context, chatId string) ([]entities.Message, error)
+	SetMessageRead(ctx context.Context, messageId, userId uuid.UUID) error
+	AddMessageReads(ctx context.Context, chatId, messageId string, senderId uuid.UUID) ([]uuid.UUID, error)
+	GetAllChatImages(ctx context.Context, chatId string) (*[]entities.Attachment, error)
 
-	AddMessageTx(ctx context.Context, exec entities.Execer, message *Message) (*[]uuid.UUID, error)
-	GetAllMessagesTx(ctx context.Context, exec entities.Execer, chatId string) ([]*Message, error)
-	GetAttachmentsTx(ctx context.Context, exec entities.Execer, messageId string, attachments *[]Attachment) error
-	SetMessageReadTx(ctx context.Context, exec entities.Execer, message *Message, userId uuid.UUID) error
+	AddMessageTx(ctx context.Context, exec entities.Execer, message entities.Message) error
+	AddAttachmentTx(ctx context.Context, exec entities.Execer, attachment entities.Attachment) error
+	GetAllMessagesTx(ctx context.Context, exec entities.Execer, chatId string) ([]entities.Message, error)
+	SetMessageReadTx(ctx context.Context, exec entities.Execer, messageId, userId uuid.UUID) error
+	GetAttachmentsTx(ctx context.Context, exec entities.Execer, messageId string, attachments *[]entities.Attachment) error
+	AddMessageReadsTx(ctx context.Context, exec entities.Execer, chatId, messageId string, senderId uuid.UUID) ([]uuid.UUID, error)
 }

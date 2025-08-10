@@ -44,8 +44,7 @@ func QueryToUUIDCanBeNull(c *gin.Context, name string) (*uuid.UUID, error) {
 }
 
 func ParamToUUID(c *gin.Context, name string) (uuid.UUID, error) {
-	valueStr := c.Param(name)
-	value, err := uuid.Parse(valueStr)
+	value, err := uuid.Parse(c.Param(name))
 	if err != nil {
 		return uuid.Nil, err
 	}

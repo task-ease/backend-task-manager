@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"go-postgres-test/infrastructure/auth"
 	"go-postgres-test/internal/domain"
+	"go-postgres-test/internal/entities"
 	"go-postgres-test/internal/enums"
 	"go-postgres-test/internal/middleware"
 	"log"
@@ -102,7 +103,7 @@ func (h *WebSocketHandler) HandleWS(c *gin.Context) {
 		Data:   "",
 		RoomID: roomId,
 	}
-	_ = h.userRepo.ChangeOnlineStatus(client.ID, true)
+	_ = h.userRepo.ChangeOnlineStatus(c.Request.Context(), client.ID, true)
 	sendJSONToRoom(roomId, msg)
 
 	for {
@@ -114,7 +115,7 @@ func (h *WebSocketHandler) HandleWS(c *gin.Context) {
 				Data:   "",
 				RoomID: roomId,
 			}
-			_ = h.userRepo.ChangeOnlineStatus(client.ID, false)
+			_ = h.userRepo.ChangeOnlineStatus(c.Request.Context(), client.ID, false)
 			sendJSONToRoom(roomId, msg)
 			break
 		}
@@ -132,7 +133,7 @@ func (h *WebSocketHandler) HandleWS(c *gin.Context) {
 		sendJSONToRoom(roomId, incomingMsg)
 
 		if incomingMsg.Type == enums.TypeMessage {
-			var message domain.Message
+			var message entities.Message
 			err := json.Unmarshal([]byte(incomingMsg.Data), &message)
 			if err != nil {
 				log.Println("Invalid message content:", err)

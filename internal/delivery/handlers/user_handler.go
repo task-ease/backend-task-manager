@@ -54,6 +54,8 @@ func (h *UserHandler) IsAuthorized(c *gin.Context) {
 	c.JSON(http.StatusOK, userId)
 }
 
+// TODO почти ничем не отличается от CreateUser, возможно сделать общий, и через GET\POST различать разницу
+
 func (h *UserHandler) LogIn(c *gin.Context) {
 	var user entities.AuthUser
 
@@ -62,7 +64,7 @@ func (h *UserHandler) LogIn(c *gin.Context) {
 		return
 	}
 
-	userId, err := h.uc.LogIn(user)
+	userId, err := h.uc.LogIn(c.Request.Context(), user)
 
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
@@ -70,7 +72,7 @@ func (h *UserHandler) LogIn(c *gin.Context) {
 	}
 
 	authService := auth.NewJWTService()
-	token, err := authService.GenerateToken(userId.String())
+	token, err := authService.GenerateToken(userId)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -88,7 +90,7 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 		return
 	}
 
-	userID, err := h.uc.CreateUser(user)
+	userId, err := h.uc.CreateUser(c.Request.Context(), user)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -96,7 +98,7 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 	}
 
 	authService := auth.NewJWTService()
-	token, err := authService.GenerateToken(userID)
+	token, err := authService.GenerateToken(userId)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -109,9 +111,7 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 }
 
 func (h *UserHandler) SearchUserByEmail(c *gin.Context) {
-	value := c.Param("value")
-
-	users, err := h.uc.SearchUserByEmail(value)
+	users, err := h.uc.SearchUserByEmail(c.Request.Context(), c.Param("value"))
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -146,7 +146,7 @@ func (h *UserHandler) GetWorkspaceUserRole(c *gin.Context) {
 		return
 	}
 
-	userRole, err := h.uc.GetWorkspaceUserRole(userId, workspaceId)
+	userRole, err := h.uc.GetWorkspaceUserRole(c.Request.Context(), userId, workspaceId)
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})

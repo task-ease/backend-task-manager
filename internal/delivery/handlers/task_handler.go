@@ -62,7 +62,7 @@ func (h *TaskHandler) GetAllTasks(c *gin.Context) {
 		return
 	}
 
-	taskList, err := h.uc.GetAllTasks(queryInput)
+	taskList, err := h.uc.GetAllTasks(c.Request.Context(), queryInput)
 	if err != nil {
 		fmt.Println(err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -79,7 +79,7 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 		return
 	}
 
-	data, err := h.uc.CreateTask(input)
+	data, err := h.uc.CreateTask(c.Request.Context(), input)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -97,7 +97,7 @@ func (h *TaskHandler) UpdateTaskTitle(c *gin.Context) {
 
 	value := c.Query("value")
 
-	if err = h.uc.UpdateTaskTitle(taskId, value); err != nil {
+	if err = h.uc.UpdateTaskTitle(c.Request.Context(), taskId, value); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -114,7 +114,7 @@ func (h *TaskHandler) UpdateTaskDescription(c *gin.Context) {
 
 	value := c.Query("value")
 
-	if err = h.uc.UpdateTaskDescription(taskId, value); err != nil {
+	if err = h.uc.UpdateTaskDescription(c.Request.Context(), taskId, value); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -135,7 +135,7 @@ func (h *TaskHandler) UpdateTaskColumn(c *gin.Context) {
 		return
 	}
 
-	if err = h.uc.UpdateTaskColumn(taskId, columnId); err != nil {
+	if err = h.uc.UpdateTaskColumn(c.Request.Context(), taskId, columnId); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -153,7 +153,7 @@ func (h *TaskHandler) UpdateTaskPriority(c *gin.Context) {
 	priorityStr := c.Query("value")
 	priority := enums.TaskPriorities(priorityStr)
 
-	if err = h.uc.UpdateTaskPriority(taskId, priority); err != nil {
+	if err = h.uc.UpdateTaskPriority(c.Request.Context(), taskId, priority); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -174,7 +174,7 @@ func (h *TaskHandler) UpdateTaskAssigned(c *gin.Context) {
 		return
 	}
 
-	if err = h.uc.UpdateTaskAssigned(taskId, userId); err != nil {
+	if err = h.uc.UpdateTaskAssigned(c.Request.Context(), taskId, userId); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -189,7 +189,7 @@ func (h *TaskHandler) RemoveTaskAssigned(c *gin.Context) {
 		return
 	}
 
-	err = h.uc.RemoveTaskAssigned(taskId)
+	err = h.uc.RemoveTaskAssigned(c.Request.Context(), taskId)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

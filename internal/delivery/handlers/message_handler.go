@@ -2,12 +2,12 @@ package handlers
 
 import (
 	"go-postgres-test/infrastructure/auth"
-	"go-postgres-test/internal/domain"
-	"go-postgres-test/internal/enums"
+	"go-postgres-test/internal/dto"
+	"go-postgres-test/internal/entities"
 	"go-postgres-test/internal/middleware"
 	"go-postgres-test/internal/usecase"
+	"go-postgres-test/mixins"
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -34,8 +34,7 @@ func (h *MessageHandler) RegisterRoutes(router *gin.RouterGroup) {
 }
 
 func (h *MessageHandler) GetAllMessages(c *gin.Context) {
-	chatId := c.Param("chatId")
-	messageList, err := h.uc.GetAllMessages(chatId)
+	messageList, err := h.uc.GetAllMessages(c.Request.Context(), c.Param("chatId"))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
@@ -45,93 +44,39 @@ func (h *MessageHandler) GetAllMessages(c *gin.Context) {
 }
 
 func (h *MessageHandler) UploadImageList(c *gin.Context) {
-	chatId := c.Param("chatId")
-	content := c.Query("ct")
+	var uploadImageDto dto.UploadImage
+	var err error
 
-	userIdStr, exists := c.Get("userId")
+	uploadImageDto.ChatId = c.Param("chatId")
+	uploadImageDto.Content = c.Query("ct")
 
-	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "user not found"})
-		return
-	}
+	uploadImageDto.UserId, err = mixins.ParseUserId(c)
 
-	userId, err := uuid.Parse(userIdStr.(string))
-
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	message := domain.Message{
-		ID:          "",
-		ChatID:      chatId,
-		SenderID:    userId,
-		Content:     content,
-		MessageType: enums.MessageImage,
-		CreatedAt:   time.Now().UTC(),
-		UpdatedAt:   time.Now().UTC(),
-	}
-
-	unreadUserIds, err := h.uc.AddMessage(&message)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to add message"})
-		return
-	}
-
-	message.UnreadUsersIds = *unreadUserIds
-
-	form, err := c.MultipartForm()
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid form"})
 		return
 	}
 
-	files := form.File["images"]
+	uploadImageDto.Form, err = c.MultipartForm()
 
-	var messageAttachments []domain.Attachment
-	for _, fileHeader := range files {
-		file, err := fileHeader.Open()
-		if err != nil {
-			continue
-		}
-		defer file.Close()
-
-		url, err := h.uc.UploadImage(file)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
-		}
-
-		var newAttachment = domain.Attachment{
-			ID:         uuid.New(),
-			MessageID:  message.ID,
-			FileUrl:    url,
-			FileType:   enums.MessageImage,
-			FileName:   fileHeader.Filename,
-			FileSize:   fileHeader.Size,
-			UploadedAt: time.Now().UTC(),
-			ChatID:     message.ChatID,
-		}
-
-		if err := h.uc.AddAttachment(&newAttachment); err != nil {
-			continue
-		}
-
-		messageAttachments = append(messageAttachments, newAttachment)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "user not found"})
+		return
 	}
 
-	message.Attachments = messageAttachments
+	message, err := h.uc.UploadImage(c.Request.Context(), uploadImageDto)
 
 	c.JSON(http.StatusOK, gin.H{"message": message})
 }
 
 func (h *MessageHandler) AddMessage(c *gin.Context) {
-	var message domain.Message
+	var message entities.Message
 	if err := c.ShouldBindJSON(&message); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	unreadUserIds, err := h.uc.AddMessage(&message)
+	unreadUserIds, err := h.uc.AddMessage(c.Request.Context(), message)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -146,39 +91,31 @@ func (h *MessageHandler) AddMessage(c *gin.Context) {
 }
 
 func (h *MessageHandler) SetMessagesRead(c *gin.Context) {
-	var messages []domain.Message
+	var messages []uuid.UUID
 	if err := c.ShouldBindJSON(&messages); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	userIdStr, exists := c.Get("userId")
-
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "user id not found"})
-		return
-	}
-
-	userId, err := uuid.Parse(userIdStr.(string))
-
+	userId, err := mixins.ParseUserId(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	err = h.uc.SetMessagesRead(&messages, userId)
+	err = h.uc.SetMessagesRead(c.Request.Context(), messages, userId)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, "success")
+	c.Status(http.StatusOK)
 }
 
 func (h *MessageHandler) GetAllChatImages(c *gin.Context) {
 	chatId := c.Param("chatId")
-	images, err := h.uc.GetAllChatImages(chatId)
+	images, err := h.uc.GetAllChatImages(c.Request.Context(), chatId)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return

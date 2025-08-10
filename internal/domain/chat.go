@@ -37,11 +37,17 @@ type UserChat struct {
 }
 
 type ChatRepository interface {
-	CreateChat(chat *Chat, participantId uuid.UUID) error
-	AddUserToChat(userId uuid.UUID, chatId string, workspaceId uuid.UUID, role enums.ChatRole) error
-	GetAllUserChats(userId uuid.UUID, workspaceId uuid.UUID) ([]response.GetChats, error)
-	GetChatsBySearch(userID uuid.UUID, workspaceId uuid.UUID, value string) ([]response.GetChatsSearch, error)
+	CreateChat(ctx context.Context, chat *Chat) error
+	AddUserToChat(ctx context.Context, userId uuid.UUID, chatId string, workspaceId uuid.UUID, role enums.ChatRole) error
+	UpdateChatTime(ctx context.Context, chatId string, at time.Time) error
+	GetAllUserChats(ctx context.Context, userId uuid.UUID, workspaceId uuid.UUID) ([]response.GetChats, error)
+	GetChatsBySearch(ctx context.Context, userID uuid.UUID, workspaceId uuid.UUID, value string) ([]response.GetChatsSearch, error)
+	GetLastMessageInfo(ctx context.Context, chat *response.GetChats, userID uuid.UUID) error
+	GetParticipantNameByChatId(ctx context.Context, chatId string, userId uuid.UUID, name *string) error
 
-	CreateChatTx(ctx context.Context, exec entities.Execer, chat *Chat, participantId uuid.UUID) error
+	CreateChatTx(ctx context.Context, exec entities.Execer, chat *Chat) error
+	UpdateChatTimeTx(ctx context.Context, exec entities.Execer, chatId string, at time.Time) error
 	AddUserToChatTx(ctx context.Context, exec entities.Execer, userId uuid.UUID, chatId string, workspaceId uuid.UUID, role enums.ChatRole) error
+	GetAllUserChatsTx(ctx context.Context, exec entities.Execer, userId uuid.UUID, workspaceId uuid.UUID) ([]response.GetChats, error)
+	GetLastMessageInfoTx(ctx context.Context, exec entities.Execer, chat *response.GetChats, userID uuid.UUID) error
 }

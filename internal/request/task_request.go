@@ -22,3 +22,9 @@ type CreateTask struct {
 	Priority    enums.TaskPriorities `json:"priority"`
 	Position    int                  `json:"position"`
 }
+
+type MoveTask struct {
+	TaskId     uuid.UUID  `json:"taskId"`
+	ToColumnId uuid.UUID  `json:"toColumnId"`
+	PrevTaskId *uuid.UUID `json:"prevTaskId"`
+}

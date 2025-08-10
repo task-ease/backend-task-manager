@@ -47,10 +47,20 @@ CREATE TABLE IF NOT EXISTS task_columns_templates (
                                                       is_required BOOLEAN DEFAULT FALSE,
                                                       is_active BOOLEAN DEFAULT TRUE,
                                                       is_done BOOLEAN DEFAULT FALSE,
-                                                      global_tasks BOOLEAN DEFAULT TRUE,
                                                       created_at timestamptz DEFAULT NOW(),
                                                       updated_at timestamptz DEFAULT NOW(),
                                                       UNIQUE (workspace_id, position)
+);
+
+CREATE TABLE IF NOT EXISTS using_task_columns (
+                                             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                                             template_id UUID NOT NULL REFERENCES task_columns_templates(id) ON DELETE CASCADE,
+                                             workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+                                             project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+                                             sprint_id UUID REFERENCES sprints(id) ON DELETE CASCADE,
+                                             created_at timestamptz,
+                                             updated_at timestamptz,
+                                             UNIQUE (template_id, workspace_id, project_id, sprint_id)
 );
 
 -- CREATE TABLE IF NOT EXISTS task_columns (
@@ -75,7 +85,7 @@ CREATE TABLE IF NOT EXISTS tasks (
                                      deleted_at TIMESTAMPTZ,
                                      due_date TIMESTAMPTZ,
                                      priority task_priority_types DEFAULT 'MID',
-                                     position INTEGER NOT NULL,
+                                     position DOUBLE PRECISION NOT NULL,
                                      prefix_number INT,
                                      created_at TIMESTAMPTZ DEFAULT NOW(),
                                      updated_at TIMESTAMPTZ DEFAULT NOW()

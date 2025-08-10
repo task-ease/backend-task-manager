@@ -6,7 +6,6 @@ import (
 	"go-postgres-test/internal/entities"
 	"go-postgres-test/internal/enums"
 	"go-postgres-test/internal/response"
-	"go-postgres-test/mixins"
 	"time"
 
 	"github.com/google/uuid"
@@ -14,19 +13,15 @@ import (
 )
 
 type chatRepo struct {
-	conn        *pgxpool.Pool
-	messageRepo domain.MessageRepository
+	conn *pgxpool.Pool
 }
 
-func NewChatRepo(conn *pgxpool.Pool, messageRepo domain.MessageRepository) domain.ChatRepository {
-	return &chatRepo{
-		conn:        conn,
-		messageRepo: messageRepo,
-	}
+func NewChatRepo(conn *pgxpool.Pool) domain.ChatRepository {
+	return &chatRepo{conn: conn}
 }
 
-func (r *chatRepo) AddUserToChat(userId uuid.UUID, chatId string, workspaceId uuid.UUID, role enums.ChatRole) error {
-	return r.AddUserToChatTx(context.Background(), r.conn, userId, chatId, workspaceId, role)
+func (r *chatRepo) AddUserToChat(ctx context.Context, userId uuid.UUID, chatId string, workspaceId uuid.UUID, role enums.ChatRole) error {
+	return r.AddUserToChatTx(ctx, r.conn, userId, chatId, workspaceId, role)
 }
 
 func (r *chatRepo) AddUserToChatTx(ctx context.Context, exec entities.Execer, userId uuid.UUID, chatId string, workspaceId uuid.UUID, role enums.ChatRole) error {
@@ -35,65 +30,25 @@ func (r *chatRepo) AddUserToChatTx(ctx context.Context, exec entities.Execer, us
 	return err
 }
 
-func (r *chatRepo) CreateChat(chat *domain.Chat, participantId uuid.UUID) (err error) {
-	ctx := context.Background()
-
-	tx, err := r.conn.Begin(ctx)
-	if err != nil {
-		return err
-	}
-
-	defer func() {
-		if txErr := mixins.TXReturn(tx, ctx, err); txErr != nil && err == nil {
-			err = txErr
-		}
-	}()
-
-	if err := r.CreateChatTx(ctx, tx, chat, participantId); err != nil {
-		return err
-	}
-
-	return nil
+func (r *chatRepo) CreateChat(ctx context.Context, chat *domain.Chat) (err error) {
+	return r.CreateChatTx(ctx, r.conn, chat)
 }
 
-func (r *chatRepo) CreateChatTx(ctx context.Context, exec entities.Execer, chat *domain.Chat, participantId uuid.UUID) (err error) {
-	if chat.CreatorID.String() < participantId.String() {
-		chat.ID = "c-" + chat.CreatorID.String() + "&" + participantId.String()
-	} else {
-		chat.ID = "c-" + participantId.String() + "&" + chat.CreatorID.String()
-	}
-
-	_, err = exec.Exec(ctx, `
+func (r *chatRepo) CreateChatTx(ctx context.Context, exec entities.Execer, chat *domain.Chat) error {
+	now := time.Now().UTC()
+	_, err := exec.Exec(ctx, `
 		INSERT INTO chats (id, workspace_id, creator_id, type, created_at, updated_at, last_message_time)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
-	`, chat.ID, chat.WorkspaceID, chat.CreatorID, chat.Type, time.Now().UTC(), time.Now().UTC(), time.Now().UTC())
-
-	if err != nil {
-		return err
-	}
-
-	if err = r.AddUserToChatTx(ctx, exec, chat.CreatorID, chat.ID, chat.WorkspaceID, enums.ChatUser); err != nil {
-		return err
-	}
-	if err = r.AddUserToChatTx(ctx, exec, participantId, chat.ID, chat.WorkspaceID, enums.ChatUser); err != nil {
-		return err
-	}
-
-	systemMessage := domain.Message{
-		ChatID:      chat.ID,
-		SenderID:    chat.CreatorID,
-		MessageType: enums.MessageSystem,
-		Content:     "chat created",
-		CreatedAt:   time.Now().UTC(),
-		UpdatedAt:   time.Now().UTC(),
-	}
-
-	_, err = r.messageRepo.AddMessageTx(ctx, exec, &systemMessage)
+	`, chat.ID, chat.WorkspaceID, chat.CreatorID, chat.Type, now, now, now)
 	return err
 }
 
-func (r *chatRepo) GetAllUserChats(userId uuid.UUID, workspaceId uuid.UUID) ([]response.GetChats, error) {
-	rows, err := r.conn.Query(context.Background(), `
+func (r *chatRepo) GetAllUserChats(ctx context.Context, userId uuid.UUID, workspaceId uuid.UUID) ([]response.GetChats, error) {
+	return r.GetAllUserChatsTx(ctx, r.conn, userId, workspaceId)
+}
+
+func (r *chatRepo) GetAllUserChatsTx(ctx context.Context, exec entities.Execer, userId uuid.UUID, workspaceId uuid.UUID) ([]response.GetChats, error) {
+	rows, err := exec.Query(ctx, `
 		SELECT
   			uc.chat_id,
   			uc.muted,
@@ -120,23 +75,27 @@ func (r *chatRepo) GetAllUserChats(userId uuid.UUID, workspaceId uuid.UUID) ([]r
 		if err := rows.Scan(&chat.ID, &chat.Muted, &chat.Pinned, &chat.Notification, &chat.Role, &chat.Type, &chat.IsOnline, &chat.ParticipantID); err != nil {
 			return nil, err
 		}
-		if err = r.getLastMessageInfo(&chat, userId); err != nil {
+		if err = r.GetLastMessageInfoTx(ctx, exec, &chat, userId); err != nil {
 			return nil, err
 		}
 		switch chat.Type {
 		case enums.TypePrivate:
-			if err := r.getUserNameById(chat.ID, userId, &chat.Name); err != nil {
+			if err := r.GetParticipantNameByChatIdTx(ctx, exec, chat.ID, userId, &chat.Name); err != nil {
 				chat.Name = "error"
 			}
 		}
 		chats = append(chats, chat)
 	}
 
+	if rows.Err() != nil {
+		return nil, rows.Err()
+	}
+
 	return chats, err
 }
 
-func (r *chatRepo) GetChatsBySearch(userID uuid.UUID, workspaceId uuid.UUID, value string) ([]response.GetChatsSearch, error) {
-	rows, err := r.conn.Query(context.Background(), `
+func (r *chatRepo) GetChatsBySearch(ctx context.Context, userID uuid.UUID, workspaceId uuid.UUID, value string) ([]response.GetChatsSearch, error) {
+	rows, err := r.conn.Query(ctx, `
 		 SELECT
 		    u.id,
 		    c.chat_id,
@@ -164,11 +123,11 @@ func (r *chatRepo) GetChatsBySearch(userID uuid.UUID, workspaceId uuid.UUID, val
   		AND u.username ILIKE $3
 	LIMIT 10;
 	`, userID, workspaceId, "%"+value+"%")
-	defer rows.Close()
 
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	var chats []response.GetChatsSearch
 	for rows.Next() {
@@ -178,11 +137,19 @@ func (r *chatRepo) GetChatsBySearch(userID uuid.UUID, workspaceId uuid.UUID, val
 		}
 		chats = append(chats, chat)
 	}
+
+	if rows.Err() != nil {
+		return nil, rows.Err()
+	}
 	return chats, err
 }
 
-func (r *chatRepo) getUserNameById(chatId string, userId uuid.UUID, name *string) error {
-	err := r.conn.QueryRow(context.Background(), `
+func (r *chatRepo) GetParticipantNameByChatId(ctx context.Context, chatId string, userId uuid.UUID, name *string) error {
+	return r.GetParticipantNameByChatIdTx(ctx, r.conn, chatId, userId, name)
+}
+
+func (r *chatRepo) GetParticipantNameByChatIdTx(ctx context.Context, exec entities.Execer, chatId string, userId uuid.UUID, name *string) error {
+	err := exec.QueryRow(ctx, `
 		SELECT u.username 
 		FROM user_chats uc
 		JOIN users u ON uc.user_id = u.id
@@ -190,8 +157,12 @@ func (r *chatRepo) getUserNameById(chatId string, userId uuid.UUID, name *string
 	return err
 }
 
-func (r *chatRepo) getLastMessageInfo(chat *response.GetChats, userID uuid.UUID) error {
-	err := r.conn.QueryRow(context.Background(), `
+func (r *chatRepo) GetLastMessageInfo(ctx context.Context, chat *response.GetChats, userID uuid.UUID) error {
+	return r.GetLastMessageInfoTx(ctx, r.conn, chat, userID)
+}
+
+func (r *chatRepo) GetLastMessageInfoTx(ctx context.Context, exec entities.Execer, chat *response.GetChats, userID uuid.UUID) error {
+	err := exec.QueryRow(ctx, `
 		SELECT
 		    m.content,
 		    m.message_type, 
@@ -207,13 +178,25 @@ func (r *chatRepo) getLastMessageInfo(chat *response.GetChats, userID uuid.UUID)
 			ON ma.message_id = m.id AND m.message_type = $2
 		WHERE m.chat_id = $1
 		ORDER BY m.created_at DESC
-		LIMIT 1`,
-		chat.ID, enums.MessageImage, userID).Scan(
+		LIMIT 1
+	`, chat.ID, enums.MessageImage, userID).Scan(
 		&chat.LastMessage,
 		&chat.LastMessageType,
 		&chat.LastMessageTime,
 		&chat.LastMessageAttachment,
 		&chat.UnreadForUser,
 	)
+
+	return err
+}
+
+func (r *chatRepo) UpdateChatTime(ctx context.Context, chatId string, at time.Time) error {
+	return r.UpdateChatTimeTx(ctx, r.conn, chatId, at)
+}
+
+func (r *chatRepo) UpdateChatTimeTx(ctx context.Context, exec entities.Execer, chatId string, at time.Time) error {
+	_, err := exec.Exec(ctx,
+		`UPDATE chats SET updated_at = $1 WHERE id = $2
+	`, at, chatId)
 	return err
 }

@@ -7,7 +7,6 @@ import (
 	"go-postgres-test/internal/entities"
 	"go-postgres-test/internal/enums"
 	"go-postgres-test/internal/response"
-	"go-postgres-test/mixins"
 	"time"
 
 	"github.com/google/uuid"
@@ -22,48 +21,35 @@ func NewProjectRepository(conn *pgxpool.Pool) domain.ProjectRepository {
 	return &projectRepo{conn: conn}
 }
 
-func (r *projectRepo) CreateProject(creatorId, workSpaceId uuid.UUID, name, prefix string) (id uuid.UUID, err error) {
-	ctx := context.Background()
-
-	tx, err := r.conn.Begin(ctx)
-	if err != nil {
-		return uuid.Nil, err
-	}
-
-	defer func() {
-		_ = mixins.TXReturn(tx, ctx, err)
-	}()
-
-	return r.CreateProjectTx(ctx, tx, creatorId, workSpaceId, name, prefix)
+func (r *projectRepo) CreateProject(ctx context.Context, creatorId, workSpaceId, projectId uuid.UUID, name, prefix string) error {
+	return r.CreateProjectTx(ctx, r.conn, creatorId, workSpaceId, projectId, name, prefix)
 
 }
-func (r *projectRepo) CreateProjectTx(ctx context.Context, exec entities.Execer, creatorId, workSpaceId uuid.UUID, name, prefix string) (uuid.UUID, error) {
+
+func (r *projectRepo) CreateProjectTx(ctx context.Context, exec entities.Execer, creatorId, workSpaceId, projectId uuid.UUID, name, prefix string) error {
 	var exists bool
 	err := exec.QueryRow(ctx, `
 		SELECT EXISTS (SELECT 1 FROM projects WHERE prefix = $1)`, prefix).Scan(&exists)
 	if err != nil {
-		return uuid.Nil, err
+		return err
 	}
 
 	if exists {
-		return uuid.Nil, errors.New("409")
+		return errors.New("409")
 	}
 
-	var id = uuid.New()
+	now := time.Now().UTC()
 	_, err = exec.Exec(ctx, `
 		INSERT INTO projects (id, workspace_id, creator_id, name, created_at, updated_at, prefix)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)`, id, workSpaceId, creatorId, name, time.Now().UTC(), time.Now().UTC(), prefix)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)`, projectId, workSpaceId, creatorId, name, now, now, prefix)
 	if err != nil {
-		return uuid.Nil, err
+		return err
 	}
-	if err = r.AddUserToProjectTx(ctx, exec, id, creatorId, enums.ProjectRoleCreator); err != nil {
-		return uuid.Nil, err
-	}
-	return id, nil
+	return nil
 }
 
-func (r *projectRepo) AddUserToProject(projectId uuid.UUID, userId uuid.UUID, role enums.ProjectRole) error {
-	return r.AddUserToProjectTx(context.Background(), r.conn, projectId, userId, role)
+func (r *projectRepo) AddUserToProject(ctx context.Context, projectId uuid.UUID, userId uuid.UUID, role enums.ProjectRole) error {
+	return r.AddUserToProjectTx(ctx, r.conn, projectId, userId, role)
 }
 
 func (r *projectRepo) AddUserToProjectTx(ctx context.Context, exec entities.Execer, projectId uuid.UUID, userId uuid.UUID, role enums.ProjectRole) error {
@@ -73,8 +59,8 @@ func (r *projectRepo) AddUserToProjectTx(ctx context.Context, exec entities.Exec
 	return err
 }
 
-func (r *projectRepo) GetAllUserProjects(userId, workspaceId uuid.UUID) ([]response.GetAllProjects, error) {
-	rows, err := r.conn.Query(context.Background(), `
+func (r *projectRepo) GetAllUserProjects(ctx context.Context, userId, workspaceId uuid.UUID) ([]response.GetAllProjects, error) {
+	rows, err := r.conn.Query(ctx, `
 		SELECT p.id, p.name, p.prefix, p.description FROM projects p
 		JOIN project_members pm ON p.id = pm.project_id
 		WHERE pm.user_id  = $1 AND p.workspace_id = $2`, userId, workspaceId)
@@ -92,12 +78,16 @@ func (r *projectRepo) GetAllUserProjects(userId, workspaceId uuid.UUID) ([]respo
 		projects = append(projects, project)
 	}
 
+	if rows.Err() != nil {
+		return nil, err
+	}
+
 	return projects, nil
 }
 
-func (r *projectRepo) GetUserRole(userId, projectId uuid.UUID) (enums.ProjectRole, error) {
+func (r *projectRepo) GetUserRole(ctx context.Context, userId, projectId uuid.UUID) (enums.ProjectRole, error) {
 	var role enums.ProjectRole
-	err := r.conn.QueryRow(context.Background(), `
+	err := r.conn.QueryRow(ctx, `
 		SELECT 
 			CASE 
 				WHEN uw.role IN ('ADMIN', 'CREATOR') THEN 'ADMIN'
@@ -115,8 +105,8 @@ func (r *projectRepo) GetUserRole(userId, projectId uuid.UUID) (enums.ProjectRol
 	return role, nil
 }
 
-func (r *projectRepo) GetAllProjectMembers(projectId uuid.UUID) ([]response.GetAllProjectUsers, error) {
-	rows, err := r.conn.Query(context.Background(), `
+func (r *projectRepo) GetAllProjectMembers(ctx context.Context, projectId uuid.UUID) ([]response.GetAllProjectUsers, error) {
+	rows, err := r.conn.Query(ctx, `
 		SELECT DISTINCT ON (u.id)
     		u.id,
     		u.username,
@@ -142,11 +132,16 @@ func (r *projectRepo) GetAllProjectMembers(projectId uuid.UUID) ([]response.GetA
 		}
 		projectUsers = append(projectUsers, projectUser)
 	}
+
+	if rows.Err() != nil {
+		return nil, err
+	}
+
 	return projectUsers, nil
 }
 
-func (r *projectRepo) ChangeUserRole(userId, projectId uuid.UUID, role enums.ProjectRole) error {
-	_, err := r.conn.Exec(context.Background(), `
+func (r *projectRepo) ChangeUserRole(ctx context.Context, userId, projectId uuid.UUID, role enums.ProjectRole) error {
+	_, err := r.conn.Exec(ctx, `
 		UPDATE project_members SET role = $1 WHERE user_id = $2 AND project_id = $3`, role, userId, projectId)
 	return err
 }

@@ -24,29 +24,37 @@ func main() {
 	dbPool := db.ConnectDB()
 	defer dbPool.Close()
 
+	baseRepo := repository.NewBaseRepo(dbPool)
+
 	userRepo := repository.NewUserRepository(dbPool)
-	userUC := usecase.NewUserUsecase(userRepo)
+	userUC := usecase.NewUserUsecase(userRepo, baseRepo)
 	userHandler := handlers.NewUserHandler(userUC)
 
 	taskRepo := repository.NewTaskRepository(dbPool)
-	taskUC := usecase.NewTaskUseCase(taskRepo)
+	taskUC := usecase.NewTaskUseCase(taskRepo, baseRepo)
 	taskHandler := handlers.NewTaskHandler(taskUC)
 
 	messageRepo := repository.NewMessageRepository(dbPool, os.Getenv("IMAGE_STORAGE_API_KEY"))
-	messageUC := usecase.NewMessageUsecase(messageRepo)
+	chatRepo := repository.NewChatRepo(dbPool)
+
+	chatUC := usecase.NewChatUsecase(chatRepo, messageRepo, baseRepo)
+	chatHandler := handlers.NewChatHandler(chatUC)
+
+	messageUC := usecase.NewMessageUsecase(messageRepo, chatRepo, baseRepo)
 	messageHandler := handlers.NewMessageHandler(messageUC)
 
-	chatRepo := repository.NewChatRepo(dbPool, messageRepo)
-	chatUseCase := usecase.NewChatUsecase(chatRepo)
-	chatHandler := handlers.NewChatHandler(*chatUseCase)
-
 	workSpaceRepo := repository.NewWorkSpaceRepository(dbPool, taskRepo)
-	workSpaceUC := usecase.NewWorkSpaceUsecase(workSpaceRepo)
+	columnRepo := repository.NewColumnRepo(dbPool)
+	columnUC := usecase.NewColumnUsecase(columnRepo, workSpaceRepo, baseRepo)
+
+	workSpaceUC := usecase.NewWorkSpaceUsecase(workSpaceRepo, columnUC, baseRepo)
 	workSpaceHandler := handlers.NewWorkSpaceHandler(workSpaceUC)
 
+	columnHandler := handlers.NewColumnHandler(columnUC)
+
 	projectRepo := repository.NewProjectRepository(dbPool)
-	projectUC := usecase.NewProjectUseCase(projectRepo)
-	projectHandler := handlers.NewProjectHandler(*projectUC)
+	projectUC := usecase.NewProjectUseCase(projectRepo, baseRepo)
+	projectHandler := handlers.NewProjectHandler(projectUC)
 
 	wsHandler := ws.NewWebSocketHandler(messageRepo, userRepo)
 
@@ -69,9 +77,10 @@ func main() {
 	chatHandler.RegisterRoutes(api)
 	messageHandler.RegisterRoutes(api)
 	projectHandler.RegisterRoutes(api)
+	columnHandler.RegisterRoutes(api)
 
 	fmt.Println("Running server")
-	if err := r.Run(":8080"); err != nil {
+	if err = r.Run(":8080"); err != nil {
 		panic(err)
 	}
 }

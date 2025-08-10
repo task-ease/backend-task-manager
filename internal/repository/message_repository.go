@@ -5,10 +5,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"go-postgres-test/internal/domain"
 	"go-postgres-test/internal/entities"
-	"go-postgres-test/mixins"
 	"io"
 	"net/http"
 	"net/url"
@@ -28,33 +26,23 @@ func NewMessageRepository(conn *pgxpool.Pool, imageStorageKey string) domain.Mes
 	return &messageRepo{conn: conn, imageStorageKey: imageStorageKey}
 }
 
-func (r *messageRepo) AddMessage(message *domain.Message) (result *[]uuid.UUID, err error) {
-	ctx := context.Background()
-
-	tx, err := r.conn.Begin(ctx)
-	if err != nil {
-		empty := make([]uuid.UUID, 0)
-		return &empty, err
-	}
-
-	defer func() {
-		_ = mixins.TXReturn(tx, ctx, err)
-	}()
-
-	return r.AddMessageTx(context.Background(), tx, message)
+func (r *messageRepo) AddMessage(ctx context.Context, message entities.Message) error {
+	return r.AddMessageTx(ctx, r.conn, message)
 }
 
-func (r *messageRepo) AddMessageTx(ctx context.Context, exec entities.Execer, message *domain.Message) (*[]uuid.UUID, error) {
-	message.ID = "m-" + uuid.New().String()
-
+func (r *messageRepo) AddMessageTx(ctx context.Context, exec entities.Execer, message entities.Message) error {
 	_, err := exec.Exec(ctx,
 		`INSERT INTO messages (id, chat_id, sender_id, content, message_type, created_at, updated_at)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 		message.ID, message.ChatID, message.SenderID, message.Content, message.MessageType, message.CreatedAt, message.UpdatedAt)
-	if err != nil {
-		return nil, err
-	}
+	return err
+}
 
+func (r *messageRepo) AddMessageReads(ctx context.Context, chatId, messageId string, senderId uuid.UUID) ([]uuid.UUID, error) {
+	return r.AddMessageReadsTx(ctx, r.conn, chatId, messageId, senderId)
+}
+
+func (r *messageRepo) AddMessageReadsTx(ctx context.Context, exec entities.Execer, chatId, messageId string, senderId uuid.UUID) ([]uuid.UUID, error) {
 	rows, err := exec.Query(ctx, `
 		INSERT INTO message_reads (user_id, message_id, chat_id)
 		SELECT uc.user_id, $1, $2
@@ -67,7 +55,7 @@ func (r *messageRepo) AddMessageTx(ctx context.Context, exec entities.Execer, me
 			)
 			AND uc.user_id != $3
 		RETURNING user_id;
-	`, message.ID, message.ChatID, message.SenderID)
+	`, messageId, chatId, senderId)
 	if err != nil {
 		return nil, err
 	}
@@ -82,33 +70,18 @@ func (r *messageRepo) AddMessageTx(ctx context.Context, exec entities.Execer, me
 		unreadUserIds = append(unreadUserIds, userID)
 	}
 
-	_, err = exec.Exec(ctx,
-		`UPDATE chats SET updated_at = $1 WHERE id = $2`, message.UpdatedAt, message.ChatID)
-	if err != nil {
-		return nil, err
+	if rows.Err() != nil {
+		return nil, rows.Err()
 	}
 
-	return &unreadUserIds, nil
+	return unreadUserIds, nil
 }
 
-func (r *messageRepo) GetAllMessages(chatId string) (messages []*domain.Message, err error) {
-	ctx := context.Background()
-
-	tx, err := r.conn.Begin(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	defer func() {
-		_ = mixins.TXReturn(tx, ctx, err)
-	}()
-
-	messages, err = r.GetAllMessagesTx(ctx, tx, chatId)
-	fmt.Println(err)
-	return
+func (r *messageRepo) GetAllMessages(ctx context.Context, chatId string) (messages []entities.Message, err error) {
+	return r.GetAllMessagesTx(ctx, r.conn, chatId)
 }
 
-func (r *messageRepo) GetAllMessagesTx(ctx context.Context, exec entities.Execer, chatId string) ([]*domain.Message, error) {
+func (r *messageRepo) GetAllMessagesTx(ctx context.Context, exec entities.Execer, chatId string) ([]entities.Message, error) {
 	rows, err := exec.Query(ctx, `
 		SELECT 
 		    m.id,
@@ -135,14 +108,22 @@ func (r *messageRepo) GetAllMessagesTx(ctx context.Context, exec entities.Execer
 	}
 	defer rows.Close()
 
-	var messages []*domain.Message
+	var messages []entities.Message
 	for rows.Next() {
-		var message domain.Message
-		if err = rows.Scan(&message.ID, &message.SenderID, &message.Content, &message.MessageType, &message.CreatedAt, &message.IsRead, &message.UnreadUsersIds); err != nil {
+		var message entities.Message
+		if err = rows.Scan(
+			&message.ID,
+			&message.SenderID,
+			&message.Content,
+			&message.MessageType,
+			&message.CreatedAt,
+			&message.IsRead,
+			&message.UnreadUsersIds,
+		); err != nil {
 			return nil, err
 		}
 
-		messages = append(messages, &message)
+		messages = append(messages, message)
 	}
 
 	if err = rows.Err(); err != nil {
@@ -174,7 +155,13 @@ func (r *messageRepo) UploadImage(image io.Reader) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+
+		}
+	}(resp.Body)
 
 	body, _ := io.ReadAll(resp.Body)
 
@@ -195,8 +182,12 @@ func (r *messageRepo) UploadImage(image io.Reader) (string, error) {
 	return result.Data.URL, nil
 }
 
-func (r *messageRepo) AddAttachment(attachment *domain.Attachment) error {
-	_, err := r.conn.Exec(context.Background(), `
+func (r *messageRepo) AddAttachment(ctx context.Context, attachment entities.Attachment) error {
+	return r.AddAttachmentTx(ctx, r.conn, attachment)
+}
+
+func (r *messageRepo) AddAttachmentTx(ctx context.Context, exec entities.Execer, attachment entities.Attachment) error {
+	_, err := exec.Exec(ctx, `
 		INSERT INTO message_attachments 
 		(id, message_id, file_url, file_type, file_name, file_size, uploaded_at, chat_id)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
@@ -204,11 +195,11 @@ func (r *messageRepo) AddAttachment(attachment *domain.Attachment) error {
 	return err
 }
 
-func (r *messageRepo) GetAttachments(messageId string, attachments *[]domain.Attachment) error {
-	return r.GetAttachmentsTx(context.Background(), r.conn, messageId, attachments)
+func (r *messageRepo) GetAttachments(ctx context.Context, messageId string, attachments *[]entities.Attachment) error {
+	return r.GetAttachmentsTx(ctx, r.conn, messageId, attachments)
 }
 
-func (r *messageRepo) GetAttachmentsTx(ctx context.Context, exec entities.Execer, messageId string, attachments *[]domain.Attachment) error {
+func (r *messageRepo) GetAttachmentsTx(ctx context.Context, exec entities.Execer, messageId string, attachments *[]entities.Attachment) error {
 	rows, err := exec.Query(ctx, `
 		SELECT id, message_id, uploaded_at, file_size, file_name, file_type, file_url
 		FROM message_attachments
@@ -219,7 +210,7 @@ func (r *messageRepo) GetAttachmentsTx(ctx context.Context, exec entities.Execer
 	defer rows.Close()
 
 	for rows.Next() {
-		var a domain.Attachment
+		var a entities.Attachment
 		err := rows.Scan(&a.ID, &a.MessageID, &a.UploadedAt, &a.FileSize, &a.FileName, &a.FileType, &a.FileUrl)
 		if err != nil {
 			return err
@@ -234,27 +225,16 @@ func (r *messageRepo) GetAttachmentsTx(ctx context.Context, exec entities.Execer
 	return nil
 }
 
-func (r *messageRepo) SetMessageRead(message *domain.Message, userId uuid.UUID) error {
-	ctx := context.Background()
-
-	tx, err := r.conn.Begin(ctx)
-	if err != nil {
-		return err
-	}
-
-	defer func() {
-		_ = mixins.TXReturn(tx, ctx, err)
-	}()
-
-	return r.SetMessageReadTx(ctx, tx, message, userId)
+func (r *messageRepo) SetMessageRead(ctx context.Context, message, userId uuid.UUID) error {
+	return r.SetMessageReadTx(ctx, r.conn, message, userId)
 }
 
-func (r *messageRepo) SetMessageReadTx(ctx context.Context, exec entities.Execer, message *domain.Message, userId uuid.UUID) error {
+func (r *messageRepo) SetMessageReadTx(ctx context.Context, exec entities.Execer, message, userId uuid.UUID) error {
 	_, err := exec.Exec(ctx, `
 		UPDATE message_reads 
 		SET read_at = $1 
 		WHERE message_id = $2 AND user_id = $3`,
-		time.Now().UTC(), message.ID, userId)
+		time.Now().UTC(), message, userId)
 	if err != nil {
 		return err
 	}
@@ -286,39 +266,21 @@ func (r *messageRepo) SetMessageReadTx(ctx context.Context, exec entities.Execer
 	return nil
 }
 
-func (r *messageRepo) SetMessagesRead(messages *[]domain.Message, userId uuid.UUID) error {
-	ctx := context.Background()
+func (r *messageRepo) GetAllChatImages(ctx context.Context, chatId string) (*[]entities.Attachment, error) {
+	rows, err := r.conn.Query(ctx, `
+		SELECT id, file_url, file_type, file_name, uploaded_at 
+		FROM message_attachments 
+		WHERE chat_id = $1
+	`, chatId)
 
-	tx, err := r.conn.Begin(ctx)
-	if err != nil {
-		return err
-	}
-
-	defer func() {
-		_ = mixins.TXReturn(tx, ctx, err)
-	}()
-
-	for _, m := range *messages {
-		err := r.SetMessageReadTx(ctx, tx, &m, userId)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (r *messageRepo) GetAllChatImages(chatId string) (*[]domain.Attachment, error) {
-	rows, err := r.conn.Query(context.Background(), `
-		SELECT id, file_url, file_type, file_name, uploaded_at from  message_attachments 
-		WHERE chat_id = $1`, chatId)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var images []domain.Attachment
+	var images []entities.Attachment
 	for rows.Next() {
-		var attachment domain.Attachment
+		var attachment entities.Attachment
 		if err := rows.Scan(&attachment.ID, &attachment.FileUrl, &attachment.FileType, &attachment.FileName, &attachment.UploadedAt); err != nil {
 			return nil, err
 		}
