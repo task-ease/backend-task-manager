@@ -77,7 +77,7 @@ func (h *ColumnHandler) createColumnTemplate(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"id": id})
+	c.JSON(http.StatusCreated, gin.H{"id": id})
 }
 
 func (h *ColumnHandler) getAllColumnTemplates(c *gin.Context) {

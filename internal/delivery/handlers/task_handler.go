@@ -25,19 +25,19 @@ func (h *TaskHandler) RegisterRoutes(router *gin.RouterGroup) {
 
 	protected := router.Group("/task", middleware.JWTMiddleware(authService))
 
-	protected.GET("/", h.GetAllTasks)
-	protected.POST("/", h.CreateTask)
+	protected.GET("/", h.getAllTasks)
+	protected.POST("/", h.createTask)
 
-	protected.PATCH("/title/:taskId", h.UpdateTaskTitle)
-	protected.PATCH("/column/:taskId", h.UpdateTaskColumn)
-	protected.PATCH("/priority/:taskId", h.UpdateTaskPriority)
-	protected.PATCH("/assigned/:taskId", h.UpdateTaskAssigned)
-	protected.PATCH("/description/:taskId", h.UpdateTaskDescription)
+	protected.PATCH("/title/:taskId", h.updateTaskTitle)
+	protected.PATCH("/column/:taskId", h.updateTaskColumn)
+	protected.PATCH("/priority/:taskId", h.updateTaskPriority)
+	protected.PATCH("/assigned/:taskId", h.updateTaskAssigned)
+	protected.PATCH("/description/:taskId", h.updateTaskDescription)
 
-	protected.DELETE("/assigned/:taskId", h.RemoveTaskAssigned)
+	protected.DELETE("/assigned/:taskId", h.removeTaskAssigned)
 }
 
-func (h *TaskHandler) GetAllTasks(c *gin.Context) {
+func (h *TaskHandler) getAllTasks(c *gin.Context) {
 	var queryInput query.TaskLocationQuery
 	var err error
 
@@ -64,15 +64,14 @@ func (h *TaskHandler) GetAllTasks(c *gin.Context) {
 
 	taskList, err := h.uc.GetAllTasks(c.Request.Context(), queryInput)
 	if err != nil {
-		fmt.Println(err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"tasks": taskList})
 }
 
-func (h *TaskHandler) CreateTask(c *gin.Context) {
+func (h *TaskHandler) createTask(c *gin.Context) {
 	var input request.CreateTask
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -81,14 +80,14 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 
 	data, err := h.uc.CreateTask(c.Request.Context(), input)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, data)
+	c.JSON(http.StatusCreated, data)
 }
 
-func (h *TaskHandler) UpdateTaskTitle(c *gin.Context) {
+func (h *TaskHandler) updateTaskTitle(c *gin.Context) {
 	taskId, err := mixins.ParamToUUID(c, "taskId")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -98,14 +97,14 @@ func (h *TaskHandler) UpdateTaskTitle(c *gin.Context) {
 	value := c.Query("value")
 
 	if err = h.uc.UpdateTaskTitle(c.Request.Context(), taskId, value); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.Status(http.StatusOK)
 }
 
-func (h *TaskHandler) UpdateTaskDescription(c *gin.Context) {
+func (h *TaskHandler) updateTaskDescription(c *gin.Context) {
 	taskId, err := mixins.ParamToUUID(c, "taskId")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -115,14 +114,14 @@ func (h *TaskHandler) UpdateTaskDescription(c *gin.Context) {
 	value := c.Query("value")
 
 	if err = h.uc.UpdateTaskDescription(c.Request.Context(), taskId, value); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.Status(http.StatusOK)
 }
 
-func (h *TaskHandler) UpdateTaskColumn(c *gin.Context) {
+func (h *TaskHandler) updateTaskColumn(c *gin.Context) {
 	taskId, err := mixins.ParamToUUID(c, "taskId")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -136,32 +135,31 @@ func (h *TaskHandler) UpdateTaskColumn(c *gin.Context) {
 	}
 
 	if err = h.uc.UpdateTaskColumn(c.Request.Context(), taskId, columnId); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.Status(http.StatusOK)
 }
 
-func (h *TaskHandler) UpdateTaskPriority(c *gin.Context) {
+func (h *TaskHandler) updateTaskPriority(c *gin.Context) {
 	taskId, err := mixins.ParamToUUID(c, "taskId")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	priorityStr := c.Query("value")
-	priority := enums.TaskPriorities(priorityStr)
+	priority := enums.TaskPriorities(c.Query("value"))
 
 	if err = h.uc.UpdateTaskPriority(c.Request.Context(), taskId, priority); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.Status(http.StatusOK)
 }
 
-func (h *TaskHandler) UpdateTaskAssigned(c *gin.Context) {
+func (h *TaskHandler) updateTaskAssigned(c *gin.Context) {
 	taskId, err := mixins.ParamToUUID(c, "taskId")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -170,19 +168,19 @@ func (h *TaskHandler) UpdateTaskAssigned(c *gin.Context) {
 
 	userId, err := mixins.QueryToUUID(c, "value")
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
 
 	if err = h.uc.UpdateTaskAssigned(c.Request.Context(), taskId, userId); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.Status(http.StatusOK)
 }
 
-func (h *TaskHandler) RemoveTaskAssigned(c *gin.Context) {
+func (h *TaskHandler) removeTaskAssigned(c *gin.Context) {
 	taskId, err := mixins.ParamToUUID(c, "taskId")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -191,7 +189,7 @@ func (h *TaskHandler) RemoveTaskAssigned(c *gin.Context) {
 
 	err = h.uc.RemoveTaskAssigned(c.Request.Context(), taskId)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 

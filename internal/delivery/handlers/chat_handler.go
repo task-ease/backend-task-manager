@@ -26,14 +26,14 @@ func (h *ChatHandler) RegisterRoutes(router *gin.RouterGroup) {
 
 	protected := router.Group("/chat", middleware.JWTMiddleware(authService))
 
-	protected.GET("/get-all-user-chats/:workspaceId", h.GetAllUserChats)
-	protected.GET("/get-all-user-chats-search/:value", h.GetChatsBySearch)
+	protected.GET("/get-all-user-chats/:workspaceId", h.getAllUserChats)
+	protected.GET("/get-all-user-chats-search/:value", h.getChatsBySearch)
 
-	protected.POST("/create-chat/:participantId", h.CreateChat)
-	protected.POST("/add-user-to-chat", h.AddUserToChat)
+	protected.POST("/create-chat/:participantId", h.createChat)
+	protected.POST("/add-user-to-chat", h.addUserToChat)
 }
 
-func (h *ChatHandler) CreateChat(c *gin.Context) {
+func (h *ChatHandler) createChat(c *gin.Context) {
 	var chat domain.Chat
 	var err error
 
@@ -55,14 +55,14 @@ func (h *ChatHandler) CreateChat(c *gin.Context) {
 	}
 
 	if err = h.uc.CreateChat(c.Request.Context(), &chat, participantId); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusCreated, gin.H{"chat": chat})
 }
 
-func (h *ChatHandler) AddUserToChat(c *gin.Context) {
+func (h *ChatHandler) addUserToChat(c *gin.Context) {
 	var input request.AddUserToChat
 
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -70,14 +70,14 @@ func (h *ChatHandler) AddUserToChat(c *gin.Context) {
 	}
 
 	if err := h.uc.AddUserToChat(c.Request.Context(), input.UserID, input.ChatID, input.WorkspaceID, enums.ChatUser); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"message": "success"})
+	c.Status(http.StatusOK)
 }
 
-func (h *ChatHandler) GetAllUserChats(c *gin.Context) {
+func (h *ChatHandler) getAllUserChats(c *gin.Context) {
 	workspaceId, err := mixins.ParamToUUID(c, "workspaceId")
 
 	if err != nil {
@@ -94,14 +94,14 @@ func (h *ChatHandler) GetAllUserChats(c *gin.Context) {
 	chatList, err := h.uc.GetAllUserChats(c.Request.Context(), userId, workspaceId)
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusOK, chatList)
 }
 
-func (h *ChatHandler) GetChatsBySearch(c *gin.Context) {
+func (h *ChatHandler) getChatsBySearch(c *gin.Context) {
 	value := c.Param("value")
 	workspaceId, err := mixins.ParamToUUID(c, "workspaceId")
 
@@ -120,7 +120,7 @@ func (h *ChatHandler) GetChatsBySearch(c *gin.Context) {
 	chatList, err := h.uc.GetChatsBySearch(c.Request.Context(), userId, workspaceId, value)
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 	}
 
 	c.JSON(http.StatusOK, chatList)

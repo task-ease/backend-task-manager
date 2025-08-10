@@ -24,17 +24,17 @@ func (h *ProjectHandler) RegisterRoutes(router *gin.RouterGroup) {
 	authService := auth.NewJWTService()
 	protected := router.Group("/project", middleware.JWTMiddleware(authService))
 
-	protected.GET("/:workspaceId", h.GetAllUserProjects)
-	protected.GET("/role/:projectId", h.GetUserRole)
-	protected.GET("/members/:projectId", h.GetAllProjectMembers)
+	protected.GET("/:workspaceId", h.getAllUserProjects)
+	protected.GET("/role/:projectId", h.getUserRole)
+	protected.GET("/members/:projectId", h.getAllProjectMembers)
 
-	protected.PATCH("/role", h.ChangeUserRole)
+	protected.PATCH("/role", h.changeUserRole)
 
-	protected.POST("", h.CreateProject)
-	protected.POST("/user", h.AddUserToProject)
+	protected.POST("", h.createProject)
+	protected.POST("/user", h.addUserToProject)
 }
 
-func (h *ProjectHandler) CreateProject(c *gin.Context) {
+func (h *ProjectHandler) createProject(c *gin.Context) {
 	var input request.CreateProject
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -55,10 +55,11 @@ func (h *ProjectHandler) CreateProject(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
 	c.JSON(http.StatusCreated, gin.H{"projectId": projectId})
 }
 
-func (h *ProjectHandler) AddUserToProject(c *gin.Context) {
+func (h *ProjectHandler) addUserToProject(c *gin.Context) {
 	var input request.AddUserToProject
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -66,14 +67,14 @@ func (h *ProjectHandler) AddUserToProject(c *gin.Context) {
 	}
 
 	if err := h.uc.AddUserToProject(c.Request.Context(), input.ProjectId, input.UserId, enums.ProjectRoleEditor); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"status": true})
+	c.JSON(http.StatusOK, gin.H{"status": true})
 }
 
-func (h *ProjectHandler) GetAllUserProjects(c *gin.Context) {
+func (h *ProjectHandler) getAllUserProjects(c *gin.Context) {
 	userId, err := mixins.ParseUserId(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -88,14 +89,14 @@ func (h *ProjectHandler) GetAllUserProjects(c *gin.Context) {
 
 	projects, err := h.uc.GetAllUserProjects(c.Request.Context(), userId, workspaceId)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"projects": projects})
 }
 
-func (h *ProjectHandler) GetUserRole(c *gin.Context) {
+func (h *ProjectHandler) getUserRole(c *gin.Context) {
 	userId, err := mixins.ParseUserId(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -110,18 +111,18 @@ func (h *ProjectHandler) GetUserRole(c *gin.Context) {
 
 	role, err := h.uc.GetUserRole(c.Request.Context(), userId, projectId)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	if role == enums.ProjectRoleNoAccess {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "NO_ACCESS"})
+		c.JSON(http.StatusMethodNotAllowed, gin.H{"error": "NO_ACCESS"})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"role": role})
 }
 
-func (h *ProjectHandler) GetAllProjectMembers(c *gin.Context) {
+func (h *ProjectHandler) getAllProjectMembers(c *gin.Context) {
 	projectId, err := mixins.ParamToUUID(c, "projectId")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -130,14 +131,14 @@ func (h *ProjectHandler) GetAllProjectMembers(c *gin.Context) {
 
 	members, err := h.uc.GetAllProjectMembers(c.Request.Context(), projectId)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"members": members})
 }
 
-func (h *ProjectHandler) ChangeUserRole(c *gin.Context) {
+func (h *ProjectHandler) changeUserRole(c *gin.Context) {
 	var input request.ChangeUserProjectRole
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -145,7 +146,7 @@ func (h *ProjectHandler) ChangeUserRole(c *gin.Context) {
 	}
 
 	if err := h.uc.ChangeUserRole(c.Request.Context(), input.UserId, input.ProjectId, input.Role); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 

@@ -26,14 +26,15 @@ func (h *MessageHandler) RegisterRoutes(router *gin.RouterGroup) {
 
 	protected := router.Group("/message", middleware.JWTMiddleware(authService))
 
-	protected.GET("/get-all-messages/:chatId", h.GetAllMessages)
-	protected.GET("/chat-images/:chatId", h.GetAllChatImages)
-	protected.PATCH("/upload-image-list/:chatId", h.UploadImageList)
-	protected.PATCH("/add-message", h.AddMessage)
+	protected.GET("/get-all-messages/:chatId", h.getAllMessages)
+	protected.GET("/chat-images/:chatId", h.getAllChatImages)
+
+	protected.PATCH("/upload-image-list/:chatId", h.uploadImageList)
+	protected.PATCH("/add-message", h.addMessage)
 	protected.PATCH("/set-read", h.SetMessagesRead)
 }
 
-func (h *MessageHandler) GetAllMessages(c *gin.Context) {
+func (h *MessageHandler) getAllMessages(c *gin.Context) {
 	messageList, err := h.uc.GetAllMessages(c.Request.Context(), c.Param("chatId"))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
@@ -43,7 +44,7 @@ func (h *MessageHandler) GetAllMessages(c *gin.Context) {
 	c.JSON(http.StatusOK, messageList)
 }
 
-func (h *MessageHandler) UploadImageList(c *gin.Context) {
+func (h *MessageHandler) uploadImageList(c *gin.Context) {
 	var uploadImageDto dto.UploadImage
 	var err error
 
@@ -69,7 +70,7 @@ func (h *MessageHandler) UploadImageList(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": message})
 }
 
-func (h *MessageHandler) AddMessage(c *gin.Context) {
+func (h *MessageHandler) addMessage(c *gin.Context) {
 	var message entities.Message
 	if err := c.ShouldBindJSON(&message); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -113,7 +114,7 @@ func (h *MessageHandler) SetMessagesRead(c *gin.Context) {
 	c.Status(http.StatusOK)
 }
 
-func (h *MessageHandler) GetAllChatImages(c *gin.Context) {
+func (h *MessageHandler) getAllChatImages(c *gin.Context) {
 	chatId := c.Param("chatId")
 	images, err := h.uc.GetAllChatImages(c.Request.Context(), chatId)
 	if err != nil {

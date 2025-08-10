@@ -83,7 +83,7 @@ func (h *WorkSpaceHandler) createWorkSpace(c *gin.Context) {
 	id, err := h.uc.CreateWorkSpace(c.Request.Context(), workspace)
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -129,7 +129,7 @@ func (h *WorkSpaceHandler) removeUser(c *gin.Context) {
 	}
 
 	if err := h.uc.RemoveUser(c.Request.Context(), input.WorkspaceId, input.UserId); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -152,7 +152,7 @@ func (h *WorkSpaceHandler) hasUserWorkspace(c *gin.Context) {
 	role, err := h.uc.HasUserWorkspace(c.Request.Context(), userId, workSpaceId)
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -201,7 +201,7 @@ func (h *WorkSpaceHandler) getWorkspaceName(c *gin.Context) {
 
 	name, err := h.uc.GetWorkspaceName(c.Request.Context(), workspaceId)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 

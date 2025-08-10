@@ -22,19 +22,19 @@ func NewUserHandler(uc *usecase.UserUseCase) *UserHandler {
 func (h *UserHandler) RegisterRoutes(router *gin.RouterGroup) {
 	authService := auth.NewJWTService()
 
-	router.GET("/users/is-authorized", h.IsAuthorized)
+	router.GET("/users/is-authorized", h.isAuthorized)
 
-	router.POST("/users/log-in", h.LogIn)
-	router.POST("/users/create-user", h.CreateUser)
+	router.POST("/users/log-in", h.logIn)
+	router.POST("/users/create-user", h.createUser)
 
 	protected := router.Group("/users", middleware.JWTMiddleware(authService))
 
-	protected.GET("/search-user-by-email/:value", h.SearchUserByEmail)
-	protected.GET("/user-id", h.GetUserId)
-	protected.GET("/workspace-role/:workspaceId", h.GetWorkspaceUserRole)
+	protected.GET("/search-user-by-email/:value", h.searchUserByEmail)
+	protected.GET("/user-id", h.getUserId)
+	protected.GET("/workspace-role/:workspaceId", h.getWorkspaceUserRole)
 }
 
-func (h *UserHandler) IsAuthorized(c *gin.Context) {
+func (h *UserHandler) isAuthorized(c *gin.Context) {
 	token, err := c.Cookie("token")
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
@@ -56,7 +56,7 @@ func (h *UserHandler) IsAuthorized(c *gin.Context) {
 
 // TODO почти ничем не отличается от CreateUser, возможно сделать общий, и через GET\POST различать разницу
 
-func (h *UserHandler) LogIn(c *gin.Context) {
+func (h *UserHandler) logIn(c *gin.Context) {
 	var user entities.AuthUser
 
 	if err := c.ShouldBindJSON(&user); err != nil {
@@ -80,10 +80,10 @@ func (h *UserHandler) LogIn(c *gin.Context) {
 
 	c.SetCookie("token", token, 604800, "/", "localhost", false, true)
 
-	c.JSON(http.StatusOK, true)
+	c.Status(http.StatusOK)
 }
 
-func (h *UserHandler) CreateUser(c *gin.Context) {
+func (h *UserHandler) createUser(c *gin.Context) {
 	var user entities.AuthUser
 	if err := c.ShouldBindJSON(&user); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -107,10 +107,10 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 
 	c.SetCookie("token", token, 604800, "/", "localhost", false, true)
 
-	c.JSON(http.StatusCreated, true)
+	c.Status(http.StatusCreated)
 }
 
-func (h *UserHandler) SearchUserByEmail(c *gin.Context) {
+func (h *UserHandler) searchUserByEmail(c *gin.Context) {
 	users, err := h.uc.SearchUserByEmail(c.Request.Context(), c.Param("value"))
 
 	if err != nil {
@@ -121,7 +121,7 @@ func (h *UserHandler) SearchUserByEmail(c *gin.Context) {
 	c.JSON(http.StatusOK, users)
 }
 
-func (h *UserHandler) GetUserId(c *gin.Context) {
+func (h *UserHandler) getUserId(c *gin.Context) {
 	userIdStr, exists := c.Get("userId")
 
 	if !exists {
@@ -132,7 +132,7 @@ func (h *UserHandler) GetUserId(c *gin.Context) {
 	c.JSON(http.StatusOK, userIdStr)
 }
 
-func (h *UserHandler) GetWorkspaceUserRole(c *gin.Context) {
+func (h *UserHandler) getWorkspaceUserRole(c *gin.Context) {
 	userId, err := mixins.ParseUserId(c)
 
 	if err != nil {
@@ -149,7 +149,7 @@ func (h *UserHandler) GetWorkspaceUserRole(c *gin.Context) {
 	userRole, err := h.uc.GetWorkspaceUserRole(c.Request.Context(), userId, workspaceId)
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
