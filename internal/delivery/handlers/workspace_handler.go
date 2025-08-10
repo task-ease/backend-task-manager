@@ -30,10 +30,11 @@ func (h *WorkSpaceHandler) RegisterRoutes(router *gin.RouterGroup) {
 	protected := router.Group("/workspace", middleware.JWTMiddleware(authService))
 
 	protected.GET("/", h.getAllUserWorkSpaces)
+	protected.GET("/role/:workspaceId", h.getUserRole)
 	protected.GET("/members/:workspaceId", h.getAllMembers)
-	protected.GET("/has-user-workspace/:workspaceId", h.hasUserWorkspace)
-	protected.GET("/search-user/:value", h.searchWorkspaceMember)
 	protected.GET("/name/:workspaceId", h.getWorkspaceName)
+	protected.GET("/search-user/:value", h.searchWorkspaceMember)
+	protected.GET("/has-user-workspace/:workspaceId", h.hasUserWorkspace)
 
 	protected.PUT("/role", h.changeUserRole)
 
@@ -206,4 +207,26 @@ func (h *WorkSpaceHandler) getWorkspaceName(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"name": name})
+}
+
+func (h *WorkSpaceHandler) getUserRole(c *gin.Context) {
+	workspaceId, err := mixins.ParamToUUID(c, "workspaceId")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	userId, err := mixins.ParseUserId(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
+
+	role, err := h.uc.GetUserRole(c.Request.Context(), userId, workspaceId)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, role)
 }

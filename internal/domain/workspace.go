@@ -23,6 +23,7 @@ type WorkSpaceRepository interface {
 
 	AddUser(ctx context.Context, workSpaceId, userId uuid.UUID, role enums.WorkspaceRole) error
 	RemoveUser(ctx context.Context, workSpaceId, userId uuid.UUID) error
+	GetUserRole(ctx context.Context, userId, workspaceId uuid.UUID) (enums.WorkspaceRole, error)
 	GetAllMembers(ctx context.Context, workSpaceId uuid.UUID) ([]entities.MemberUser, error)
 	ChangeUserRole(ctx context.Context, workSpaceId, userId uuid.UUID, role enums.WorkspaceRole) error
 	SearchWorkspaceMember(ctx context.Context, workSpaceId uuid.UUID, value string) ([]response.FindWorkspaceMemberResponse, error)

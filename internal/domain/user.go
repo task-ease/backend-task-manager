@@ -4,7 +4,6 @@ import (
 	"context"
 	"go-postgres-test/internal/dto"
 	"go-postgres-test/internal/entities"
-	"go-postgres-test/internal/enums"
 
 	"github.com/google/uuid"
 )
@@ -13,7 +12,6 @@ type UserRepository interface {
 	CreateUser(ctx context.Context, user entities.AuthUser, id uuid.UUID, passwordHash []byte) error
 	SearchUserByEmail(ctx context.Context, value string) ([]entities.User, error)
 	ChangeOnlineStatus(ctx context.Context, userId uuid.UUID, status bool) error
-	GetWorkspaceUserRole(ctx context.Context, userID uuid.UUID, workspaceId uuid.UUID) (enums.WorkspaceRole, error)
 	CheckIfExistsByEmail(ctx context.Context, email string, exists *bool) error
 	GetIdAndPasswordHash(ctx context.Context, email string) (dto.UserIdAndPasswordHash, error)
 

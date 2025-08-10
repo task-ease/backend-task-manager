@@ -115,3 +115,7 @@ func (uc *WorkSpaceUsecase) SearchWorkspaceMember(ctx context.Context, workSpace
 func (uc *WorkSpaceUsecase) GetWorkspaceName(ctx context.Context, workspaceId uuid.UUID) (string, error) {
 	return uc.workspaceRepo.GetWorkspaceName(ctx, workspaceId)
 }
+
+func (uc *WorkSpaceUsecase) GetUserRole(ctx context.Context, userId, workspaceId uuid.UUID) (enums.WorkspaceRole, error) {
+	return uc.workspaceRepo.GetUserRole(ctx, userId, workspaceId)
+}

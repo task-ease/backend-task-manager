@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"go-postgres-test/internal/domain"
 	"go-postgres-test/internal/entities"
-	"go-postgres-test/internal/enums"
 	"go-postgres-test/internal/helper"
 	"go-postgres-test/internal/repository"
 
@@ -68,8 +67,4 @@ func (uc *UserUseCase) LogIn(ctx context.Context, user entities.AuthUser) (uuid.
 
 func (uc *UserUseCase) SearchUserByEmail(ctx context.Context, value string) ([]entities.User, error) {
 	return uc.userRepo.SearchUserByEmail(ctx, value)
-}
-
-func (uc *UserUseCase) GetWorkspaceUserRole(ctx context.Context, userID uuid.UUID, workspaceID uuid.UUID) (enums.WorkspaceRole, error) {
-	return uc.userRepo.GetWorkspaceUserRole(ctx, userID, workspaceID)
 }

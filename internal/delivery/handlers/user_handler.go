@@ -5,7 +5,6 @@ import (
 	"go-postgres-test/internal/entities"
 	"go-postgres-test/internal/middleware"
 	"go-postgres-test/internal/usecase"
-	"go-postgres-test/mixins"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -31,7 +30,6 @@ func (h *UserHandler) RegisterRoutes(router *gin.RouterGroup) {
 
 	protected.GET("/search-user-by-email/:value", h.searchUserByEmail)
 	protected.GET("/user-id", h.getUserId)
-	protected.GET("/workspace-role/:workspaceId", h.getWorkspaceUserRole)
 }
 
 func (h *UserHandler) isAuthorized(c *gin.Context) {
@@ -130,28 +128,4 @@ func (h *UserHandler) getUserId(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, userIdStr)
-}
-
-func (h *UserHandler) getWorkspaceUserRole(c *gin.Context) {
-	userId, err := mixins.ParseUserId(c)
-
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	workspaceId, err := mixins.QueryToUUID(c, "workspaceId")
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	userRole, err := h.uc.GetWorkspaceUserRole(c.Request.Context(), userId, workspaceId)
-
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, userRole)
 }

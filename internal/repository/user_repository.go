@@ -5,7 +5,6 @@ import (
 	"go-postgres-test/internal/domain"
 	"go-postgres-test/internal/dto"
 	"go-postgres-test/internal/entities"
-	"go-postgres-test/internal/enums"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -48,9 +47,7 @@ func (r *userRepo) GetIdAndPasswordHashTx(ctx context.Context, exec entities.Exe
 	var passwordHash string
 	var userId uuid.UUID
 
-	err := exec.QueryRow(ctx,
-		`SELECT password_hash, id FROM users WHERE email = $1`,
-		email).Scan(&passwordHash, &userId)
+	err := exec.QueryRow(ctx, `SELECT password_hash, id FROM users WHERE email = $1`, email).Scan(&passwordHash, &userId)
 
 	if err != nil {
 		return dto.UserIdAndPasswordHash{}, err
@@ -92,12 +89,4 @@ func (r *userRepo) ChangeOnlineStatus(ctx context.Context, userId uuid.UUID, sta
 	_, err := r.conn.Exec(ctx,
 		`UPDATE users SET is_online = $1 WHERE id = $2`, status, userId)
 	return err
-}
-
-func (r *userRepo) GetWorkspaceUserRole(ctx context.Context, userID uuid.UUID, workspaceId uuid.UUID) (enums.WorkspaceRole, error) {
-	var userRole enums.WorkspaceRole
-	err := r.conn.QueryRow(ctx,
-		`SELECT role FROM user_workspaces WHERE user_id = $1 AND workspace_id = $2`,
-		userID, workspaceId).Scan(&userRole)
-	return userRole, err
 }

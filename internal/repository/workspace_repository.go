@@ -144,6 +144,10 @@ func (r *workSpaceRepo) HasUserWorkspaceTx(ctx context.Context, exec entities.Ex
 	)`, userId, workspaceId).Scan(&exists)
 }
 
+func (r *workSpaceRepo) GetUserRole(ctx context.Context, userId, workspaceId uuid.UUID) (enums.WorkspaceRole, error) {
+	return r.GetUserRoleTx(ctx, r.conn, userId, workspaceId)
+}
+
 func (r *workSpaceRepo) GetUserRoleTx(ctx context.Context, exec entities.Execer, userId, workspaceId uuid.UUID) (enums.WorkspaceRole, error) {
 	var role enums.WorkspaceRole
 	if err := exec.QueryRow(ctx, `
