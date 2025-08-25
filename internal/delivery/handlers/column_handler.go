@@ -2,9 +2,9 @@ package handlers
 
 import (
 	"go-postgres-test/infrastructure/auth"
+	"go-postgres-test/internal/dto/request"
 	"go-postgres-test/internal/enums"
 	"go-postgres-test/internal/middleware"
-	"go-postgres-test/internal/request"
 	"go-postgres-test/internal/usecase"
 	"go-postgres-test/mixins"
 	"net/http"
@@ -55,13 +55,13 @@ func (h *ColumnHandler) getColumns(c *gin.Context) {
 		return
 	}
 
-	columnList, err := h.uc.GetColumns(c.Request.Context(), workspaceId, projectId, sprintId)
+	columns, err := h.uc.GetColumns(c.Request.Context(), workspaceId, projectId, sprintId)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"columnList": columnList})
+	c.JSON(http.StatusOK, gin.H{"columns": columns})
 }
 
 func (h *ColumnHandler) createColumnTemplate(c *gin.Context) {
@@ -87,13 +87,13 @@ func (h *ColumnHandler) getAllColumnTemplates(c *gin.Context) {
 		return
 	}
 
-	columnList, err := h.uc.GetAllColumnTemplates(c.Request.Context(), workspaceId)
+	columns, err := h.uc.GetAllColumnTemplates(c.Request.Context(), workspaceId)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"columnList": columnList})
+	c.JSON(http.StatusOK, gin.H{"columns": columns})
 }
 
 func (h *ColumnHandler) updateColumnTemplateValue(c *gin.Context) {

@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 	"go-postgres-test/internal/domain"
+	"go-postgres-test/internal/dto/response"
 	"go-postgres-test/internal/entities"
 	"go-postgres-test/internal/enums"
-	"go-postgres-test/internal/response"
 	"time"
 
 	"github.com/google/uuid"
@@ -48,11 +48,11 @@ func (r *projectRepo) CreateProjectTx(ctx context.Context, exec entities.Execer,
 	return nil
 }
 
-func (r *projectRepo) AddUserToProject(ctx context.Context, projectId uuid.UUID, userId uuid.UUID, role enums.ProjectRole) error {
+func (r *projectRepo) AddUserToProject(ctx context.Context, projectId uuid.UUID, userId uuid.UUID, role enums.UserRoles) error {
 	return r.AddUserToProjectTx(ctx, r.conn, projectId, userId, role)
 }
 
-func (r *projectRepo) AddUserToProjectTx(ctx context.Context, exec entities.Execer, projectId uuid.UUID, userId uuid.UUID, role enums.ProjectRole) error {
+func (r *projectRepo) AddUserToProjectTx(ctx context.Context, exec entities.Execer, projectId uuid.UUID, userId uuid.UUID, role enums.UserRoles) error {
 	_, err := exec.Exec(ctx, `
 			INSERT INTO project_members (id, project_id, user_id, role, joined_at)
 			VALUES ($1, $2, $3, $4, $5)`, uuid.New(), projectId, userId, role, time.Now().UTC())
@@ -85,9 +85,13 @@ func (r *projectRepo) GetAllUserProjects(ctx context.Context, userId, workspaceI
 	return projects, nil
 }
 
-func (r *projectRepo) GetUserRole(ctx context.Context, userId, projectId uuid.UUID) (enums.ProjectRole, error) {
-	var role enums.ProjectRole
-	err := r.conn.QueryRow(ctx, `
+func (r *projectRepo) GetUserRole(ctx context.Context, userId, projectId uuid.UUID) (enums.UserRoles, error) {
+	return r.GetUserRoleTx(ctx, r.conn, userId, projectId)
+}
+
+func (r *projectRepo) GetUserRoleTx(ctx context.Context, exec entities.Execer, userId, projectId uuid.UUID) (enums.UserRoles, error) {
+	var role enums.UserRoles
+	if err := exec.QueryRow(ctx, `
 		SELECT 
 			CASE 
 				WHEN uw.role IN ('ADMIN', 'CREATOR') THEN 'ADMIN'
@@ -97,11 +101,11 @@ func (r *projectRepo) GetUserRole(ctx context.Context, userId, projectId uuid.UU
 		LEFT JOIN user_workspaces uw ON uw.workspace_id = p.workspace_id AND uw.user_id = $1
 		LEFT JOIN project_members pm ON p.id = pm.project_id AND pm.user_id = $1
 		WHERE p.id = $2
-		LIMIT 1`, userId, projectId).Scan(&role)
-
-	if err != nil {
-		return role, err
+		LIMIT 1
+	`, userId, projectId).Scan(&role); err != nil {
+		return enums.NoAccess, err
 	}
+
 	return role, nil
 }
 
@@ -140,8 +144,28 @@ func (r *projectRepo) GetAllProjectMembers(ctx context.Context, projectId uuid.U
 	return projectUsers, nil
 }
 
-func (r *projectRepo) ChangeUserRole(ctx context.Context, userId, projectId uuid.UUID, role enums.ProjectRole) error {
+func (r *projectRepo) ChangeUserRole(ctx context.Context, userId, projectId uuid.UUID, role enums.UserRoles) error {
 	_, err := r.conn.Exec(ctx, `
 		UPDATE project_members SET role = $1 WHERE user_id = $2 AND project_id = $3`, role, userId, projectId)
 	return err
+}
+
+func (r *projectRepo) RemoveUserFromProject(ctx context.Context, projectId uuid.UUID, userId uuid.UUID) error {
+	_, err := r.conn.Exec(ctx, `
+		DELETE FROM project_members
+		WHERE user_id = $1 AND project_id = $2
+	`, userId, projectId)
+	return err
+}
+
+func (r *projectRepo) GetIdByDocumentIdTx(ctx context.Context, exec entities.Execer, documentId uuid.UUID) (uuid.UUID, error) {
+	var id uuid.UUID
+	if err := exec.QueryRow(ctx, `
+		SELECT project_id
+		FROM documents
+		WHERE id = $1
+	`, documentId).Scan(&id); err != nil {
+		return uuid.Nil, err
+	}
+	return id, nil
 }

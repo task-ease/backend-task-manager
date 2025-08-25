@@ -77,32 +77,34 @@ func (r *messageRepo) AddMessageReadsTx(ctx context.Context, exec entities.Exece
 	return unreadUserIds, nil
 }
 
-func (r *messageRepo) GetAllMessages(ctx context.Context, chatId string) (messages []entities.Message, err error) {
-	return r.GetAllMessagesTx(ctx, r.conn, chatId)
-}
-
-func (r *messageRepo) GetAllMessagesTx(ctx context.Context, exec entities.Execer, chatId string) ([]entities.Message, error) {
-	rows, err := exec.Query(ctx, `
-		SELECT 
-		    m.id,
-		    m.sender_id, 
-		    m.content, 
-		    m.message_type, 
-		    m.created_at, 
-			m.is_read,
-			ARRAY_AGG(mr.user_id) FILTER (WHERE mr.read_at IS NULL) AS unread_by
-		FROM messages m
-		JOIN message_reads mr ON mr.message_id = m.id		
-		WHERE m.chat_id = $1
-		GROUP BY 
-    		m.id, 
-    		m.sender_id, 
-    		m.content, 
-    		m.message_type, 
-    		m.created_at, 
-    		m.is_read
-		ORDER BY m.created_at
-		`, chatId)
+func (r *messageRepo) GetAllMessages(ctx context.Context, chatId string) ([]entities.Message, error) {
+	rows, err := r.conn.Query(ctx, `
+        SELECT 
+            m.id,
+            m.sender_id, 
+            m.content, 
+            m.message_type, 
+            m.created_at, 
+            m.is_read,
+            ARRAY_AGG(mr.user_id) FILTER (WHERE mr.read_at IS NULL) AS unread_by,
+            COALESCE(JSON_AGG(
+                JSON_BUILD_OBJECT(
+                    'id', ma.id,
+                    'message_id', ma.message_id,
+                    'uploaded_at', ma.uploaded_at,
+                    'file_size', ma.file_size,
+                    'file_name', ma.file_name,
+                    'file_type', ma.file_type,
+                    'file_url', ma.file_url
+                )
+            ) FILTER (WHERE ma.id IS NOT NULL), '[]') AS attachments
+        FROM messages m
+        JOIN message_reads mr ON mr.message_id = m.id
+        LEFT JOIN message_attachments ma ON m.id = ma.message_id
+        WHERE m.chat_id = $1
+        GROUP BY m.id, m.sender_id, m.content, m.message_type, m.created_at, m.is_read
+        ORDER BY m.created_at
+    `, chatId)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +113,9 @@ func (r *messageRepo) GetAllMessagesTx(ctx context.Context, exec entities.Execer
 	var messages []entities.Message
 	for rows.Next() {
 		var message entities.Message
-		if err = rows.Scan(
+		var attachmentsJSON []byte
+
+		if err := rows.Scan(
 			&message.ID,
 			&message.SenderID,
 			&message.Content,
@@ -119,21 +123,24 @@ func (r *messageRepo) GetAllMessagesTx(ctx context.Context, exec entities.Execer
 			&message.CreatedAt,
 			&message.IsRead,
 			&message.UnreadUsersIds,
+			&attachmentsJSON,
 		); err != nil {
 			return nil, err
+		}
+
+		if len(attachmentsJSON) > 0 {
+			var attachments []entities.Attachment
+			if err := json.Unmarshal(attachmentsJSON, &attachments); err != nil {
+				return nil, err
+			}
+			message.Attachments = attachments
 		}
 
 		messages = append(messages, message)
 	}
 
-	if err = rows.Err(); err != nil {
+	if err := rows.Err(); err != nil {
 		return nil, err
-	}
-
-	for _, message := range messages {
-		if err := r.GetAttachmentsTx(ctx, exec, message.ID, &message.Attachments); err != nil {
-			return nil, err
-		}
 	}
 
 	return messages, nil
@@ -190,39 +197,9 @@ func (r *messageRepo) AddAttachmentTx(ctx context.Context, exec entities.Execer,
 	_, err := exec.Exec(ctx, `
 		INSERT INTO message_attachments 
 		(id, message_id, file_url, file_type, file_name, file_size, uploaded_at, chat_id)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-		attachment.ID, attachment.MessageID, attachment.FileUrl, attachment.FileType, attachment.FileName, attachment.Size, attachment.UploadedAt, attachment.ChatID)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+	`, attachment.ID, attachment.MessageID, attachment.FileUrl, attachment.FileType, attachment.FileName, attachment.Size, attachment.UploadedAt, attachment.ChatID)
 	return err
-}
-
-func (r *messageRepo) GetAttachments(ctx context.Context, messageId string, attachments *[]entities.Attachment) error {
-	return r.GetAttachmentsTx(ctx, r.conn, messageId, attachments)
-}
-
-func (r *messageRepo) GetAttachmentsTx(ctx context.Context, exec entities.Execer, messageId string, attachments *[]entities.Attachment) error {
-	rows, err := exec.Query(ctx, `
-		SELECT id, message_id, uploaded_at, file_size, file_name, file_type, file_url
-		FROM message_attachments
-		WHERE message_id = $1`, messageId)
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var a entities.Attachment
-		err := rows.Scan(&a.ID, &a.MessageID, &a.UploadedAt, &a.FileSize, &a.FileName, &a.FileType, &a.FileUrl)
-		if err != nil {
-			return err
-		}
-		*attachments = append(*attachments, a)
-	}
-
-	if err = rows.Err(); err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (r *messageRepo) SetMessageRead(ctx context.Context, message, userId uuid.UUID) error {

@@ -27,34 +27,31 @@ func main() {
 	baseRepo := repository.NewBaseRepo(dbPool)
 
 	userRepo := repository.NewUserRepository(dbPool)
-	userUC := usecase.NewUserUsecase(userRepo, baseRepo)
-	userHandler := handlers.NewUserHandler(userUC)
-
 	taskRepo := repository.NewTaskRepository(dbPool)
-	taskUC := usecase.NewTaskUseCase(taskRepo, baseRepo)
-	taskHandler := handlers.NewTaskHandler(taskUC)
-
-	messageRepo := repository.NewMessageRepository(dbPool, os.Getenv("IMAGE_STORAGE_API_KEY"))
 	chatRepo := repository.NewChatRepo(dbPool)
-
-	chatUC := usecase.NewChatUsecase(chatRepo, messageRepo, baseRepo)
-	chatHandler := handlers.NewChatHandler(chatUC)
-
-	messageUC := usecase.NewMessageUsecase(messageRepo, chatRepo, baseRepo)
-	messageHandler := handlers.NewMessageHandler(messageUC)
-
-	workSpaceRepo := repository.NewWorkSpaceRepository(dbPool, taskRepo)
 	columnRepo := repository.NewColumnRepo(dbPool)
-	columnUC := usecase.NewColumnUsecase(columnRepo, workSpaceRepo, baseRepo)
-
-	workSpaceUC := usecase.NewWorkSpaceUsecase(workSpaceRepo, columnUC, baseRepo)
-	workSpaceHandler := handlers.NewWorkSpaceHandler(workSpaceUC)
-
-	columnHandler := handlers.NewColumnHandler(columnUC)
-
 	projectRepo := repository.NewProjectRepository(dbPool)
-	projectUC := usecase.NewProjectUseCase(projectRepo, baseRepo)
+	messageRepo := repository.NewMessageRepository(dbPool, os.Getenv("IMAGE_STORAGE_API_KEY"))
+	documentRepo := repository.NewDocumentRepository(dbPool)
+	workSpaceRepo := repository.NewWorkSpaceRepository(dbPool, taskRepo)
+
+	userUC := usecase.NewUserUsecase(userRepo, baseRepo)
+	taskUC := usecase.NewTaskUseCase(taskRepo, baseRepo)
+	chatUC := usecase.NewChatUsecase(chatRepo, messageRepo, baseRepo)
+	columnUC := usecase.NewColumnUsecase(columnRepo, workSpaceRepo, baseRepo)
+	projectUC := usecase.NewProjectUseCase(projectRepo, baseRepo, userRepo)
+	messageUC := usecase.NewMessageUsecase(messageRepo, chatRepo, baseRepo)
+	documentUC := usecase.NewDocumentUsecase(baseRepo, documentRepo, workSpaceRepo, projectRepo)
+	workSpaceUC := usecase.NewWorkSpaceUsecase(workSpaceRepo, columnUC, baseRepo)
+
+	userHandler := handlers.NewUserHandler(userUC)
+	taskHandler := handlers.NewTaskHandler(taskUC)
+	chatHandler := handlers.NewChatHandler(chatUC)
+	columnHandler := handlers.NewColumnHandler(columnUC)
+	messageHandler := handlers.NewMessageHandler(messageUC)
 	projectHandler := handlers.NewProjectHandler(projectUC)
+	documentHandler := handlers.NewDocumentHandler(documentUC, workSpaceUC, projectUC)
+	workSpaceHandler := handlers.NewWorkSpaceHandler(workSpaceUC)
 
 	wsHandler := ws.NewWebSocketHandler(messageRepo, userRepo)
 
@@ -73,14 +70,17 @@ func main() {
 
 	userHandler.RegisterRoutes(api)
 	taskHandler.RegisterRoutes(api)
-	workSpaceHandler.RegisterRoutes(api)
 	chatHandler.RegisterRoutes(api)
+	columnHandler.RegisterRoutes(api)
 	messageHandler.RegisterRoutes(api)
 	projectHandler.RegisterRoutes(api)
-	columnHandler.RegisterRoutes(api)
+	documentHandler.RegisterRoutes(api)
+	workSpaceHandler.RegisterRoutes(api)
 
-	fmt.Println("Running server")
-	if err = r.Run(":8080"); err != nil {
+	port := ":8080"
+
+	if err = r.Run(port); err != nil {
+		fmt.Println("Failed to start server:", err)
 		panic(err)
 	}
 }

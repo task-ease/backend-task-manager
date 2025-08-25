@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func ParseUserId(c *gin.Context) (uuid.UUID, error) {
+func ParseContextUserId(c *gin.Context) (uuid.UUID, error) {
 	userIdStr, exists := c.Get("userId")
 
 	if !exists {
@@ -20,6 +20,18 @@ func ParseUserId(c *gin.Context) (uuid.UUID, error) {
 		return uuid.Nil, err
 	}
 	return userId, nil
+}
+
+func ParseContextCanEdit(c *gin.Context) (bool, error) {
+	canEditAny, exists := c.Get("canEdit")
+	if !exists {
+		return false, errors.New("no canEdit in context")
+	}
+	canEdit, ok := canEditAny.(bool)
+	if !ok {
+		return false, errors.New("canEdit must be a boolean")
+	}
+	return canEdit, nil
 }
 
 func QueryToUUID(c *gin.Context, name string) (uuid.UUID, error) {

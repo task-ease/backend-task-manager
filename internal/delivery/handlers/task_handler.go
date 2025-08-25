@@ -1,12 +1,11 @@
 package handlers
 
 import (
-	"fmt"
 	"go-postgres-test/infrastructure/auth"
+	"go-postgres-test/internal/dto/request"
+	"go-postgres-test/internal/dto/request/query"
 	"go-postgres-test/internal/enums"
 	"go-postgres-test/internal/middleware"
-	"go-postgres-test/internal/request"
-	"go-postgres-test/internal/request/query"
 	"go-postgres-test/internal/usecase"
 	"go-postgres-test/mixins"
 	"net/http"
@@ -28,8 +27,9 @@ func (h *TaskHandler) RegisterRoutes(router *gin.RouterGroup) {
 	protected.GET("/", h.getAllTasks)
 	protected.POST("/", h.createTask)
 
+	protected.PATCH("/type", h.updateTaskType)
+	protected.PATCH("/column", h.updateTaskColumn)
 	protected.PATCH("/title/:taskId", h.updateTaskTitle)
-	protected.PATCH("/column/:taskId", h.updateTaskColumn)
 	protected.PATCH("/priority/:taskId", h.updateTaskPriority)
 	protected.PATCH("/assigned/:taskId", h.updateTaskAssigned)
 	protected.PATCH("/description/:taskId", h.updateTaskDescription)
@@ -43,21 +43,18 @@ func (h *TaskHandler) getAllTasks(c *gin.Context) {
 
 	queryInput.WorkspaceId, err = mixins.QueryToUUID(c, "workspaceId")
 	if err != nil {
-		fmt.Println("error while workspace id: ", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	queryInput.ProjectId, err = mixins.QueryToUUIDCanBeNull(c, "projectId")
 	if err != nil {
-		fmt.Println("error while project id: ", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	queryInput.SprintId, err = mixins.QueryToUUIDCanBeNull(c, "sprintId")
 	if err != nil {
-		fmt.Println("error while sprint id: ", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -78,13 +75,13 @@ func (h *TaskHandler) createTask(c *gin.Context) {
 		return
 	}
 
-	data, err := h.uc.CreateTask(c.Request.Context(), input)
+	task, err := h.uc.CreateTask(c.Request.Context(), input)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusCreated, data)
+	c.JSON(http.StatusCreated, gin.H{"task": task})
 }
 
 func (h *TaskHandler) updateTaskTitle(c *gin.Context) {
@@ -122,24 +119,20 @@ func (h *TaskHandler) updateTaskDescription(c *gin.Context) {
 }
 
 func (h *TaskHandler) updateTaskColumn(c *gin.Context) {
-	taskId, err := mixins.ParamToUUID(c, "taskId")
-	if err != nil {
+	var input request.ChangeTaskPositionAndColumn
+	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	columnId, err := mixins.QueryToUUID(c, "value")
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
+	newPosition, err := h.uc.UpdateTaskColumn(c.Request.Context(), input)
 
-	if err = h.uc.UpdateTaskColumn(c.Request.Context(), taskId, columnId); err != nil {
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.Status(http.StatusOK)
+	c.JSON(http.StatusOK, gin.H{"newPosition": newPosition})
 }
 
 func (h *TaskHandler) updateTaskPriority(c *gin.Context) {
@@ -189,6 +182,21 @@ func (h *TaskHandler) removeTaskAssigned(c *gin.Context) {
 
 	err = h.uc.RemoveTaskAssigned(c.Request.Context(), taskId)
 	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Status(http.StatusOK)
+}
+
+func (h *TaskHandler) updateTaskType(c *gin.Context) {
+	var input request.UpdateTaskType
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.uc.UpdateTaskType(c.Request.Context(), input.TaskId, input.Value); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

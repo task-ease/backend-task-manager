@@ -3,9 +3,9 @@ package repository
 import (
 	"context"
 	"go-postgres-test/internal/domain"
+	"go-postgres-test/internal/dto/response"
 	"go-postgres-test/internal/entities"
 	"go-postgres-test/internal/enums"
-	"go-postgres-test/internal/response"
 	"time"
 
 	"github.com/google/uuid"
@@ -20,11 +20,11 @@ func NewChatRepo(conn *pgxpool.Pool) domain.ChatRepository {
 	return &chatRepo{conn: conn}
 }
 
-func (r *chatRepo) AddUserToChat(ctx context.Context, userId uuid.UUID, chatId string, workspaceId uuid.UUID, role enums.ChatRole) error {
+func (r *chatRepo) AddUserToChat(ctx context.Context, userId uuid.UUID, chatId string, workspaceId uuid.UUID, role enums.UserRoles) error {
 	return r.AddUserToChatTx(ctx, r.conn, userId, chatId, workspaceId, role)
 }
 
-func (r *chatRepo) AddUserToChatTx(ctx context.Context, exec entities.Execer, userId uuid.UUID, chatId string, workspaceId uuid.UUID, role enums.ChatRole) error {
+func (r *chatRepo) AddUserToChatTx(ctx context.Context, exec entities.Execer, userId uuid.UUID, chatId string, workspaceId uuid.UUID, role enums.UserRoles) error {
 	_, err := exec.Exec(ctx,
 		`INSERT INTO user_chats (user_id, chat_id, workspace_id, role) VALUES ($1, $2, $3, $4)`, userId, chatId, workspaceId, role)
 	return err
@@ -41,10 +41,6 @@ func (r *chatRepo) CreateChatTx(ctx context.Context, exec entities.Execer, chat 
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
 	`, chat.ID, chat.WorkspaceID, chat.CreatorID, chat.Type, now, now, now)
 	return err
-}
-
-func (r *chatRepo) GetAllUserChats(ctx context.Context, userId uuid.UUID, workspaceId uuid.UUID) ([]response.GetChats, error) {
-	return r.GetAllUserChatsTx(ctx, r.conn, userId, workspaceId)
 }
 
 func (r *chatRepo) GetAllUserChatsTx(ctx context.Context, exec entities.Execer, userId uuid.UUID, workspaceId uuid.UUID) ([]response.GetChats, error) {
@@ -74,15 +70,6 @@ func (r *chatRepo) GetAllUserChatsTx(ctx context.Context, exec entities.Execer, 
 		var chat response.GetChats
 		if err := rows.Scan(&chat.ID, &chat.Muted, &chat.Pinned, &chat.Notification, &chat.Role, &chat.Type, &chat.IsOnline, &chat.ParticipantID); err != nil {
 			return nil, err
-		}
-		if err = r.GetLastMessageInfoTx(ctx, exec, &chat, userId); err != nil {
-			return nil, err
-		}
-		switch chat.Type {
-		case enums.TypePrivate:
-			if err := r.GetParticipantNameByChatIdTx(ctx, exec, chat.ID, userId, &chat.Name); err != nil {
-				chat.Name = "error"
-			}
 		}
 		chats = append(chats, chat)
 	}
@@ -142,10 +129,6 @@ func (r *chatRepo) GetChatsBySearch(ctx context.Context, userID uuid.UUID, works
 		return nil, rows.Err()
 	}
 	return chats, err
-}
-
-func (r *chatRepo) GetParticipantNameByChatId(ctx context.Context, chatId string, userId uuid.UUID, name *string) error {
-	return r.GetParticipantNameByChatIdTx(ctx, r.conn, chatId, userId, name)
 }
 
 func (r *chatRepo) GetParticipantNameByChatIdTx(ctx context.Context, exec entities.Execer, chatId string, userId uuid.UUID, name *string) error {

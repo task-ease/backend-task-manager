@@ -3,9 +3,9 @@ package repository
 import (
 	"context"
 	"go-postgres-test/internal/domain"
+	"go-postgres-test/internal/dto/request"
+	"go-postgres-test/internal/dto/response"
 	"go-postgres-test/internal/entities"
-	"go-postgres-test/internal/request"
-	"go-postgres-test/internal/response"
 	"time"
 
 	"github.com/google/uuid"
@@ -24,11 +24,17 @@ func NewColumnRepo(conn *pgxpool.Pool) domain.ColumnRepository {
 func (r *columnRepo) GetColumns(ctx context.Context, workspaceId uuid.UUID, projectId, sprintId *uuid.UUID) ([]response.GetWorkspaceColumns, error) {
 	rows, err := r.conn.Query(ctx, `
 		SELECT ct.id, name, color, is_done, position
-		FROM task_columns_templates ct
-		JOIN using_task_columns utc ON ct.id = utc.template_id 
-		WHERE (utc.workspace_id = $1 AND utc.project_id = $2 AND utc.sprint_id = $3) 
-		   OR (ct.workspace_id = $1 AND ct.is_required IS TRUE)
-		ORDER BY position
+			FROM task_columns_templates ct
+			LEFT JOIN using_task_columns utc ON ct.id = utc.template_id 
+			WHERE
+			(
+			  utc.workspace_id = $1
+			  AND (utc.project_id = $2 OR ($2 IS NULL AND utc.project_id IS NULL))
+			  AND (utc.sprint_id = $3 OR ($3 IS NULL AND utc.sprint_id IS NULL))
+			)
+			OR
+			(ct.workspace_id = $1 AND ct.is_required IS TRUE)
+			ORDER BY position
 	`, workspaceId, projectId, sprintId)
 	if err != nil {
 		return nil, err
@@ -90,7 +96,7 @@ func (r *columnRepo) GetAllColumnTemplates(ctx context.Context, workSpaceId uuid
 		  	    WHERE utc.template_id = task_columns_templates.id
 		  	    	AND utc.project_id IS NULL
 		  	    	AND utc.sprint_id IS NULL
-		  	) AS global_tasks
+		  	) OR is_required = true AS global_tasks
 		FROM task_columns_templates
 		WHERE workspace_id = $1
 		ORDER BY position;

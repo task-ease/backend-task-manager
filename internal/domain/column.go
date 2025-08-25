@@ -2,9 +2,9 @@ package domain
 
 import (
 	"context"
+	"go-postgres-test/internal/dto/request"
+	"go-postgres-test/internal/dto/response"
 	"go-postgres-test/internal/entities"
-	"go-postgres-test/internal/request"
-	"go-postgres-test/internal/response"
 
 	"github.com/google/uuid"
 )

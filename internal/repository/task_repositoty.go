@@ -2,16 +2,18 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"go-postgres-test/internal/domain"
+	"go-postgres-test/internal/dto/request"
+	"go-postgres-test/internal/dto/request/query"
+	"go-postgres-test/internal/dto/response"
 	"go-postgres-test/internal/entities"
 	"go-postgres-test/internal/enums"
-	"go-postgres-test/internal/request"
-	"go-postgres-test/internal/request/query"
-	"go-postgres-test/internal/response"
 	"strconv"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -66,7 +68,7 @@ func (r *taskRepository) GetALlTasksTx(ctx context.Context, exec entities.Execer
 			t.priority, 
 			t.position,
 			t.prefix_number
-		ORDER BY t.prefix_number
+		ORDER BY t.position
 	`, data.WorkspaceId, data.ProjectId, data.SprintId)
 
 	if err != nil {
@@ -130,13 +132,19 @@ func (r *taskRepository) CreateTaskTx(ctx context.Context, exec entities.Execer,
 			is_done,
 			due_date,
 			priority,
-			position,
 			created_at,
 			updated_at,
-			prefix_number
+			position,
+		    prefix_number
 		)
 		VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 
+		    (
+		    	SELECT COUNT(*) * 100 FROM tasks
+				WHERE workspace_id = $4
+					AND project_id IS NOT DISTINCT FROM $5
+				    AND sprint_id IS NOT DISTINCT FROM $6
+		    ),
 			(
 				SELECT COUNT(*) + 1 FROM tasks
 				WHERE workspace_id = $4
@@ -302,5 +310,66 @@ func (r *taskRepository) RemoveTaskAssignedTx(ctx context.Context, exec entities
 		DELETE FROM tasks_assignment
 		WHERE task_id = $1
 	`, taskId)
+	return err
+}
+
+func (r *taskRepository) ChangeTaskPositionAndColumnTx(ctx context.Context, exec entities.Execer, dto request.ChangeTaskPositionAndColumn) (float64, error) {
+	var prevPos float64
+	if dto.PrevTaskId != nil {
+		if err := exec.QueryRow(ctx, `
+			SELECT position FROM tasks WHERE id = $1
+		`, dto.PrevTaskId).Scan(&prevPos); err != nil {
+			return 0, err
+		}
+	} else {
+		prevPos = 0
+	}
+
+	var nextPos float64
+	var newPos float64
+	if err := exec.QueryRow(ctx, `
+		SELECT position 
+		FROM tasks 
+		WHERE position > $1 AND column_id = $2
+		ORDER BY position
+		LIMIT 1
+	`, prevPos, dto.ToColumnId).Scan(&nextPos); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			var columnLength int
+			if err := exec.QueryRow(ctx, `
+				SELECT COUNT(*)
+				FROM tasks 
+				WHERE column_id = $1
+			`, dto.ToColumnId).Scan(&columnLength); err != nil {
+				return 0, err
+			}
+
+			newPos = float64(columnLength)*10.0 + 10.0
+		} else {
+			return 0, err
+		}
+	} else {
+		newPos = (nextPos + prevPos) / 2
+	}
+
+	_, err := exec.Exec(ctx, `
+		UPDATE tasks
+		SET position = $1, column_id = $2
+		WHERE id = $3
+	`, newPos, dto.ToColumnId, dto.TaskId)
+
+	if err != nil {
+		return 0, err
+	}
+
+	return newPos, err
+}
+
+func (r *taskRepository) UpdateTaskType(ctx context.Context, taskId uuid.UUID, value enums.TaskTypes) error {
+	_, err := r.conn.Exec(ctx, `
+		UPDATE tasks
+		SET type = $1
+		WHERE id = $2
+	`, value, taskId)
 	return err
 }

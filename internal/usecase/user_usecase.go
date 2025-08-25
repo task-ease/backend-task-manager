@@ -2,7 +2,7 @@ package usecase
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"go-postgres-test/internal/domain"
 	"go-postgres-test/internal/entities"
 	"go-postgres-test/internal/helper"
@@ -31,7 +31,7 @@ func (uc *UserUseCase) CreateUser(ctx context.Context, user entities.AuthUser) (
 		}
 
 		if exists {
-			return uuid.Nil, fmt.Errorf("email already exists")
+			return uuid.Nil, errors.New("email already exists")
 		}
 
 		passwordHash, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)

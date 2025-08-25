@@ -3,12 +3,13 @@ package usecase
 import (
 	"context"
 	"go-postgres-test/internal/domain"
+	"go-postgres-test/internal/dto"
+	"go-postgres-test/internal/dto/request"
+	"go-postgres-test/internal/dto/response"
 	"go-postgres-test/internal/entities"
 	"go-postgres-test/internal/enums"
 	"go-postgres-test/internal/helper"
 	"go-postgres-test/internal/repository"
-	"go-postgres-test/internal/request"
-	"go-postgres-test/internal/response"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -22,6 +23,16 @@ type WorkSpaceUsecase struct {
 
 func NewWorkSpaceUsecase(workspaceRepo domain.WorkSpaceRepository, columnUsecase *ColumnUsecase, baseRepo *repository.BaseRepo) *WorkSpaceUsecase {
 	return &WorkSpaceUsecase{workspaceRepo, columnUsecase, baseRepo}
+}
+
+func (uc *WorkSpaceUsecase) CheckUserAccess(ctx context.Context, userId, resourceId uuid.UUID) (dto.RolesMiddlewareDto, error) {
+	role, err := uc.workspaceRepo.GetUserRole(ctx, userId, resourceId)
+
+	if err != nil {
+		return dto.RolesMiddlewareDto{Role: enums.NoAccess, CanEdit: false}, err
+	}
+
+	return dto.RolesMiddlewareDto{Role: role, CanEdit: true}, nil
 }
 
 func (uc *WorkSpaceUsecase) CreateWorkSpace(ctx context.Context, workspace domain.WorkSpace) (uuid.UUID, error) {
@@ -81,7 +92,7 @@ func (uc *WorkSpaceUsecase) GetAllByUserId(ctx context.Context, userId uuid.UUID
 	return uc.workspaceRepo.GetAllByUserId(ctx, userId)
 }
 
-func (uc *WorkSpaceUsecase) AddUser(ctx context.Context, workSpaceId, userId uuid.UUID, role enums.WorkspaceRole) error {
+func (uc *WorkSpaceUsecase) AddUser(ctx context.Context, workSpaceId, userId uuid.UUID, role enums.UserRoles) error {
 	return uc.workspaceRepo.AddUser(ctx, workSpaceId, userId, role)
 }
 
@@ -93,18 +104,18 @@ func (uc *WorkSpaceUsecase) RemoveUser(ctx context.Context, workSpaceId, userId 
 	return uc.workspaceRepo.RemoveUser(ctx, workSpaceId, userId)
 }
 
-func (uc *WorkSpaceUsecase) HasUserWorkspace(ctx context.Context, userId, workspaceId uuid.UUID) (enums.WorkspaceRole, error) {
-	return helper.WithTx(ctx, uc.baseRepo, func(ctx context.Context, exec pgx.Tx) (enums.WorkspaceRole, error) {
+func (uc *WorkSpaceUsecase) HasUserWorkspace(ctx context.Context, userId, workspaceId uuid.UUID) (enums.UserRoles, error) {
+	return helper.WithTx(ctx, uc.baseRepo, func(ctx context.Context, exec pgx.Tx) (enums.UserRoles, error) {
 		var exists bool
 		if err := uc.workspaceRepo.HasUserWorkspaceTx(ctx, exec, userId, workspaceId, &exists); err != nil {
-			return enums.WorkspaceNotAllowed, err
+			return enums.NoAccess, err
 		}
 
 		return uc.workspaceRepo.GetUserRoleTx(ctx, exec, userId, workspaceId)
 	})
 }
 
-func (uc *WorkSpaceUsecase) ChangeUserRole(ctx context.Context, workSpaceId, userId uuid.UUID, role enums.WorkspaceRole) error {
+func (uc *WorkSpaceUsecase) ChangeUserRole(ctx context.Context, workSpaceId, userId uuid.UUID, role enums.UserRoles) error {
 	return uc.workspaceRepo.ChangeUserRole(ctx, workSpaceId, userId, role)
 }
 
@@ -116,6 +127,6 @@ func (uc *WorkSpaceUsecase) GetWorkspaceName(ctx context.Context, workspaceId uu
 	return uc.workspaceRepo.GetWorkspaceName(ctx, workspaceId)
 }
 
-func (uc *WorkSpaceUsecase) GetUserRole(ctx context.Context, userId, workspaceId uuid.UUID) (enums.WorkspaceRole, error) {
+func (uc *WorkSpaceUsecase) GetUserRole(ctx context.Context, userId, workspaceId uuid.UUID) (enums.UserRoles, error) {
 	return uc.workspaceRepo.GetUserRole(ctx, userId, workspaceId)
 }

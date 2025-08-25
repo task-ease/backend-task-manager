@@ -24,24 +24,24 @@ func NewMessageHandler(uc *usecase.MessageUsecase) *MessageHandler {
 func (h *MessageHandler) RegisterRoutes(router *gin.RouterGroup) {
 	authService := auth.NewJWTService()
 
-	protected := router.Group("/message", middleware.JWTMiddleware(authService))
+	protected := router.Group("/messages", middleware.JWTMiddleware(authService))
 
-	protected.GET("/get-all-messages/:chatId", h.getAllMessages)
-	protected.GET("/chat-images/:chatId", h.getAllChatImages)
+	protected.GET("/:chatId", h.getAllMessages)
+	protected.GET("/images/:chatId", h.getAllChatImages)
 
-	protected.PATCH("/upload-image-list/:chatId", h.uploadImageList)
-	protected.PATCH("/add-message", h.addMessage)
-	protected.PATCH("/set-read", h.SetMessagesRead)
+	protected.PATCH("/", h.addMessage)
+	protected.PATCH("/set-read", h.setMessagesRead)
+	protected.PATCH("/upload-images/:chatId", h.uploadImageList)
 }
 
 func (h *MessageHandler) getAllMessages(c *gin.Context) {
-	messageList, err := h.uc.GetAllMessages(c.Request.Context(), c.Param("chatId"))
+	messages, err := h.uc.GetAllMessages(c.Request.Context(), c.Param("chatId"))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
 	}
 
-	c.JSON(http.StatusOK, messageList)
+	c.JSON(http.StatusOK, gin.H{"messages": messages})
 }
 
 func (h *MessageHandler) uploadImageList(c *gin.Context) {
@@ -51,7 +51,7 @@ func (h *MessageHandler) uploadImageList(c *gin.Context) {
 	uploadImageDto.ChatId = c.Param("chatId")
 	uploadImageDto.Content = c.Query("ct")
 
-	uploadImageDto.UserId, err = mixins.ParseUserId(c)
+	uploadImageDto.UserId, err = mixins.ParseContextUserId(c)
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid form"})
@@ -91,14 +91,14 @@ func (h *MessageHandler) addMessage(c *gin.Context) {
 	})
 }
 
-func (h *MessageHandler) SetMessagesRead(c *gin.Context) {
+func (h *MessageHandler) setMessagesRead(c *gin.Context) {
 	var messages []uuid.UUID
 	if err := c.ShouldBindJSON(&messages); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	userId, err := mixins.ParseUserId(c)
+	userId, err := mixins.ParseContextUserId(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -122,5 +122,5 @@ func (h *MessageHandler) getAllChatImages(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, images)
+	c.JSON(http.StatusOK, gin.H{"images": images})
 }

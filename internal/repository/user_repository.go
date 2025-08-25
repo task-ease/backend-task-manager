@@ -90,3 +90,11 @@ func (r *userRepo) ChangeOnlineStatus(ctx context.Context, userId uuid.UUID, sta
 		`UPDATE users SET is_online = $1 WHERE id = $2`, status, userId)
 	return err
 }
+
+func (r *userRepo) GetEmailByUserId(ctx context.Context, userId uuid.UUID) (string, error) {
+	var email string
+	if err := r.conn.QueryRow(ctx, `SELECT email FROM users WHERE id = $1`, userId).Scan(&email); err != nil {
+		return "", err
+	}
+	return email, nil
+}

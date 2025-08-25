@@ -3,9 +3,9 @@ package repository
 import (
 	"context"
 	"go-postgres-test/internal/domain"
+	"go-postgres-test/internal/dto/response"
 	"go-postgres-test/internal/entities"
 	"go-postgres-test/internal/enums"
-	"go-postgres-test/internal/response"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -14,6 +14,21 @@ import (
 type workSpaceRepo struct {
 	conn     *pgxpool.Pool
 	taskRepo domain.TaskRepository
+}
+
+func (r *workSpaceRepo) GetUserRoleByDocumentTx(ctx context.Context, exec entities.Execer, userId, documentId uuid.UUID) (enums.UserRoles, error) {
+	var role enums.UserRoles
+	if err := exec.QueryRow(ctx, `
+		SELECT uw.role 
+		FROM user_workspaces uw
+		JOIN workspaces w ON w.id = uw.workspace_id
+		JOIN documents d ON d.workspace_id = w.id
+		WHERE d.id = $1 AND uw.user_id = $2
+	`, documentId, userId).Scan(&role); err != nil {
+		return enums.NoAccess, err
+	}
+
+	return role, nil
 }
 
 func NewWorkSpaceRepository(conn *pgxpool.Pool, taskRepo domain.TaskRepository) domain.WorkSpaceRepository {
@@ -56,11 +71,11 @@ func (r *workSpaceRepo) CreateWorkSpaceTx(ctx context.Context, exec entities.Exe
 	return err
 }
 
-func (r *workSpaceRepo) AddUser(ctx context.Context, workSpaceId, userId uuid.UUID, role enums.WorkspaceRole) error {
+func (r *workSpaceRepo) AddUser(ctx context.Context, workSpaceId, userId uuid.UUID, role enums.UserRoles) error {
 	return r.AddUserTx(ctx, r.conn, workSpaceId, userId, role)
 }
 
-func (r *workSpaceRepo) AddUserTx(ctx context.Context, exec entities.Execer, workSpaceId, userId uuid.UUID, role enums.WorkspaceRole) error {
+func (r *workSpaceRepo) AddUserTx(ctx context.Context, exec entities.Execer, workSpaceId, userId uuid.UUID, role enums.UserRoles) error {
 	_, err := exec.Exec(ctx,
 		`INSERT INTO user_workspaces (user_id, workspace_id, role) 
 		VALUES ($1, $2, $3)
@@ -144,23 +159,23 @@ func (r *workSpaceRepo) HasUserWorkspaceTx(ctx context.Context, exec entities.Ex
 	)`, userId, workspaceId).Scan(&exists)
 }
 
-func (r *workSpaceRepo) GetUserRole(ctx context.Context, userId, workspaceId uuid.UUID) (enums.WorkspaceRole, error) {
+func (r *workSpaceRepo) GetUserRole(ctx context.Context, userId, workspaceId uuid.UUID) (enums.UserRoles, error) {
 	return r.GetUserRoleTx(ctx, r.conn, userId, workspaceId)
 }
 
-func (r *workSpaceRepo) GetUserRoleTx(ctx context.Context, exec entities.Execer, userId, workspaceId uuid.UUID) (enums.WorkspaceRole, error) {
-	var role enums.WorkspaceRole
+func (r *workSpaceRepo) GetUserRoleTx(ctx context.Context, exec entities.Execer, userId, workspaceId uuid.UUID) (enums.UserRoles, error) {
+	var role enums.UserRoles
 	if err := exec.QueryRow(ctx, `
 		SELECT role 
 		FROM user_workspaces 
 		WHERE user_id = $1 AND workspace_id = $2
 	`, userId, workspaceId).Scan(&role); err != nil {
-		return enums.WorkspaceNotAllowed, err
+		return enums.NoAccess, err
 	}
 	return role, nil
 }
 
-func (r *workSpaceRepo) ChangeUserRole(ctx context.Context, workSpaceId, userId uuid.UUID, role enums.WorkspaceRole) error {
+func (r *workSpaceRepo) ChangeUserRole(ctx context.Context, workSpaceId, userId uuid.UUID, role enums.UserRoles) error {
 	_, err := r.conn.Exec(ctx, `
 		UPDATE user_workspaces
 		SET role = $1

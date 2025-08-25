@@ -24,11 +24,11 @@ func (h *UserHandler) RegisterRoutes(router *gin.RouterGroup) {
 	router.GET("/users/is-authorized", h.isAuthorized)
 
 	router.POST("/users/log-in", h.logIn)
-	router.POST("/users/create-user", h.createUser)
+	router.POST("/users", h.createUser)
 
 	protected := router.Group("/users", middleware.JWTMiddleware(authService))
 
-	protected.GET("/search-user-by-email/:value", h.searchUserByEmail)
+	protected.GET("/search-by-email/:value", h.searchUserByEmail)
 	protected.GET("/user-id", h.getUserId)
 }
 
@@ -116,7 +116,7 @@ func (h *UserHandler) searchUserByEmail(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, users)
+	c.JSON(http.StatusOK, gin.H{"users": users})
 }
 
 func (h *UserHandler) getUserId(c *gin.Context) {
@@ -127,5 +127,5 @@ func (h *UserHandler) getUserId(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, userIdStr)
+	c.JSON(http.StatusOK, gin.H{"id": userIdStr})
 }

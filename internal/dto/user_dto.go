@@ -6,3 +6,8 @@ type UserIdAndPasswordHash struct {
 	ID           uuid.UUID `json:"id"`
 	PasswordHash string    `json:"passwordHash"`
 }
+
+type UserShortInfo struct {
+	Id       uuid.UUID `json:"id"`
+	Username string    `json:"username"`
+}

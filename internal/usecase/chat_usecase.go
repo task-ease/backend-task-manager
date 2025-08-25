@@ -3,11 +3,11 @@ package usecase
 import (
 	"context"
 	"go-postgres-test/internal/domain"
+	"go-postgres-test/internal/dto/response"
 	"go-postgres-test/internal/entities"
 	"go-postgres-test/internal/enums"
 	"go-postgres-test/internal/helper"
 	"go-postgres-test/internal/repository"
-	"go-postgres-test/internal/response"
 	"time"
 
 	"github.com/google/uuid"
@@ -28,7 +28,7 @@ func NewChatUsecase(
 	return &ChatUsecase{chatRepo: chatRepo, baseRepo: baseRepo, messageRepo: messageRepo}
 }
 
-func (uc *ChatUsecase) AddUserToChat(ctx context.Context, userId uuid.UUID, chatId string, workspaceId uuid.UUID, role enums.ChatRole) error {
+func (uc *ChatUsecase) AddUserToChat(ctx context.Context, userId uuid.UUID, chatId string, workspaceId uuid.UUID, role enums.UserRoles) error {
 	return uc.chatRepo.AddUserToChat(ctx, userId, chatId, workspaceId, role)
 }
 
@@ -63,7 +63,22 @@ func (uc *ChatUsecase) CreateChat(ctx context.Context, chat *domain.Chat, partic
 
 func (uc *ChatUsecase) GetAllUserChats(ctx context.Context, userId uuid.UUID, workspaceId uuid.UUID) ([]response.GetChats, error) {
 	return helper.WithTx(ctx, uc.baseRepo, func(ctx context.Context, exec pgx.Tx) ([]response.GetChats, error) {
-		return uc.chatRepo.GetAllUserChatsTx(ctx, exec, userId, workspaceId)
+		chats, err := uc.chatRepo.GetAllUserChatsTx(ctx, exec, userId, workspaceId)
+
+		for _, chat := range chats {
+			if err = uc.chatRepo.GetLastMessageInfoTx(ctx, exec, &chat, userId); err != nil {
+				return nil, err
+			}
+
+			switch chat.Type {
+			case enums.TypePrivate:
+				if err = uc.chatRepo.GetParticipantNameByChatIdTx(ctx, exec, chat.ID, userId, &chat.Name); err != nil {
+					chat.Name = "error"
+				}
+			}
+		}
+
+		return nil, nil
 	})
 }
 

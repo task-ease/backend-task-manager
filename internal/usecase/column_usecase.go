@@ -3,11 +3,11 @@ package usecase
 import (
 	"context"
 	"go-postgres-test/internal/domain"
+	"go-postgres-test/internal/dto/request"
+	"go-postgres-test/internal/dto/response"
 	"go-postgres-test/internal/entities"
 	"go-postgres-test/internal/helper"
 	"go-postgres-test/internal/repository"
-	"go-postgres-test/internal/request"
-	"go-postgres-test/internal/response"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"

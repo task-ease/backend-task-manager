@@ -15,6 +15,7 @@ type UserRepository interface {
 	CheckIfExistsByEmail(ctx context.Context, email string, exists *bool) error
 	GetIdAndPasswordHash(ctx context.Context, email string) (dto.UserIdAndPasswordHash, error)
 
+	GetEmailByUserId(ctx context.Context, userId uuid.UUID) (string, error)
 	GetIdAndPasswordHashTx(ctx context.Context, exec entities.Execer, email string) (dto.UserIdAndPasswordHash, error)
 	CheckIfExistsByEmailTx(ctx context.Context, exec entities.Execer, email string, exists *bool) error
 	CreateUserTx(ctx context.Context, exec entities.Execer, user entities.AuthUser, id uuid.UUID, passwordHash []byte) error

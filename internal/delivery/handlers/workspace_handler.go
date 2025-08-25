@@ -3,8 +3,8 @@ package handlers
 import (
 	"go-postgres-test/infrastructure/auth"
 	"go-postgres-test/internal/domain"
+	"go-postgres-test/internal/dto/request"
 	"go-postgres-test/internal/middleware"
-	"go-postgres-test/internal/request"
 	"go-postgres-test/internal/usecase"
 	"go-postgres-test/mixins"
 	"net/http"
@@ -38,14 +38,14 @@ func (h *WorkSpaceHandler) RegisterRoutes(router *gin.RouterGroup) {
 
 	protected.PUT("/role", h.changeUserRole)
 
-	protected.POST("", h.createWorkSpace)
+	protected.POST("/", h.createWorkSpace)
 	protected.POST("/user", h.addUserToWorkSpace)
 
 	protected.DELETE("/user", h.removeUser)
 }
 
 func (h *WorkSpaceHandler) getAllUserWorkSpaces(c *gin.Context) {
-	userId, err := mixins.ParseUserId(c)
+	userId, err := mixins.ParseContextUserId(c)
 
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
@@ -59,7 +59,7 @@ func (h *WorkSpaceHandler) getAllUserWorkSpaces(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, workSpacesList)
+	c.JSON(http.StatusOK, gin.H{"workspaces": workSpacesList})
 }
 
 func (h *WorkSpaceHandler) createWorkSpace(c *gin.Context) {
@@ -70,7 +70,7 @@ func (h *WorkSpaceHandler) createWorkSpace(c *gin.Context) {
 		return
 	}
 
-	userId, err := mixins.ParseUserId(c)
+	userId, err := mixins.ParseContextUserId(c)
 
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
@@ -88,7 +88,7 @@ func (h *WorkSpaceHandler) createWorkSpace(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, id)
+	c.JSON(http.StatusCreated, gin.H{"id": id})
 }
 
 func (h *WorkSpaceHandler) addUserToWorkSpace(c *gin.Context) {
@@ -119,7 +119,7 @@ func (h *WorkSpaceHandler) getAllMembers(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, members)
+	c.JSON(http.StatusOK, gin.H{"members": members})
 }
 
 func (h *WorkSpaceHandler) removeUser(c *gin.Context) {
@@ -138,7 +138,7 @@ func (h *WorkSpaceHandler) removeUser(c *gin.Context) {
 }
 
 func (h *WorkSpaceHandler) hasUserWorkspace(c *gin.Context) {
-	userId, err := mixins.ParseUserId(c)
+	userId, err := mixins.ParseContextUserId(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
@@ -190,7 +190,7 @@ func (h *WorkSpaceHandler) searchWorkspaceMember(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, members)
+	c.JSON(http.StatusOK, gin.H{"members": members})
 }
 
 func (h *WorkSpaceHandler) getWorkspaceName(c *gin.Context) {
@@ -216,7 +216,7 @@ func (h *WorkSpaceHandler) getUserRole(c *gin.Context) {
 		return
 	}
 
-	userId, err := mixins.ParseUserId(c)
+	userId, err := mixins.ParseContextUserId(c)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
@@ -228,5 +228,5 @@ func (h *WorkSpaceHandler) getUserRole(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, role)
+	c.JSON(http.StatusOK, gin.H{"role": role})
 }

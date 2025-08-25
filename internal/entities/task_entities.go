@@ -24,6 +24,6 @@ type Task struct {
 	Priority     enums.TaskPriorities `json:"priority"`
 	CreatedAt    time.Time            `json:"createdAt"`
 	UpdatedAt    time.Time            `json:"updatedAt"`
-	Position     int                  `json:"position"`
+	Position     float64              `json:"position"`
 	PrefixNumber *int                 `json:"prefixNumber"`
 }

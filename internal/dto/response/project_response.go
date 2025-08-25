@@ -14,9 +14,9 @@ type GetAllProjects struct {
 }
 
 type GetAllProjectUsers struct {
-	ID            uuid.UUID           `json:"id"`
-	Name          string              `json:"username"`
-	Email         string              `json:"email"`
-	ProjectRole   enums.ProjectRole   `json:"projectRole"`
-	WorkspaceRole enums.WorkspaceRole `json:"workspaceRole"`
+	ID            uuid.UUID       `json:"id"`
+	Name          string          `json:"username"`
+	Email         string          `json:"email"`
+	ProjectRole   enums.UserRoles `json:"projectRole"`
+	WorkspaceRole enums.UserRoles `json:"workspaceRole"`
 }

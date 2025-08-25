@@ -12,13 +12,13 @@ type CreateProject struct {
 	Prefix      string    `json:"prefix"`
 }
 
-type AddUserToProject struct {
+type UserProjectManipulation struct {
 	ProjectId uuid.UUID `json:"projectId"`
 	UserId    uuid.UUID `json:"userId"`
 }
 
-type ChangeUserProjectRole struct {
-	ProjectId uuid.UUID         `json:"projectId"`
-	UserId    uuid.UUID         `json:"userId"`
-	Role      enums.ProjectRole `json:"role"`
+type ChangeUserUserRoles struct {
+	ProjectId uuid.UUID       `json:"projectId"`
+	UserId    uuid.UUID       `json:"userId"`
+	Role      enums.UserRoles `json:"role"`
 }

@@ -2,9 +2,9 @@ package handlers
 
 import (
 	"go-postgres-test/infrastructure/auth"
+	"go-postgres-test/internal/dto/request"
 	"go-postgres-test/internal/enums"
 	"go-postgres-test/internal/middleware"
-	"go-postgres-test/internal/request"
 	"go-postgres-test/internal/usecase"
 	"go-postgres-test/mixins"
 	"net/http"
@@ -30,8 +30,10 @@ func (h *ProjectHandler) RegisterRoutes(router *gin.RouterGroup) {
 
 	protected.PATCH("/role", h.changeUserRole)
 
-	protected.POST("", h.createProject)
+	protected.POST("/", h.createProject)
 	protected.POST("/user", h.addUserToProject)
+
+	protected.DELETE("/user", h.removeUserFromProject)
 }
 
 func (h *ProjectHandler) createProject(c *gin.Context) {
@@ -41,7 +43,7 @@ func (h *ProjectHandler) createProject(c *gin.Context) {
 		return
 	}
 
-	userId, err := mixins.ParseUserId(c)
+	userId, err := mixins.ParseContextUserId(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -60,22 +62,24 @@ func (h *ProjectHandler) createProject(c *gin.Context) {
 }
 
 func (h *ProjectHandler) addUserToProject(c *gin.Context) {
-	var input request.AddUserToProject
+	var input request.UserProjectManipulation
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	if err := h.uc.AddUserToProject(c.Request.Context(), input.ProjectId, input.UserId, enums.ProjectRoleEditor); err != nil {
+	email, err := h.uc.AddUserToProject(c.Request.Context(), input.ProjectId, input.UserId, enums.ProjectEditor)
+
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"status": true})
+	c.JSON(http.StatusOK, gin.H{"email": email})
 }
 
 func (h *ProjectHandler) getAllUserProjects(c *gin.Context) {
-	userId, err := mixins.ParseUserId(c)
+	userId, err := mixins.ParseContextUserId(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -97,7 +101,7 @@ func (h *ProjectHandler) getAllUserProjects(c *gin.Context) {
 }
 
 func (h *ProjectHandler) getUserRole(c *gin.Context) {
-	userId, err := mixins.ParseUserId(c)
+	userId, err := mixins.ParseContextUserId(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -115,10 +119,11 @@ func (h *ProjectHandler) getUserRole(c *gin.Context) {
 		return
 	}
 
-	if role == enums.ProjectRoleNoAccess {
+	if role == enums.NoAccess {
 		c.JSON(http.StatusMethodNotAllowed, gin.H{"error": "NO_ACCESS"})
 		return
 	}
+
 	c.JSON(http.StatusOK, gin.H{"role": role})
 }
 
@@ -139,13 +144,29 @@ func (h *ProjectHandler) getAllProjectMembers(c *gin.Context) {
 }
 
 func (h *ProjectHandler) changeUserRole(c *gin.Context) {
-	var input request.ChangeUserProjectRole
+	var input request.ChangeUserUserRoles
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	if err := h.uc.ChangeUserRole(c.Request.Context(), input.UserId, input.ProjectId, input.Role); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Status(http.StatusOK)
+}
+
+func (h *ProjectHandler) removeUserFromProject(c *gin.Context) {
+	var input request.UserProjectManipulation
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.uc.RemoveUserFromProject(c.Request.Context(), input.ProjectId, input.UserId); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

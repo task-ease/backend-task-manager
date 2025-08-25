@@ -2,9 +2,9 @@ package domain
 
 import (
 	"context"
+	"go-postgres-test/internal/dto/response"
 	"go-postgres-test/internal/entities"
 	"go-postgres-test/internal/enums"
-	"go-postgres-test/internal/response"
 	"time"
 
 	"github.com/google/uuid"
@@ -21,16 +21,17 @@ type WorkSpaceRepository interface {
 	GetAllByUserId(ctx context.Context, userId uuid.UUID) ([]WorkSpace, error)
 	GetWorkspaceName(ctx context.Context, workspaceId uuid.UUID) (string, error)
 
-	AddUser(ctx context.Context, workSpaceId, userId uuid.UUID, role enums.WorkspaceRole) error
+	AddUser(ctx context.Context, workSpaceId, userId uuid.UUID, role enums.UserRoles) error
 	RemoveUser(ctx context.Context, workSpaceId, userId uuid.UUID) error
-	GetUserRole(ctx context.Context, userId, workspaceId uuid.UUID) (enums.WorkspaceRole, error)
+	GetUserRole(ctx context.Context, userId, workspaceId uuid.UUID) (enums.UserRoles, error)
 	GetAllMembers(ctx context.Context, workSpaceId uuid.UUID) ([]entities.MemberUser, error)
-	ChangeUserRole(ctx context.Context, workSpaceId, userId uuid.UUID, role enums.WorkspaceRole) error
+	ChangeUserRole(ctx context.Context, workSpaceId, userId uuid.UUID, role enums.UserRoles) error
 	SearchWorkspaceMember(ctx context.Context, workSpaceId uuid.UUID, value string) ([]response.FindWorkspaceMemberResponse, error)
 
-	AddUserTx(ctx context.Context, exec entities.Execer, workSpaceId, userId uuid.UUID, role enums.WorkspaceRole) error
+	AddUserTx(ctx context.Context, exec entities.Execer, workSpaceId, userId uuid.UUID, role enums.UserRoles) error
 	CreateWorkSpaceTx(ctx context.Context, exec entities.Execer, workSpace WorkSpace) error
 	HasUserWorkspaceTx(ctx context.Context, exec entities.Execer, userId, workspaceId uuid.UUID, exists *bool) error
-	GetUserRoleTx(ctx context.Context, exec entities.Execer, userId, workspaceId uuid.UUID) (enums.WorkspaceRole, error)
+	GetUserRoleTx(ctx context.Context, exec entities.Execer, userId, workspaceId uuid.UUID) (enums.UserRoles, error)
+	GetUserRoleByDocumentTx(ctx context.Context, exec entities.Execer, userId, documentId uuid.UUID) (enums.UserRoles, error)
 	GetIdByColumnTemplateIdTx(ctx context.Context, exec entities.Execer, columnTemplateId uuid.UUID) (uuid.UUID, error)
 }

@@ -45,9 +45,7 @@ func (uc *MessageUsecase) AddMessageTx(ctx context.Context, exec entities.Execer
 }
 
 func (uc *MessageUsecase) GetAllMessages(ctx context.Context, chatId string) ([]entities.Message, error) {
-	return helper.WithTx(ctx, uc.baseRepo, func(ctx context.Context, exec pgx.Tx) ([]entities.Message, error) {
-		return uc.messageRepo.GetAllMessagesTx(ctx, exec, chatId)
-	})
+	return uc.messageRepo.GetAllMessages(ctx, chatId)
 }
 
 func (uc *MessageUsecase) UploadImage(ctx context.Context, uploadImageDto dto.UploadImage) (entities.Message, error) {

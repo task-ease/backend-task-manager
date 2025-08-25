@@ -6,6 +6,7 @@
 -- CREATE TYPE project_user_roles AS ENUM ('CREATOR', 'EDITOR', 'VIEWER', 'ADMIN);
 -- CREATE TYPE task_types AS ENUM ('EPIC', 'TASK', 'SUBTASK', 'BUG', 'FEATURE', 'CHORE', 'SPIKE');
 -- CREATE TYPE task_priority_types AS ENUM ('VERY_LOW', 'LOW', 'MID', 'HIGH', 'VERY_HIGH');
+-- CREATE TYPE document_visibility_enum AS ENUM ('PUBLIC', 'PRIVATE', 'PROJECT');
 
 -- drop table tasks_assignment, task_comments, tasks, task_columns, task_columns_templates;
 
@@ -26,7 +27,7 @@ CREATE TABLE IF NOT EXISTS workspaces (
                                           creator_id uuid REFERENCES users(id) NOT NULL,
                                           name VARCHAR(20) NOT NULL,
                                           created_at TIMESTAMPTZ DEFAULT NOW(),
-                                          prefix VARCHAR(10) NOT NULL UNIQUE DEFAULT 'GBL'
+                                          prefix VARCHAR(10) NOT NULL DEFAULT 'GBL'
 );
 
 CREATE TABLE IF NOT EXISTS user_workspaces (
@@ -208,5 +209,38 @@ CREATE TABLE IF NOT EXISTS project_members (
                                                UNIQUE (project_id, user_id)
 );
 
+CREATE TABLE IF NOT EXISTS documents (
+                                         id UUID PRIMARY KEY NOT NULL DEFAULT gen_random_uuid(),
+                                         name VARCHAR(100) NOT NULL,
+                                         creator_id UUID REFERENCES users(id) NOT NULL,
+                                         created_at timestamptz DEFAULT NOW() NOT NULL,
+                                         updated_at timestamptz DEFAULT NOW() NOT NULL,
+                                         content TEXT,
+                                         workspace_id UUID REFERENCES workspaces(id) NOT NULL,
+                                         project_id UUID REFERENCES projects(id),
+                                         parent_id UUID REFERENCES documents(id),
+                                         visibility document_visibility_enum NOT NULL DEFAULT 'PUBLIC',
+                                         UNIQUE (name, workspace_id)
+);
+
+CREATE TABLE document_access (
+                                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                                 document_id UUID REFERENCES documents(id) NOT NULL,
+                                 user_id UUID REFERENCES users(id) NOT NULL,
+                                 can_edit BOOLEAN DEFAULT false NOT NULL
+);
+
+CREATE TABLE document_versions (
+                                   id UUID PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+                                   document_id UUID REFERENCES documents(id) NOT NULL,
+                                   content TEXT,
+                                   created_at timestamptz DEFAULT NOW() NOT NULL,
+                                   creator_id UUID REFERENCES users(id) NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_tasks_project_id ON tasks(project_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_sprint_id ON tasks(sprint_id);
+
+CREATE INDEX idx_documents_content_gin
+ON documents
+USING gin (to_tsvector('simple', content));
