@@ -1,18 +1,18 @@
 package usecase
 
 import (
+	"backend-task-manager/internal/domain"
+	"backend-task-manager/internal/domain/rules"
+	"backend-task-manager/internal/dto"
+	"backend-task-manager/internal/dto/request"
+	"backend-task-manager/internal/dto/response"
+	"backend-task-manager/internal/entities"
+	"backend-task-manager/internal/enums"
+	"backend-task-manager/internal/helper"
+	"backend-task-manager/internal/repository"
+	"backend-task-manager/mixins"
 	"context"
 	"errors"
-	"go-postgres-test/internal/domain"
-	"go-postgres-test/internal/domain/rules"
-	"go-postgres-test/internal/dto"
-	"go-postgres-test/internal/dto/request"
-	"go-postgres-test/internal/dto/response"
-	"go-postgres-test/internal/entities"
-	"go-postgres-test/internal/enums"
-	"go-postgres-test/internal/helper"
-	"go-postgres-test/internal/repository"
-	"go-postgres-test/mixins"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -141,4 +141,9 @@ func (uc *DocumentUsecase) GetAllByUserAndWorkspaceId(ctx context.Context, userI
 
 func (uc *DocumentUsecase) GetDocument(ctx context.Context, documentId uuid.UUID) (response.GetDocumentResponse, error) {
 	return uc.docRepo.GetDocument(ctx, documentId)
+}
+
+func (uc *DocumentUsecase) GetDocumentsByName(ctx context.Context, userId, workspaceId uuid.UUID, name string) ([]entities.EntityDto, error) {
+	limit := 5
+	return uc.docRepo.GetDocumentsByName(ctx, userId, workspaceId, name, limit)
 }

@@ -1,11 +1,11 @@
 package repository
 
 import (
+	"backend-task-manager/internal/domain"
+	"backend-task-manager/internal/dto/request"
+	"backend-task-manager/internal/dto/response"
+	"backend-task-manager/internal/entities"
 	"context"
-	"go-postgres-test/internal/domain"
-	"go-postgres-test/internal/dto/request"
-	"go-postgres-test/internal/dto/response"
-	"go-postgres-test/internal/entities"
 	"time"
 
 	"github.com/google/uuid"

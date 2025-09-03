@@ -1,12 +1,12 @@
 package ws
 
 import (
+	"backend-task-manager/infrastructure/auth"
+	"backend-task-manager/internal/domain"
+	"backend-task-manager/internal/entities"
+	"backend-task-manager/internal/enums"
+	"backend-task-manager/internal/middleware"
 	"encoding/json"
-	"go-postgres-test/infrastructure/auth"
-	"go-postgres-test/internal/domain"
-	"go-postgres-test/internal/entities"
-	"go-postgres-test/internal/enums"
-	"go-postgres-test/internal/middleware"
 	"log"
 	"net/http"
 	"sync"

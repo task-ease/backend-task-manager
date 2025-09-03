@@ -1,13 +1,13 @@
 package handlers
 
 import (
-	"go-postgres-test/infrastructure/auth"
-	"go-postgres-test/internal/domain/rules"
-	"go-postgres-test/internal/dto/request"
-	"go-postgres-test/internal/enums"
-	"go-postgres-test/internal/middleware"
-	"go-postgres-test/internal/usecase"
-	"go-postgres-test/mixins"
+	"backend-task-manager/infrastructure/auth"
+	"backend-task-manager/internal/domain/rules"
+	"backend-task-manager/internal/dto/request"
+	"backend-task-manager/internal/enums"
+	"backend-task-manager/internal/middleware"
+	"backend-task-manager/internal/usecase"
+	"backend-task-manager/mixins"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -31,6 +31,7 @@ func (h *DocumentHandler) RegisterRoutes(router *gin.RouterGroup) {
 	protected.GET("/:documentId", middleware.AccessMiddleware(enums.ParamDocument, h.documentUC, rules.AllDocumentRoles()), h.getDoc)
 	protected.GET("/all/:workspaceId", middleware.AccessMiddleware(enums.ParamWorkspace, h.workspaceUC, rules.CanEditWorkspace()), h.getDocs)
 	protected.GET("/access/:documentId", middleware.AccessMiddleware(enums.ParamDocument, h.documentUC, rules.AllDocumentRoles()), h.checkUserAccess)
+	protected.GET("/search/:workspaceId", middleware.AccessMiddleware(enums.ParamWorkspace, h.workspaceUC, rules.AllWorkspaceRoles()), h.getDocsByName)
 
 	protected.POST("/:workspaceId", middleware.AccessMiddleware(enums.ParamWorkspace, h.workspaceUC, rules.CanEditWorkspace()), h.createDoc)
 
@@ -42,7 +43,7 @@ func (h *DocumentHandler) RegisterRoutes(router *gin.RouterGroup) {
 }
 
 func (h *DocumentHandler) checkUserAccess(c *gin.Context) {
-	role, exists := c.Get("userId")
+	role, exists := c.Get("role")
 
 	if !exists {
 		c.Status(http.StatusUnauthorized)
@@ -214,4 +215,28 @@ func (h *DocumentHandler) getDoc(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"doc": document})
+}
+
+func (h *DocumentHandler) getDocsByName(c *gin.Context) {
+	workspaceId, err := mixins.ParamToUUID(c, string(enums.ParamWorkspace))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	userId, err := mixins.ParseContextUserId(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	name := c.Query("name")
+
+	docs, err := h.documentUC.GetDocumentsByName(c.Request.Context(), userId, workspaceId, name)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"docs": docs})
 }

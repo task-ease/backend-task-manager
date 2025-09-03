@@ -1,12 +1,12 @@
 package repository
 
 import (
+	"backend-task-manager/internal/domain"
+	"backend-task-manager/internal/dto/request"
+	"backend-task-manager/internal/dto/response"
+	"backend-task-manager/internal/entities"
+	"backend-task-manager/internal/enums"
 	"context"
-	"go-postgres-test/internal/domain"
-	"go-postgres-test/internal/dto/request"
-	"go-postgres-test/internal/dto/response"
-	"go-postgres-test/internal/entities"
-	"go-postgres-test/internal/enums"
 	"time"
 
 	"github.com/google/uuid"
@@ -59,8 +59,8 @@ func (r *docRepo) UpdateDocVersionsTx(ctx context.Context, exec entities.Execer,
 	_, err := exec.Exec(ctx, `
 		INSERT INTO document_versions
 		(id, document_id, content, created_at, creator_id)
-		VALUES ($1, $2, $3, $4)
-	`, id, documentId, content, time.Now().UTC(), time.Now().UTC(), creatorId)
+		VALUES ($1, $2, $3, $4, $5)
+	`, id, documentId, content, time.Now().UTC(), creatorId)
 	return err
 }
 
@@ -130,14 +130,10 @@ func (r *docRepo) GetAllByUserAndWorkspaceId(ctx context.Context, userId, worksp
 		d.id, 
 		d.name, 
 		d.parent_id,
-		COALESCE(
-			ARRAY_AGG(d2.id) FILTER (
-				WHERE to_tsvector('simple', d2.content) @@ plainto_tsquery('simple', '[[' || d2.name || ']]')
-			),
-			'{}'
-		) as connections_list
+			COALESCE(ARRAY_AGG(d2.id) FILTER (WHERE d2.id IS NOT NULL), '{}') AS connections_list
 		FROM documents d
-		LEFT JOIN documents d2 ON TRUE
+		LEFT JOIN documents d2 
+		    ON to_tsvector('simple', d.content) @@ plainto_tsquery('simple', '$d[[' || d2.name || ']]')
 		LEFT JOIN document_access da ON d.id = da.document_id AND da.user_id = $2
 		LEFT JOIN project_members pm ON d.project_id = pm.project_id
 		WHERE d.workspace_id = $1
@@ -170,26 +166,62 @@ func (r *docRepo) GetAllByUserAndWorkspaceId(ctx context.Context, userId, worksp
 func (r *docRepo) GetDocument(ctx context.Context, documentId uuid.UUID) (response.GetDocumentResponse, error) {
 	var document response.GetDocumentResponse
 	if err := r.conn.QueryRow(ctx, `
-    SELECT 
-        d.id, 
-		name, 
-		content, 
-		visibility, 
-		parent_id,
-		u.username
-    FROM documents d
-    JOIN users u ON u.id = d.creator_id
-    WHERE d.id = $1
-`, documentId).Scan(
+		SELECT 
+			d.id, 
+			name, 
+			content, 
+			visibility, 
+			parent_id,
+			u.username,
+			d.created_at
+		FROM documents d
+		JOIN users u ON u.id = d.creator_id
+		WHERE d.id = $1
+	`, documentId).Scan(
 		&document.Id,
 		&document.Name,
 		&document.Content,
 		&document.Visibility,
 		&document.ParentId,
 		&document.CreatorName,
+		&document.CreatedAt,
 	); err != nil {
 		return response.GetDocumentResponse{}, err
 	}
 
 	return document, nil
+}
+
+func (r *docRepo) GetDocumentsByName(ctx context.Context, userId, workspaceId uuid.UUID, name string, limit int) ([]entities.EntityDto, error) {
+	nameStr := name + "%"
+	rows, err := r.conn.Query(ctx, `
+		SELECT d.name, d.id
+		FROM documents d
+		LEFT JOIN document_access da ON d.id = da.document_id AND da.user_id = $1
+		LEFT JOIN project_members pm ON d.project_id = pm.project_id
+		WHERE d.workspace_id = $2
+		  AND (
+				d.visibility = 'PUBLIC'
+			 OR (d.visibility = 'PRIVATE' AND da.user_id = $1)
+			 OR (d.visibility = 'PROJECT' AND pm.user_id = $1)
+		  )
+		AND d.name ILIKE $3
+		LIMIT $4
+	`, userId, workspaceId, nameStr, limit)
+	defer rows.Close()
+
+	if err != nil {
+		return nil, err
+	}
+
+	var documents []entities.EntityDto
+	for rows.Next() {
+		var document entities.EntityDto
+		if err = rows.Scan(&document.Name, &document.Id); err != nil {
+			return nil, err
+		}
+		documents = append(documents, document)
+	}
+
+	return documents, nil
 }

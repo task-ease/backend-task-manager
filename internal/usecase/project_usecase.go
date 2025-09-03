@@ -1,13 +1,13 @@
 package usecase
 
 import (
+	"backend-task-manager/internal/domain"
+	"backend-task-manager/internal/dto"
+	"backend-task-manager/internal/dto/response"
+	"backend-task-manager/internal/enums"
+	"backend-task-manager/internal/helper"
+	"backend-task-manager/internal/repository"
 	"context"
-	"go-postgres-test/internal/domain"
-	"go-postgres-test/internal/dto"
-	"go-postgres-test/internal/dto/response"
-	"go-postgres-test/internal/enums"
-	"go-postgres-test/internal/helper"
-	"go-postgres-test/internal/repository"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"

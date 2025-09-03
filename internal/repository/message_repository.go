@@ -1,12 +1,12 @@
 package repository
 
 import (
+	"backend-task-manager/internal/domain"
+	"backend-task-manager/internal/entities"
 	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"go-postgres-test/internal/domain"
-	"go-postgres-test/internal/entities"
 	"io"
 	"net/http"
 	"net/url"

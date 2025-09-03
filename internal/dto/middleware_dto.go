@@ -1,6 +1,6 @@
 package dto
 
-import "go-postgres-test/internal/enums"
+import "backend-task-manager/internal/enums"
 
 type RolesMiddlewareDto struct {
 	Role    enums.UserRoles

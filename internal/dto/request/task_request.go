@@ -1,7 +1,7 @@
 package request
 
 import (
-	"go-postgres-test/internal/enums"
+	"backend-task-manager/internal/enums"
 	"time"
 
 	"github.com/google/uuid"

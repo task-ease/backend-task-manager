@@ -1,6 +1,6 @@
 package rules
 
-import "go-postgres-test/internal/enums"
+import "backend-task-manager/internal/enums"
 
 func AllWorkspaceRoles() []enums.UserRoles {
 	return []enums.UserRoles{

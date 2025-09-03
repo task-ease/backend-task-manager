@@ -1,10 +1,10 @@
 package middleware
 
 import (
+	"backend-task-manager/internal/dto"
+	"backend-task-manager/internal/enums"
+	"backend-task-manager/mixins"
 	"context"
-	"go-postgres-test/internal/dto"
-	"go-postgres-test/internal/enums"
-	"go-postgres-test/mixins"
 	"net/http"
 
 	"github.com/gin-gonic/gin"

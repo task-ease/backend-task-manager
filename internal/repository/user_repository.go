@@ -1,10 +1,10 @@
 package repository
 
 import (
+	"backend-task-manager/internal/domain"
+	"backend-task-manager/internal/dto"
+	"backend-task-manager/internal/entities"
 	"context"
-	"go-postgres-test/internal/domain"
-	"go-postgres-test/internal/dto"
-	"go-postgres-test/internal/entities"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"

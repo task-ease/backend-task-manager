@@ -1,7 +1,7 @@
 package response
 
 import (
-	"go-postgres-test/internal/entities"
+	"backend-task-manager/internal/entities"
 
 	"github.com/google/uuid"
 )

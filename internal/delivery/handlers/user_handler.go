@@ -1,10 +1,10 @@
 package handlers
 
 import (
-	"go-postgres-test/infrastructure/auth"
-	"go-postgres-test/internal/entities"
-	"go-postgres-test/internal/middleware"
-	"go-postgres-test/internal/usecase"
+	"backend-task-manager/infrastructure/auth"
+	"backend-task-manager/internal/entities"
+	"backend-task-manager/internal/middleware"
+	"backend-task-manager/internal/usecase"
 	"net/http"
 
 	"github.com/gin-gonic/gin"

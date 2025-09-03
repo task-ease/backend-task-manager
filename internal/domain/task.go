@@ -1,12 +1,12 @@
 package domain
 
 import (
+	"backend-task-manager/internal/dto/request"
+	"backend-task-manager/internal/dto/request/query"
+	"backend-task-manager/internal/dto/response"
+	"backend-task-manager/internal/entities"
+	"backend-task-manager/internal/enums"
 	"context"
-	"go-postgres-test/internal/dto/request"
-	"go-postgres-test/internal/dto/request/query"
-	"go-postgres-test/internal/dto/response"
-	"go-postgres-test/internal/entities"
-	"go-postgres-test/internal/enums"
 
 	"github.com/google/uuid"
 )

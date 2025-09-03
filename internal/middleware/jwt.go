@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"go-postgres-test/internal/domain"
+	"backend-task-manager/internal/domain"
 	"net/http"
 
 	"github.com/gin-gonic/gin"

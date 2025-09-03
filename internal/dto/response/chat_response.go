@@ -1,7 +1,7 @@
 package response
 
 import (
-	"go-postgres-test/internal/enums"
+	"backend-task-manager/internal/enums"
 	"time"
 )
 

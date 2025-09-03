@@ -241,6 +241,6 @@ CREATE TABLE document_versions (
 CREATE INDEX IF NOT EXISTS idx_tasks_project_id ON tasks(project_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_sprint_id ON tasks(sprint_id);
 
-CREATE INDEX idx_documents_content_gin
-ON documents
-USING gin (to_tsvector('simple', content));
+CREATE INDEX IF NOT EXISTS idx_documents_content_gin
+    ON documents
+        USING gin (to_tsvector('simple', content));

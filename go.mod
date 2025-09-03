@@ -1,4 +1,4 @@
-module go-postgres-test
+module backend-task-manager
 
 go 1.24
 

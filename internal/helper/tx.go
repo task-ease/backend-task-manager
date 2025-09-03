@@ -1,9 +1,9 @@
 package helper
 
 import (
+	"backend-task-manager/internal/repository"
+	"backend-task-manager/mixins"
 	"context"
-	"go-postgres-test/internal/repository"
-	"go-postgres-test/mixins"
 
 	"github.com/jackc/pgx/v5"
 )

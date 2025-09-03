@@ -1,12 +1,12 @@
 package usecase
 
 import (
+	"backend-task-manager/internal/domain"
+	"backend-task-manager/internal/entities"
+	"backend-task-manager/internal/helper"
+	"backend-task-manager/internal/repository"
 	"context"
 	"errors"
-	"go-postgres-test/internal/domain"
-	"go-postgres-test/internal/entities"
-	"go-postgres-test/internal/helper"
-	"go-postgres-test/internal/repository"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"

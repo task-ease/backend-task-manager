@@ -1,11 +1,11 @@
 package repository
 
 import (
+	"backend-task-manager/internal/domain"
+	"backend-task-manager/internal/dto/response"
+	"backend-task-manager/internal/entities"
+	"backend-task-manager/internal/enums"
 	"context"
-	"go-postgres-test/internal/domain"
-	"go-postgres-test/internal/dto/response"
-	"go-postgres-test/internal/entities"
-	"go-postgres-test/internal/enums"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"

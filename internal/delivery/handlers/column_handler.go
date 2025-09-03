@@ -1,12 +1,12 @@
 package handlers
 
 import (
-	"go-postgres-test/infrastructure/auth"
-	"go-postgres-test/internal/dto/request"
-	"go-postgres-test/internal/enums"
-	"go-postgres-test/internal/middleware"
-	"go-postgres-test/internal/usecase"
-	"go-postgres-test/mixins"
+	"backend-task-manager/infrastructure/auth"
+	"backend-task-manager/internal/dto/request"
+	"backend-task-manager/internal/enums"
+	"backend-task-manager/internal/middleware"
+	"backend-task-manager/internal/usecase"
+	"backend-task-manager/mixins"
 	"net/http"
 
 	"github.com/gin-gonic/gin"

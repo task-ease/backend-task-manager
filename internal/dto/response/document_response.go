@@ -1,7 +1,8 @@
 package response
 
 import (
-	"go-postgres-test/internal/enums"
+	"backend-task-manager/internal/enums"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -20,4 +21,5 @@ type GetDocumentResponse struct {
 	Name        string                        `json:"name"`
 	ParentId    *uuid.UUID                    `json:"parentId"`
 	Visibility  enums.DocumentVisibilityTypes `json:"visibility"`
+	CreatedAt   time.Time                     `json:"createdAt"`
 }

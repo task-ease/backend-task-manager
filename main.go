@@ -1,12 +1,12 @@
 package main
 
 import (
+	"backend-task-manager/infrastructure/db"
+	"backend-task-manager/internal/delivery/handlers"
+	"backend-task-manager/internal/delivery/ws"
+	"backend-task-manager/internal/repository"
+	"backend-task-manager/internal/usecase"
 	"fmt"
-	"go-postgres-test/infrastructure/db"
-	"go-postgres-test/internal/delivery/handlers"
-	"go-postgres-test/internal/delivery/ws"
-	"go-postgres-test/internal/repository"
-	"go-postgres-test/internal/usecase"
 	"log"
 	"os"
 

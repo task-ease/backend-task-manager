@@ -1,8 +1,8 @@
 package domain
 
 import (
+	"backend-task-manager/internal/entities"
 	"context"
-	"go-postgres-test/internal/entities"
 	"io"
 
 	"github.com/google/uuid"
