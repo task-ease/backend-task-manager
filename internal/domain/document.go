@@ -16,8 +16,9 @@ type DocumentRepository interface {
 	UpdateDocumentName(ctx context.Context, documentId uuid.UUID, name string) error
 	GetDocumentsByName(ctx context.Context, userId, workspaceId uuid.UUID, name string, limit int) ([]entities.EntityDto, error)
 	UpdateDocVisibility(ctx context.Context, documentId uuid.UUID, to enums.DocumentVisibilityTypes) error
-	UpdateDocUserEditPermissions(ctx context.Context, documentId uuid.UUID, req request.UpdateDocUserEditPermissionsRequest) error
+	GetIdByNameAndAndWorkspace(ctx context.Context, name string, workspaceId uuid.UUID) (uuid.UUID, error)
 	GetAllByUserAndWorkspaceId(ctx context.Context, userId, workspaceId uuid.UUID) ([]response.GetAllUserDocumentsResponse, error)
+	UpdateDocUserEditPermissions(ctx context.Context, documentId uuid.UUID, req request.UpdateDocUserEditPermissionsRequest) error
 
 	CreateDocTx(ctx context.Context, exec entities.Execer, creatorId, workspaceId uuid.UUID, dto request.CreateDocsRequest) (uuid.UUID, error)
 	GetVisibilityTx(ctx context.Context, exec entities.Execer, documentId uuid.UUID) (enums.DocumentVisibilityTypes, error)

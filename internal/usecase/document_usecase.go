@@ -147,3 +147,7 @@ func (uc *DocumentUsecase) GetDocumentsByName(ctx context.Context, userId, works
 	limit := 5
 	return uc.docRepo.GetDocumentsByName(ctx, userId, workspaceId, name, limit)
 }
+
+func (uc *DocumentUsecase) GetIdByNameAndAndWorkspace(ctx context.Context, name string, workspaceId uuid.UUID) (uuid.UUID, error) {
+	return uc.docRepo.GetIdByNameAndAndWorkspace(ctx, name, workspaceId)
+}

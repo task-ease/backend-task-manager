@@ -225,3 +225,15 @@ func (r *docRepo) GetDocumentsByName(ctx context.Context, userId, workspaceId uu
 
 	return documents, nil
 }
+
+func (r *docRepo) GetIdByNameAndAndWorkspace(ctx context.Context, name string, workspaceId uuid.UUID) (uuid.UUID, error) {
+	var id uuid.UUID
+	if err := r.conn.QueryRow(ctx, `
+		SELECT id 
+		FROM documents
+		WHERE name = $1 AND workspace_id = $2
+	`, name, workspaceId).Scan(&id); err != nil {
+		return uuid.Nil, err
+	}
+	return id, nil
+}

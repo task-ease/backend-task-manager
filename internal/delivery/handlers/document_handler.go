@@ -29,6 +29,7 @@ func (h *DocumentHandler) RegisterRoutes(router *gin.RouterGroup) {
 	protected := router.Group("/doc", middleware.JWTMiddleware(authService))
 
 	protected.GET("/:documentId", middleware.AccessMiddleware(enums.ParamDocument, h.documentUC, rules.AllDocumentRoles()), h.getDoc)
+	protected.GET("/id/:workspaceId", middleware.AccessMiddleware(enums.ParamWorkspace, h.workspaceUC, rules.CanEditWorkspace()), h.getIdByNameAndAndWorkspace)
 	protected.GET("/all/:workspaceId", middleware.AccessMiddleware(enums.ParamWorkspace, h.workspaceUC, rules.CanEditWorkspace()), h.getDocs)
 	protected.GET("/access/:documentId", middleware.AccessMiddleware(enums.ParamDocument, h.documentUC, rules.AllDocumentRoles()), h.checkUserAccess)
 	protected.GET("/search/:workspaceId", middleware.AccessMiddleware(enums.ParamWorkspace, h.workspaceUC, rules.AllWorkspaceRoles()), h.getDocsByName)
@@ -239,4 +240,22 @@ func (h *DocumentHandler) getDocsByName(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"docs": docs})
+}
+
+func (h *DocumentHandler) getIdByNameAndAndWorkspace(c *gin.Context) {
+	workspaceId, err := mixins.ParamToUUID(c, string(enums.ParamWorkspace))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	name := c.Query("name")
+
+	id, err := h.documentUC.GetIdByNameAndAndWorkspace(c.Request.Context(), name, workspaceId)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"id": id})
 }
