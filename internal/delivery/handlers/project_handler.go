@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"backend-task-manager/infrastructure/auth"
+	"backend-task-manager/internal/domain/rules"
 	"backend-task-manager/internal/dto/request"
 	"backend-task-manager/internal/enums"
 	"backend-task-manager/internal/middleware"
@@ -13,11 +14,12 @@ import (
 )
 
 type ProjectHandler struct {
-	uc *usecase.ProjectUseCase
+	projectUC   *usecase.ProjectUseCase
+	workspaceUC *usecase.WorkSpaceUsecase
 }
 
-func NewProjectHandler(uc *usecase.ProjectUseCase) *ProjectHandler {
-	return &ProjectHandler{uc}
+func NewProjectHandler(projectUC *usecase.ProjectUseCase, workspaceUC *usecase.WorkSpaceUsecase) *ProjectHandler {
+	return &ProjectHandler{projectUC, workspaceUC}
 }
 
 func (h *ProjectHandler) RegisterRoutes(router *gin.RouterGroup) {
@@ -26,6 +28,7 @@ func (h *ProjectHandler) RegisterRoutes(router *gin.RouterGroup) {
 
 	protected.GET("/:workspaceId", h.getAllUserProjects)
 	protected.GET("/role/:projectId", h.getUserRole)
+	protected.GET("/id/:workspaceId", middleware.AccessMiddleware(enums.ParamWorkspace, h.workspaceUC, rules.CanEditWorkspace()), h.getProjectIdByPrefix)
 	protected.GET("/members/:projectId", h.getAllProjectMembers)
 
 	protected.PATCH("/role", h.changeUserRole)
@@ -49,8 +52,7 @@ func (h *ProjectHandler) createProject(c *gin.Context) {
 		return
 	}
 
-	projectId, err := h.uc.CreateProject(c.Request.Context(), userId, input.WorkspaceId, input.Name, input.Prefix)
-	if err != nil {
+	if err = h.projectUC.CreateProject(c.Request.Context(), userId, input.WorkspaceId, input.Name, input.Prefix); err != nil {
 		if err.Error() == "409" {
 			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 		}
@@ -58,7 +60,7 @@ func (h *ProjectHandler) createProject(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"projectId": projectId})
+	c.Status(http.StatusCreated)
 }
 
 func (h *ProjectHandler) addUserToProject(c *gin.Context) {
@@ -68,7 +70,7 @@ func (h *ProjectHandler) addUserToProject(c *gin.Context) {
 		return
 	}
 
-	email, err := h.uc.AddUserToProject(c.Request.Context(), input.ProjectId, input.UserId, enums.ProjectEditor)
+	email, err := h.projectUC.AddUserToProject(c.Request.Context(), input.ProjectId, input.UserId, enums.ProjectEditor)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -91,7 +93,7 @@ func (h *ProjectHandler) getAllUserProjects(c *gin.Context) {
 		return
 	}
 
-	projects, err := h.uc.GetAllUserProjects(c.Request.Context(), userId, workspaceId)
+	projects, err := h.projectUC.GetAllUserProjects(c.Request.Context(), userId, workspaceId)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -113,7 +115,7 @@ func (h *ProjectHandler) getUserRole(c *gin.Context) {
 		return
 	}
 
-	role, err := h.uc.GetUserRole(c.Request.Context(), userId, projectId)
+	role, err := h.projectUC.GetUserRole(c.Request.Context(), userId, projectId)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -134,7 +136,7 @@ func (h *ProjectHandler) getAllProjectMembers(c *gin.Context) {
 		return
 	}
 
-	members, err := h.uc.GetAllProjectMembers(c.Request.Context(), projectId)
+	members, err := h.projectUC.GetAllProjectMembers(c.Request.Context(), projectId)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -150,7 +152,7 @@ func (h *ProjectHandler) changeUserRole(c *gin.Context) {
 		return
 	}
 
-	if err := h.uc.ChangeUserRole(c.Request.Context(), input.UserId, input.ProjectId, input.Role); err != nil {
+	if err := h.projectUC.ChangeUserRole(c.Request.Context(), input.UserId, input.ProjectId, input.Role); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -166,10 +168,28 @@ func (h *ProjectHandler) removeUserFromProject(c *gin.Context) {
 		return
 	}
 
-	if err := h.uc.RemoveUserFromProject(c.Request.Context(), input.ProjectId, input.UserId); err != nil {
+	if err := h.projectUC.RemoveUserFromProject(c.Request.Context(), input.ProjectId, input.UserId); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.Status(http.StatusOK)
+}
+
+func (h *ProjectHandler) getProjectIdByPrefix(c *gin.Context) {
+	prefix := c.Query("prefix")
+
+	workspaceId, err := mixins.ParamToUUID(c, "workspaceId")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	id, err := h.projectUC.GetProjectIdByPrefix(c.Request.Context(), prefix, workspaceId)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"id": id})
 }

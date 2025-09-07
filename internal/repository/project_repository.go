@@ -169,3 +169,15 @@ func (r *projectRepo) GetIdByDocumentIdTx(ctx context.Context, exec entities.Exe
 	}
 	return id, nil
 }
+
+func (r *projectRepo) GetProjectIdByPrefix(ctx context.Context, prefix string, workspaceId uuid.UUID) (uuid.UUID, error) {
+	var id uuid.UUID
+	if err := r.conn.QueryRow(ctx, `
+		SELECT id 
+		FROM projects
+		WHERE prefix = $1 AND workspace_id = $2
+	`, prefix, workspaceId).Scan(&id); err != nil {
+		return uuid.Nil, err
+	}
+	return id, nil
+}

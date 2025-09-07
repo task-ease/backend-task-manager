@@ -49,7 +49,7 @@ func main() {
 	chatHandler := handlers.NewChatHandler(chatUC)
 	columnHandler := handlers.NewColumnHandler(columnUC)
 	messageHandler := handlers.NewMessageHandler(messageUC)
-	projectHandler := handlers.NewProjectHandler(projectUC)
+	projectHandler := handlers.NewProjectHandler(projectUC, workSpaceUC)
 	documentHandler := handlers.NewDocumentHandler(documentUC, workSpaceUC, projectUC)
 	workSpaceHandler := handlers.NewWorkSpaceHandler(workSpaceUC)
 

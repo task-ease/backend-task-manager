@@ -32,17 +32,17 @@ func (uc *ProjectUseCase) CheckUserAccess(ctx context.Context, userId, projectId
 	return dto.RolesMiddlewareDto{Role: role, CanEdit: true}, nil
 }
 
-func (uc *ProjectUseCase) CreateProject(ctx context.Context, creatorId, workSpaceId uuid.UUID, name, prefix string) (uuid.UUID, error) {
-	return helper.WithTx(ctx, uc.baseRepo, func(ctx context.Context, exec pgx.Tx) (uuid.UUID, error) {
+func (uc *ProjectUseCase) CreateProject(ctx context.Context, creatorId, workSpaceId uuid.UUID, name, prefix string) error {
+	return helper.WithTxVoid(ctx, uc.baseRepo, func(ctx context.Context, exec pgx.Tx) error {
 		var id = uuid.New()
 		if err := uc.projectRepo.CreateProjectTx(ctx, exec, creatorId, workSpaceId, id, name, prefix); err != nil {
-			return uuid.Nil, err
+			return err
 		}
 
 		if err := uc.projectRepo.AddUserToProjectTx(ctx, exec, id, creatorId, enums.ProjectCreator); err != nil {
-			return uuid.Nil, err
+			return err
 		}
-		return id, nil
+		return nil
 	})
 }
 
@@ -74,4 +74,8 @@ func (uc *ProjectUseCase) ChangeUserRole(ctx context.Context, userId, projectId 
 
 func (uc *ProjectUseCase) RemoveUserFromProject(ctx context.Context, projectId uuid.UUID, userId uuid.UUID) error {
 	return uc.projectRepo.RemoveUserFromProject(ctx, projectId, userId)
+}
+
+func (uc *ProjectUseCase) GetProjectIdByPrefix(ctx context.Context, prefix string, workspaceId uuid.UUID) (uuid.UUID, error) {
+	return uc.projectRepo.GetProjectIdByPrefix(ctx, prefix, workspaceId)
 }

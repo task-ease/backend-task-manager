@@ -11,10 +11,11 @@ import (
 
 type ProjectRepository interface {
 	GetUserRole(ctx context.Context, userId, projectId uuid.UUID) (enums.UserRoles, error)
-	CreateProject(ctx context.Context, creatorId, workSpaceId, projectId uuid.UUID, name, prefix string) error
 	ChangeUserRole(ctx context.Context, userId, projectId uuid.UUID, role enums.UserRoles) error
+
 	AddUserToProject(ctx context.Context, projectId uuid.UUID, userId uuid.UUID, role enums.UserRoles) error
 	GetAllUserProjects(ctx context.Context, userId, workspaceId uuid.UUID) ([]response.GetAllProjects, error)
+	GetProjectIdByPrefix(ctx context.Context, prefix string, workspaceId uuid.UUID) (uuid.UUID, error)
 	GetAllProjectMembers(ctx context.Context, projectId uuid.UUID) ([]response.GetAllProjectUsers, error)
 	RemoveUserFromProject(ctx context.Context, projectId uuid.UUID, userId uuid.UUID) error
 
