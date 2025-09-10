@@ -28,19 +28,19 @@ func (h *DocumentHandler) RegisterRoutes(router *gin.RouterGroup) {
 
 	protected := router.Group("/doc", middleware.JWTMiddleware(authService))
 
-	protected.GET("/:documentId", middleware.AccessMiddleware(enums.ParamDocument, h.documentUC, rules.AllDocumentRoles()), h.getDoc)
-	protected.GET("/id/:workspaceId", middleware.AccessMiddleware(enums.ParamWorkspace, h.workspaceUC, rules.CanEditWorkspace()), h.getIdByNameAndAndWorkspace)
-	protected.GET("/all/:workspaceId", middleware.AccessMiddleware(enums.ParamWorkspace, h.workspaceUC, rules.CanEditWorkspace()), h.getDocs)
-	protected.GET("/access/:documentId", middleware.AccessMiddleware(enums.ParamDocument, h.documentUC, rules.AllDocumentRoles()), h.checkUserAccess)
-	protected.GET("/search/:workspaceId", middleware.AccessMiddleware(enums.ParamWorkspace, h.workspaceUC, rules.AllWorkspaceRoles()), h.getDocsByName)
+	protected.GET("/:documentId", middleware.AccessMiddleware(enums.ParamDocument, h.documentUC, rules.AllDocumentRoles), h.getDoc)
+	protected.GET("/id/:workspaceId", middleware.AccessMiddleware(enums.ParamWorkspace, h.workspaceUC, rules.CanEditWorkspace), h.getIdByNameAndAndWorkspace)
+	protected.GET("/all/:workspaceId", middleware.AccessMiddleware(enums.ParamWorkspace, h.workspaceUC, rules.CanEditWorkspace), h.getDocs)
+	protected.GET("/access/:documentId", middleware.AccessMiddleware(enums.ParamDocument, h.documentUC, rules.AllDocumentRoles), h.checkUserAccess)
+	protected.GET("/search/:workspaceId", middleware.AccessMiddleware(enums.ParamWorkspace, h.workspaceUC, rules.AllWorkspaceRoles), h.getDocsByName)
 
-	protected.POST("/:workspaceId", middleware.AccessMiddleware(enums.ParamWorkspace, h.workspaceUC, rules.CanEditWorkspace()), h.createDoc)
+	protected.POST("/:workspaceId", middleware.AccessMiddleware(enums.ParamWorkspace, h.workspaceUC, rules.CanEditWorkspace), h.createDoc)
 
-	protected.PATCH("/name/:documentId", middleware.AccessMiddleware(enums.ParamDocument, h.documentUC, rules.CanEditDocument()), h.updateDocName)
-	protected.PATCH("/parent/:documentId", middleware.AccessMiddleware(enums.ParamDocument, h.documentUC, rules.CanEditDocument()), h.updateDocParent)
-	protected.PATCH("/content/:documentId", middleware.AccessMiddleware(enums.ParamDocument, h.documentUC, rules.CanEditDocument()), h.updateDocContent)
-	protected.PATCH("/user/edit/:documentId", middleware.AccessMiddleware(enums.ParamDocument, h.documentUC, rules.CanEditDocument()), h.updateDocUserEditPermissions)
-	protected.PATCH("/visibility/:documentId", middleware.AccessMiddleware(enums.ParamDocument, h.documentUC, rules.CanEditDocument()), h.updateDocVisibility)
+	protected.PATCH("/name/:documentId", middleware.AccessMiddleware(enums.ParamDocument, h.documentUC, rules.CanEditDocument), h.updateDocName)
+	protected.PATCH("/parent/:documentId", middleware.AccessMiddleware(enums.ParamDocument, h.documentUC, rules.CanEditDocument), h.updateDocParent)
+	protected.PATCH("/content/:documentId", middleware.AccessMiddleware(enums.ParamDocument, h.documentUC, rules.CanEditDocument), h.updateDocContent)
+	protected.PATCH("/user/edit/:documentId", middleware.AccessMiddleware(enums.ParamDocument, h.documentUC, rules.CanEditDocument), h.updateDocUserEditPermissions)
+	protected.PATCH("/visibility/:documentId", middleware.AccessMiddleware(enums.ParamDocument, h.documentUC, rules.CanEditDocument), h.updateDocVisibility)
 }
 
 func (h *DocumentHandler) checkUserAccess(c *gin.Context) {

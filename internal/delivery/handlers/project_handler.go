@@ -28,7 +28,7 @@ func (h *ProjectHandler) RegisterRoutes(router *gin.RouterGroup) {
 
 	protected.GET("/:workspaceId", h.getAllUserProjects)
 	protected.GET("/role/:projectId", h.getUserRole)
-	protected.GET("/id/:workspaceId", middleware.AccessMiddleware(enums.ParamWorkspace, h.workspaceUC, rules.CanEditWorkspace()), h.getProjectIdByPrefix)
+	protected.GET("/id/:workspaceId", middleware.AccessMiddleware(enums.ParamWorkspace, h.workspaceUC, rules.CanEditWorkspace), h.getProjectIdByPrefix)
 	protected.GET("/members/:projectId", h.getAllProjectMembers)
 
 	protected.PATCH("/role", h.changeUserRole)

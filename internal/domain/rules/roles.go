@@ -1,49 +1,45 @@
 package rules
 
-import "backend-task-manager/internal/enums"
+import (
+	"backend-task-manager/internal/dto"
+	"backend-task-manager/internal/enums"
+)
 
-func AllWorkspaceRoles() []enums.UserRoles {
-	return []enums.UserRoles{
-		enums.WorkspaceCreator,
-		enums.WorkspaceAdmin,
-		enums.WorkspaceMember,
-	}
+var AllWorkspaceRoles = []enums.UserRoles{
+	enums.WorkspaceCreator,
+	enums.WorkspaceAdmin,
+	enums.WorkspaceMember,
 }
 
-func CanEditWorkspace() []enums.UserRoles {
-	return []enums.UserRoles{
-		enums.WorkspaceCreator,
-		enums.WorkspaceAdmin,
-		enums.WorkspaceMember,
-	}
+var CanEditWorkspace = []enums.UserRoles{
+	enums.WorkspaceCreator,
+	enums.WorkspaceAdmin,
+	enums.WorkspaceMember,
 }
 
-func AllProjectRoles() []enums.UserRoles {
-	return []enums.UserRoles{
-		enums.ProjectCreator,
-		enums.ProjectAdmin,
-		enums.ProjectEditor,
-		enums.ProjectViewer,
-	}
+var AllProjectRoles = []enums.UserRoles{
+	enums.ProjectCreator,
+	enums.ProjectAdmin,
+	enums.ProjectEditor,
+	enums.ProjectViewer,
 }
 
-func CanEditProject() []enums.UserRoles {
-	return []enums.UserRoles{
-		enums.ProjectCreator,
-		enums.ProjectAdmin,
-		enums.ProjectEditor,
-	}
+var CanEditProject = []enums.UserRoles{
+	enums.ProjectCreator,
+	enums.ProjectAdmin,
+	enums.ProjectEditor,
 }
 
-func AllDocumentRoles() []enums.UserRoles {
-	return []enums.UserRoles{
-		enums.Access,
-		enums.CanEdit,
-	}
+var AllDocumentRoles = []enums.UserRoles{
+	enums.Access,
+	enums.CanEdit,
 }
 
-func CanEditDocument() []enums.UserRoles {
-	return []enums.UserRoles{
-		enums.CanEdit,
-	}
+var CanEditDocument = []enums.UserRoles{
+	enums.CanEdit,
+}
+
+var SettingsNoAccess = dto.RolesMiddlewareDto{
+	Role:    enums.NoAccess,
+	CanEdit: false,
 }

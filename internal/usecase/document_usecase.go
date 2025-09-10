@@ -53,7 +53,7 @@ func (uc *DocumentUsecase) CheckUserAccess(ctx context.Context, userId, resource
 			if err != nil {
 				return dto.RolesMiddlewareDto{Role: enums.NoAccess, CanEdit: false}, err
 			}
-			data.CanEdit = mixins.Contains(rules.CanEditWorkspace(), role)
+			data.CanEdit = mixins.Contains(rules.CanEditWorkspace, role)
 		case enums.ProjectDocument:
 			var projectId uuid.UUID
 			projectId, err = uc.projectRepo.GetIdByDocumentIdTx(ctx, exec, resourceId)
@@ -67,7 +67,7 @@ func (uc *DocumentUsecase) CheckUserAccess(ctx context.Context, userId, resource
 				return dto.RolesMiddlewareDto{Role: enums.NoAccess, CanEdit: false}, err
 			}
 
-			data.CanEdit = mixins.Contains(rules.CanEditProject(), role)
+			data.CanEdit = mixins.Contains(rules.CanEditProject, role)
 		}
 
 		if data.CanEdit {

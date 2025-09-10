@@ -36,13 +36,13 @@ func main() {
 	workSpaceRepo := repository.NewWorkSpaceRepository(dbPool, taskRepo)
 
 	userUC := usecase.NewUserUsecase(userRepo, baseRepo)
-	taskUC := usecase.NewTaskUseCase(taskRepo, baseRepo)
 	chatUC := usecase.NewChatUsecase(chatRepo, messageRepo, baseRepo)
 	columnUC := usecase.NewColumnUsecase(columnRepo, workSpaceRepo, baseRepo)
 	projectUC := usecase.NewProjectUseCase(projectRepo, baseRepo, userRepo)
 	messageUC := usecase.NewMessageUsecase(messageRepo, chatRepo, baseRepo)
 	documentUC := usecase.NewDocumentUsecase(baseRepo, documentRepo, workSpaceRepo, projectRepo)
 	workSpaceUC := usecase.NewWorkSpaceUsecase(workSpaceRepo, columnUC, baseRepo)
+	taskUC := usecase.NewTaskUseCase(baseRepo, taskRepo, projectUC, workSpaceUC)
 
 	userHandler := handlers.NewUserHandler(userUC)
 	taskHandler := handlers.NewTaskHandler(taskUC)

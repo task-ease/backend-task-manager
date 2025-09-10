@@ -23,3 +23,9 @@ type CreateTask struct {
 	Id     uuid.UUID `json:"id"`
 	Prefix string    `json:"prefix"`
 }
+
+type SearchTasks struct {
+	Id     uuid.UUID `json:"id"`
+	Prefix string    `json:"prefix"`
+	Title  string    `json:"title"`
+}

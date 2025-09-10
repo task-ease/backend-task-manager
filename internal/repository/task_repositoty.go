@@ -23,11 +23,11 @@ func NewTaskRepository(conn *pgxpool.Pool) domain.TaskRepository {
 	return &taskRepository{conn: conn}
 }
 
-func (r *taskRepository) GetALlTasks(ctx context.Context, data query.TaskLocationQuery) ([]response.GetAllWorkspaceTasks, error) {
-	return r.GetALlTasksTx(ctx, r.conn, data)
+func (r *taskRepository) GetAll(ctx context.Context, data query.TaskLocationWithSprintQuery) ([]response.GetAllWorkspaceTasks, error) {
+	return r.GetAllTx(ctx, r.conn, data)
 }
 
-func (r *taskRepository) GetALlTasksTx(ctx context.Context, exec entities.Execer, data query.TaskLocationQuery) ([]response.GetAllWorkspaceTasks, error) {
+func (r *taskRepository) GetAllTx(ctx context.Context, exec entities.Execer, data query.TaskLocationWithSprintQuery) ([]response.GetAllWorkspaceTasks, error) {
 	rows, err := exec.Query(ctx, `
 		SELECT 
 			t.id, 
@@ -111,11 +111,11 @@ func (r *taskRepository) GetALlTasksTx(ctx context.Context, exec entities.Execer
 	return tasks, nil
 }
 
-func (r *taskRepository) CreateTask(ctx context.Context, task request.CreateTask, id uuid.UUID) (response.CreateTask, error) {
-	return r.CreateTaskTx(ctx, r.conn, task, id)
+func (r *taskRepository) CreateNew(ctx context.Context, task request.CreateTask, id uuid.UUID) (response.CreateTask, error) {
+	return r.CreateNewTx(ctx, r.conn, task, id)
 }
 
-func (r *taskRepository) CreateTaskTx(ctx context.Context, exec entities.Execer, task request.CreateTask, id uuid.UUID) (response.CreateTask, error) {
+func (r *taskRepository) CreateNewTx(ctx context.Context, exec entities.Execer, task request.CreateTask, id uuid.UUID) (response.CreateTask, error) {
 	now := time.Now()
 
 	_, err := exec.Exec(ctx, `
@@ -216,7 +216,7 @@ func (r *taskRepository) GetPrefixNumberTx(ctx context.Context, exec entities.Ex
 	return err
 }
 
-func (r *taskRepository) UpdateTaskTitle(ctx context.Context, taskId uuid.UUID, value string) error {
+func (r *taskRepository) UpdateTitle(ctx context.Context, taskId uuid.UUID, value string) error {
 	_, err := r.conn.Exec(ctx, `
 		UPDATE tasks 
 		SET title = $1
@@ -225,7 +225,7 @@ func (r *taskRepository) UpdateTaskTitle(ctx context.Context, taskId uuid.UUID, 
 	return err
 }
 
-func (r *taskRepository) UpdateTaskDescription(ctx context.Context, taskId uuid.UUID, value string) error {
+func (r *taskRepository) UpdateDescription(ctx context.Context, taskId uuid.UUID, value string) error {
 	_, err := r.conn.Exec(ctx, `
 		UPDATE tasks 
 		SET description = $1
@@ -234,7 +234,7 @@ func (r *taskRepository) UpdateTaskDescription(ctx context.Context, taskId uuid.
 	return err
 }
 
-func (r *taskRepository) UpdateTaskColumnIdTx(ctx context.Context, exec entities.Execer, taskId uuid.UUID, columnId uuid.UUID) error {
+func (r *taskRepository) UpdateColumnIdTx(ctx context.Context, exec entities.Execer, taskId uuid.UUID, columnId uuid.UUID) error {
 	_, err := exec.Exec(ctx, `
 		UPDATE tasks
 		SET column_id = $1
@@ -243,7 +243,7 @@ func (r *taskRepository) UpdateTaskColumnIdTx(ctx context.Context, exec entities
 	return err
 }
 
-func (r *taskRepository) IsTaskDoneTx(ctx context.Context, exec entities.Execer, taskId uuid.UUID, done *bool) error {
+func (r *taskRepository) IsDoneTx(ctx context.Context, exec entities.Execer, taskId uuid.UUID, done *bool) error {
 	err := exec.QueryRow(ctx, `
 		SELECT is_done
 		FROM tasks
@@ -252,7 +252,7 @@ func (r *taskRepository) IsTaskDoneTx(ctx context.Context, exec entities.Execer,
 	return err
 }
 
-func (r *taskRepository) UpdateTaskDoneStatusTx(ctx context.Context, exec entities.Execer, taskId uuid.UUID, to bool) error {
+func (r *taskRepository) UpdateDoneStatusTx(ctx context.Context, exec entities.Execer, taskId uuid.UUID, to bool) error {
 	_, err := exec.Exec(ctx, `
 		UPDATE tasks
 		SET is_done = $1
@@ -261,7 +261,7 @@ func (r *taskRepository) UpdateTaskDoneStatusTx(ctx context.Context, exec entiti
 	return err
 }
 
-func (r *taskRepository) UpdateTaskPriority(ctx context.Context, taskId uuid.UUID, priority enums.TaskPriorities) error {
+func (r *taskRepository) UpdatePriority(ctx context.Context, taskId uuid.UUID, priority enums.TaskPriorities) error {
 	_, err := r.conn.Exec(ctx, `
 		UPDATE tasks 
 		SET priority = $1
@@ -279,7 +279,7 @@ func (r *taskRepository) IsColumnDoneTx(ctx context.Context, exec entities.Exece
 	return err
 }
 
-func (r *taskRepository) IsTaskHasAssignedTx(ctx context.Context, exec entities.Execer, taskId uuid.UUID, has *bool) error {
+func (r *taskRepository) HasAssignedTx(ctx context.Context, exec entities.Execer, taskId uuid.UUID, has *bool) error {
 	err := exec.QueryRow(ctx, `
 		SELECT COUNT(*) > 0
 		FROM tasks_assignment
@@ -288,7 +288,7 @@ func (r *taskRepository) IsTaskHasAssignedTx(ctx context.Context, exec entities.
 	return err
 }
 
-func (r *taskRepository) UpdateTaskAssignedTx(ctx context.Context, exec entities.Execer, taskId uuid.UUID, userId uuid.UUID) error {
+func (r *taskRepository) UpdateAssignedTx(ctx context.Context, exec entities.Execer, taskId uuid.UUID, userId uuid.UUID) error {
 	_, err := exec.Exec(ctx, `
 		INSERT INTO tasks_assignment (task_id, user_id, assigned_at)
 		VALUES ($1, $2, $3)
@@ -297,7 +297,7 @@ func (r *taskRepository) UpdateTaskAssignedTx(ctx context.Context, exec entities
 	return err
 }
 
-func (r *taskRepository) RemoveTaskAssigned(ctx context.Context, taskId uuid.UUID) error {
+func (r *taskRepository) RemoveAssigned(ctx context.Context, taskId uuid.UUID) error {
 	_, err := r.conn.Exec(ctx, `
 		DELETE FROM tasks_assignment
 		WHERE task_id = $1
@@ -305,7 +305,7 @@ func (r *taskRepository) RemoveTaskAssigned(ctx context.Context, taskId uuid.UUI
 	return err
 }
 
-func (r *taskRepository) RemoveTaskAssignedTx(ctx context.Context, exec entities.Execer, taskId uuid.UUID) error {
+func (r *taskRepository) RemoveAssignedTx(ctx context.Context, exec entities.Execer, taskId uuid.UUID) error {
 	_, err := exec.Exec(ctx, `
 		DELETE FROM tasks_assignment
 		WHERE task_id = $1
@@ -313,7 +313,7 @@ func (r *taskRepository) RemoveTaskAssignedTx(ctx context.Context, exec entities
 	return err
 }
 
-func (r *taskRepository) ChangeTaskPositionAndColumnTx(ctx context.Context, exec entities.Execer, dto request.ChangeTaskPositionAndColumn) (float64, error) {
+func (r *taskRepository) ChangePositionAndColumnTx(ctx context.Context, exec entities.Execer, dto request.ChangeTaskPositionAndColumn) (float64, error) {
 	var prevPos float64
 	if dto.PrevTaskId != nil {
 		if err := exec.QueryRow(ctx, `
@@ -365,11 +365,107 @@ func (r *taskRepository) ChangeTaskPositionAndColumnTx(ctx context.Context, exec
 	return newPos, err
 }
 
-func (r *taskRepository) UpdateTaskType(ctx context.Context, taskId uuid.UUID, value enums.TaskTypes) error {
-	_, err := r.conn.Exec(ctx, `
+func (r *taskRepository) UpdateType(ctx context.Context, taskId uuid.UUID, value enums.TaskTypes) error {
+	return r.UpdateTypeTx(ctx, r.conn, taskId, value)
+}
+
+func (r *taskRepository) UpdateTypeTx(ctx context.Context, exec entities.Execer, taskId uuid.UUID, value enums.TaskTypes) error {
+	_, err := exec.Exec(ctx, `
 		UPDATE tasks
 		SET type = $1
 		WHERE id = $2
 	`, value, taskId)
 	return err
+}
+
+// TODO
+
+func (r *taskRepository) Search(ctx context.Context, exec entities.Execer, data query.TaskLocationQuery, value string) ([]response.SearchTasks, error) {
+	pattern := "%" + value + "%"
+
+	rows, err := exec.Query(ctx, `
+    SELECT t.id, t.title
+    FROM tasks t
+    LEFT JOIN projects p ON t.project_id = p.id
+    JOIN workspaces w ON t.workspace_id = w.id
+    WHERE t.workspace_id = $1
+      	AND (t.project_id = $2 OR ($2 IS NULL AND t.project_id IS NULL))
+      	AND (
+            (CASE WHEN t.project_id IS NOT NULL THEN p.prefix ELSE w.prefix END)
+            || '-' || t.prefix_number || ' ' || t.title
+          ) ILIKE $3
+    LIMIT 10
+	`, data.WorkspaceId, data.ProjectId, pattern)
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var searchTasks []response.SearchTasks
+	for rows.Next() {
+		var task response.SearchTasks
+		if err = rows.Scan(&task.Id, &task.Title); err != nil {
+			return nil, err
+		}
+
+		searchTasks = append(searchTasks, task)
+	}
+
+	return searchTasks, nil
+}
+
+func (r *taskRepository) UpdateParentIdTx(ctx context.Context, exec entities.Execer, taskId uuid.UUID, parentId *uuid.UUID) error {
+	_, err := exec.Exec(ctx, `
+		UPDATE tasks
+		SET parent_id = $1
+		WHERE id = $2
+	`, parentId, taskId)
+	return err
+}
+
+func (r *taskRepository) GetTypeTx(ctx context.Context, exec entities.Execer, taskId uuid.UUID) (enums.TaskTypes, error) {
+	var outputType enums.TaskTypes
+	if err := exec.QueryRow(ctx, `
+		SELECT type
+		FROM tasks 
+		WHERE id = $1
+	`, taskId).Scan(&outputType); err != nil {
+		return "", err
+	}
+
+	return outputType, nil
+}
+
+func (r *taskRepository) UpdateChildrenIdTx(ctx context.Context, exec entities.Execer, taskId uuid.UUID, childrenId *uuid.UUID) error {
+	_, err := exec.Exec(ctx, `
+		UPDATE tasks
+		SET parent_id = $1
+		WHERE id = $2
+	`, taskId, childrenId)
+	return err
+}
+
+func (r *taskRepository) IfExistsParentTx(ctx context.Context, exec entities.Execer, taskId uuid.UUID) (bool, error) {
+	var exists bool
+	if err := exec.QueryRow(ctx, `
+		SELECT parent_id IS NOT NULL
+		FROM tasks 
+		WHERE id = $1
+	`, taskId).Scan(&exists); err != nil {
+		return false, err
+	}
+	return exists, nil
+}
+
+func (r *taskRepository) GetLocationTx(ctx context.Context, exec entities.Execer, taskId uuid.UUID) (query.TaskLocationQuery, error) {
+	var location query.TaskLocationQuery
+	if err := exec.QueryRow(ctx, `
+		SELECT (workspace_id, project_id)
+		FROM tasks
+		WHERE id = $1
+	`, taskId).Scan(&location); err != nil {
+		return query.TaskLocationQuery{}, err
+	}
+	return location, nil
 }

@@ -30,6 +30,7 @@ func (h *TaskHandler) RegisterRoutes(router *gin.RouterGroup) {
 	protected.PATCH("/type", h.updateTaskType)
 	protected.PATCH("/column", h.updateTaskColumn)
 	protected.PATCH("/title/:taskId", h.updateTaskTitle)
+	protected.PATCH("/parent/:taskId", h.updateTaskParent)
 	protected.PATCH("/priority/:taskId", h.updateTaskPriority)
 	protected.PATCH("/assigned/:taskId", h.updateTaskAssigned)
 	protected.PATCH("/description/:taskId", h.updateTaskDescription)
@@ -38,7 +39,7 @@ func (h *TaskHandler) RegisterRoutes(router *gin.RouterGroup) {
 }
 
 func (h *TaskHandler) getAllTasks(c *gin.Context) {
-	var queryInput query.TaskLocationQuery
+	var queryInput query.TaskLocationWithSprintQuery
 	var err error
 
 	queryInput.WorkspaceId, err = mixins.QueryToUUID(c, "workspaceId")
@@ -202,4 +203,26 @@ func (h *TaskHandler) updateTaskType(c *gin.Context) {
 	}
 
 	c.Status(http.StatusOK)
+}
+
+func (h *TaskHandler) updateTaskParent(c *gin.Context) {
+	taskId, err := mixins.ParamToUUID(c, "taskId")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	parentId, err := mixins.QueryToUUIDCanBeNull(c, "parentId")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	newType, err := h.uc.UpdateTaskParent(c.Request.Context(), taskId, parentId)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"newType": newType})
 }
