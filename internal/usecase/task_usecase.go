@@ -155,15 +155,13 @@ func (uc *TaskUseCase) UpdateTaskParent(ctx context.Context, taskId uuid.UUID, p
 
 		if taskType != enums.TaskTypeEpic {
 			if parentId == nil {
-				if err = uc.taskRepo.UpdateTypeTx(ctx, exec, taskId, enums.TaskTypeTask); err != nil {
-					return "", err
-				}
 				taskType = enums.TaskTypeTask
 			} else {
-				if err = uc.taskRepo.UpdateTypeTx(ctx, exec, taskId, enums.TaskTypeSubtask); err != nil {
-					return "", err
-				}
 				taskType = enums.TaskTypeSubtask
+			}
+
+			if err = uc.taskRepo.UpdateTypeTx(ctx, exec, taskId, taskType); err != nil {
+				return "", err
 			}
 		}
 
