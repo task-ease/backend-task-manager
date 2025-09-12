@@ -23,11 +23,11 @@ func NewTaskRepository(conn *pgxpool.Pool) domain.TaskRepository {
 	return &taskRepository{conn: conn}
 }
 
-func (r *taskRepository) GetAll(ctx context.Context, data query.TaskLocationWithSprintQuery) ([]response.GetAllWorkspaceTasks, error) {
+func (r *taskRepository) GetAll(ctx context.Context, data query.TaskLocationWithSprint) ([]response.GetAllWorkspaceTasks, error) {
 	return r.GetAllTx(ctx, r.conn, data)
 }
 
-func (r *taskRepository) GetAllTx(ctx context.Context, exec entities.Execer, data query.TaskLocationWithSprintQuery) ([]response.GetAllWorkspaceTasks, error) {
+func (r *taskRepository) GetAllTx(ctx context.Context, exec entities.Execer, data query.TaskLocationWithSprint) ([]response.GetAllWorkspaceTasks, error) {
 	rows, err := exec.Query(ctx, `
 		SELECT 
 			t.id, 
@@ -115,8 +115,9 @@ func (r *taskRepository) CreateNew(ctx context.Context, task request.CreateTask,
 	return r.CreateNewTx(ctx, r.conn, task, id)
 }
 
-func (r *taskRepository) CreateNewTx(ctx context.Context, exec entities.Execer, task request.CreateTask, id uuid.UUID) (response.CreateTask, error) {
+func (r *taskRepository) CreateNewTx(ctx context.Context, exec entities.Execer, task request.CreateTask, workspaceId uuid.UUID) (response.CreateTask, error) {
 	now := time.Now()
+	id := uuid.New()
 
 	_, err := exec.Exec(ctx, `
 		INSERT INTO tasks (
@@ -156,7 +157,7 @@ func (r *taskRepository) CreateNewTx(ctx context.Context, exec entities.Execer, 
 		id,
 		task.Title,
 		task.ColumnId,
-		task.WorkspaceId,
+		workspaceId,
 		task.ProjectId,
 		task.SprintId,
 		task.AuthorId,
@@ -171,12 +172,12 @@ func (r *taskRepository) CreateNewTx(ctx context.Context, exec entities.Execer, 
 	)
 
 	var prefix string
-	if err = r.GetPrefixTx(ctx, exec, task.WorkspaceId, task.ProjectId, &prefix); err != nil {
+	if err = r.GetPrefixTx(ctx, exec, workspaceId, task.ProjectId, &prefix); err != nil {
 		return response.CreateTask{}, err
 	}
 
 	var prefixNumber int
-	if err = r.GetPrefixNumberTx(ctx, exec, task.WorkspaceId, &prefixNumber); err != nil {
+	if err = r.GetPrefixNumberTx(ctx, exec, workspaceId, &prefixNumber); err != nil {
 		return response.CreateTask{}, err
 	}
 
@@ -313,7 +314,12 @@ func (r *taskRepository) RemoveAssignedTx(ctx context.Context, exec entities.Exe
 	return err
 }
 
-func (r *taskRepository) ChangePositionAndColumnTx(ctx context.Context, exec entities.Execer, dto request.ChangeTaskPositionAndColumn) (float64, error) {
+func (r *taskRepository) ChangePositionAndColumnTx(
+	ctx context.Context,
+	exec entities.Execer,
+	dto request.ChangeTaskPositionAndColumn,
+	taskId uuid.UUID,
+) (float64, error) {
 	var prevPos float64
 	if dto.PrevTaskId != nil {
 		if err := exec.QueryRow(ctx, `
@@ -356,7 +362,7 @@ func (r *taskRepository) ChangePositionAndColumnTx(ctx context.Context, exec ent
 		UPDATE tasks
 		SET position = $1, column_id = $2
 		WHERE id = $3
-	`, newPos, dto.ToColumnId, dto.TaskId)
+	`, newPos, dto.ToColumnId, taskId)
 
 	if err != nil {
 		return 0, err
@@ -378,12 +384,10 @@ func (r *taskRepository) UpdateTypeTx(ctx context.Context, exec entities.Execer,
 	return err
 }
 
-// TODO
-
-func (r *taskRepository) Search(ctx context.Context, exec entities.Execer, data query.TaskLocationQuery, value string) ([]response.SearchTasks, error) {
+func (r *taskRepository) Search(ctx context.Context, data query.TaskLocationQuery, value string) ([]response.SearchTasks, error) {
 	pattern := "%" + value + "%"
 
-	rows, err := exec.Query(ctx, `
+	rows, err := r.conn.Query(ctx, `
     SELECT t.id, t.title
     FROM tasks t
     LEFT JOIN projects p ON t.project_id = p.id

@@ -7,7 +7,7 @@ type TaskLocationQuery struct {
 	ProjectId   *uuid.UUID `form:"projectId"`
 }
 
-type TaskLocationWithSprintQuery struct {
+type TaskLocationWithSprint struct {
 	TaskLocationQuery
 	SprintId *uuid.UUID `form:"sprintId"`
 }

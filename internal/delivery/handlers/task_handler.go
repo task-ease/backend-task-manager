@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"backend-task-manager/infrastructure/auth"
+	"backend-task-manager/internal/domain/rules"
 	"backend-task-manager/internal/dto/request"
 	"backend-task-manager/internal/dto/request/query"
 	"backend-task-manager/internal/enums"
@@ -14,35 +15,45 @@ import (
 )
 
 type TaskHandler struct {
-	uc *usecase.TaskUseCase
+	taskUC      *usecase.TaskUseCase
+	workspaceUC *usecase.WorkSpaceUsecase
 }
 
-func NewTaskHandler(uc *usecase.TaskUseCase) *TaskHandler { return &TaskHandler{uc: uc} }
+func NewTaskHandler(
+	taskUC *usecase.TaskUseCase,
+	workspaceUC *usecase.WorkSpaceUsecase,
+) *TaskHandler {
+	return &TaskHandler{
+		taskUC,
+		workspaceUC,
+	}
+}
+
+//TODO сделать отдельный endpoint на создание тасок для проекта
 
 func (h *TaskHandler) RegisterRoutes(router *gin.RouterGroup) {
-	authService := auth.NewJWTService()
+	protected := router.Group("/task", middleware.JWTMiddleware(auth.NewJWTService()))
 
-	protected := router.Group("/task", middleware.JWTMiddleware(authService))
+	protected.GET("/:"+string(enums.ParamWorkspace), middleware.AccessMiddleware(enums.ParamWorkspace, h.workspaceUC, rules.AllWorkspaceRoles), h.getAllTasks)
 
-	protected.GET("/", h.getAllTasks)
-	protected.POST("/", h.createTask)
+	protected.POST("/:"+string(enums.ParamWorkspace), middleware.AccessMiddleware(enums.ParamWorkspace, h.workspaceUC, rules.AllWorkspaceRoles), h.createTask)
 
-	protected.PATCH("/type", h.updateTaskType)
-	protected.PATCH("/column", h.updateTaskColumn)
-	protected.PATCH("/title/:taskId", h.updateTaskTitle)
-	protected.PATCH("/parent/:taskId", h.updateTaskParent)
-	protected.PATCH("/priority/:taskId", h.updateTaskPriority)
-	protected.PATCH("/assigned/:taskId", h.updateTaskAssigned)
-	protected.PATCH("/description/:taskId", h.updateTaskDescription)
+	protected.PATCH("/type/:"+string(enums.ParamTask), middleware.AccessMiddleware(enums.ParamTask, h.taskUC, rules.HasAccess), h.updateTaskType)
+	protected.PATCH("/title/:"+string(enums.ParamTask), middleware.AccessMiddleware(enums.ParamTask, h.taskUC, rules.HasAccess), h.updateTaskTitle)
+	protected.PATCH("/column/:"+string(enums.ParamTask), middleware.AccessMiddleware(enums.ParamTask, h.taskUC, rules.HasAccess), h.updateTaskColumn)
+	protected.PATCH("/priority/:"+string(enums.ParamTask), middleware.AccessMiddleware(enums.ParamTask, h.taskUC, rules.HasAccess), h.updateTaskPriority)
+	protected.PATCH("/assigned/:"+string(enums.ParamTask), middleware.AccessMiddleware(enums.ParamTask, h.taskUC, rules.HasAccess), h.updateTaskAssigned)
+	protected.PATCH("/relations/:"+string(enums.ParamTask), middleware.AccessMiddleware(enums.ParamTask, h.taskUC, rules.HasAccess), h.updateTaskRelations)
+	protected.PATCH("/description/:"+string(enums.ParamTask), middleware.AccessMiddleware(enums.ParamTask, h.taskUC, rules.HasAccess), h.updateTaskDescription)
 
-	protected.DELETE("/assigned/:taskId", h.removeTaskAssigned)
+	protected.DELETE("/assigned/:"+string(enums.ParamTask), middleware.AccessMiddleware(enums.ParamTask, h.taskUC, rules.HasAccess), h.removeTaskAssigned)
 }
 
 func (h *TaskHandler) getAllTasks(c *gin.Context) {
-	var queryInput query.TaskLocationWithSprintQuery
+	var queryInput query.TaskLocationWithSprint
 	var err error
 
-	queryInput.WorkspaceId, err = mixins.QueryToUUID(c, "workspaceId")
+	queryInput.WorkspaceId, err = mixins.ParamToUUID(c, "workspaceId")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -60,7 +71,7 @@ func (h *TaskHandler) getAllTasks(c *gin.Context) {
 		return
 	}
 
-	taskList, err := h.uc.GetAllTasks(c.Request.Context(), queryInput)
+	taskList, err := h.taskUC.GetAllTasks(c.Request.Context(), queryInput)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -70,13 +81,19 @@ func (h *TaskHandler) getAllTasks(c *gin.Context) {
 }
 
 func (h *TaskHandler) createTask(c *gin.Context) {
+	workspaceId, err := mixins.ParamToUUID(c, "workspaceId")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
 	var input request.CreateTask
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	task, err := h.uc.CreateTask(c.Request.Context(), input)
+	task, err := h.taskUC.CreateTask(c.Request.Context(), input, workspaceId)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -92,9 +109,7 @@ func (h *TaskHandler) updateTaskTitle(c *gin.Context) {
 		return
 	}
 
-	value := c.Query("value")
-
-	if err = h.uc.UpdateTaskTitle(c.Request.Context(), taskId, value); err != nil {
+	if err = h.taskUC.UpdateTaskTitle(c.Request.Context(), taskId, c.Query("value")); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -109,9 +124,7 @@ func (h *TaskHandler) updateTaskDescription(c *gin.Context) {
 		return
 	}
 
-	value := c.Query("value")
-
-	if err = h.uc.UpdateTaskDescription(c.Request.Context(), taskId, value); err != nil {
+	if err = h.taskUC.UpdateTaskDescription(c.Request.Context(), taskId, c.Query("value")); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -120,14 +133,19 @@ func (h *TaskHandler) updateTaskDescription(c *gin.Context) {
 }
 
 func (h *TaskHandler) updateTaskColumn(c *gin.Context) {
-	var input request.ChangeTaskPositionAndColumn
-	if err := c.ShouldBindJSON(&input); err != nil {
+	taskId, err := mixins.ParamToUUID(c, string(enums.ParamTask))
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	newPosition, err := h.uc.UpdateTaskColumn(c.Request.Context(), input)
+	var input request.ChangeTaskPositionAndColumn
+	if err = c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 
+	newPosition, err := h.taskUC.UpdateTaskColumn(c.Request.Context(), input, taskId)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -143,9 +161,7 @@ func (h *TaskHandler) updateTaskPriority(c *gin.Context) {
 		return
 	}
 
-	priority := enums.TaskPriorities(c.Query("value"))
-
-	if err = h.uc.UpdateTaskPriority(c.Request.Context(), taskId, priority); err != nil {
+	if err = h.taskUC.UpdateTaskPriority(c.Request.Context(), taskId, enums.TaskPriorities(c.Query("value"))); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -166,7 +182,7 @@ func (h *TaskHandler) updateTaskAssigned(c *gin.Context) {
 		return
 	}
 
-	if err = h.uc.UpdateTaskAssigned(c.Request.Context(), taskId, userId); err != nil {
+	if err = h.taskUC.UpdateTaskAssigned(c.Request.Context(), taskId, userId); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -181,8 +197,7 @@ func (h *TaskHandler) removeTaskAssigned(c *gin.Context) {
 		return
 	}
 
-	err = h.uc.RemoveTaskAssigned(c.Request.Context(), taskId)
-	if err != nil {
+	if err = h.taskUC.RemoveTaskAssigned(c.Request.Context(), taskId); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -191,13 +206,13 @@ func (h *TaskHandler) removeTaskAssigned(c *gin.Context) {
 }
 
 func (h *TaskHandler) updateTaskType(c *gin.Context) {
-	var input request.UpdateTaskType
-	if err := c.ShouldBindJSON(&input); err != nil {
+	taskId, err := mixins.ParamToUUID(c, string(enums.ParamTask))
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	if err := h.uc.UpdateTaskType(c.Request.Context(), input.TaskId, input.Value); err != nil {
+	if err = h.taskUC.UpdateTaskType(c.Request.Context(), taskId, enums.TaskTypes(c.Query("value"))); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -205,24 +220,63 @@ func (h *TaskHandler) updateTaskType(c *gin.Context) {
 	c.Status(http.StatusOK)
 }
 
-func (h *TaskHandler) updateTaskParent(c *gin.Context) {
+func (h *TaskHandler) updateTaskRelations(c *gin.Context) {
 	taskId, err := mixins.ParamToUUID(c, "taskId")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	parentId, err := mixins.QueryToUUIDCanBeNull(c, "parentId")
+	relationId, err := mixins.QueryToUUIDCanBeNull(c, "relationId")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	newType, err := h.uc.UpdateTaskParent(c.Request.Context(), taskId, parentId)
+	var newType enums.TaskTypes
+	switch enums.UpdateTaskRelations(c.Query("method")) {
+	case enums.UpdateTaskParent:
+		{
+			newType, err = h.taskUC.UpdateTaskParent(c.Request.Context(), taskId, relationId)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+		}
+	case enums.UpdateTaskChildren:
+		{
+			newType, err = h.taskUC.UpdateTaskChildren(c.Request.Context(), taskId, relationId)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"newType": newType})
+}
+
+func (h *TaskHandler) search(c *gin.Context) {
+	var input query.TaskLocationQuery
+	var err error
+
+	input.WorkspaceId, err = mixins.ParamToUUID(c, string(enums.ParamWorkspace))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	input.ProjectId, err = mixins.QueryToUUIDCanBeNull(c, string(enums.ParamProject))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	taskList, err := h.taskUC.Search(c.Request.Context(), input, c.Query("value"))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"newType": newType})
+	c.JSON(http.StatusOK, gin.H{"taskList": taskList})
 }

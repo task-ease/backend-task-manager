@@ -21,3 +21,10 @@ const (
 	TaskPrioritiesHigh     TaskPriorities = "HIGH"
 	TaskPrioritiesVeryHigh TaskPriorities = "VERY_HIGH"
 )
+
+type UpdateTaskRelations string
+
+const (
+	UpdateTaskChildren UpdateTaskRelations = "children"
+	UpdateTaskParent   UpdateTaskRelations = "parent"
+)

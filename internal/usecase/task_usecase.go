@@ -60,15 +60,15 @@ func (uc *TaskUseCase) CheckUserAccess(ctx context.Context, userId, resourceId u
 	})
 }
 
-func (uc *TaskUseCase) GetAllTasks(ctx context.Context, data query.TaskLocationWithSprintQuery) ([]response.GetAllWorkspaceTasks, error) {
+func (uc *TaskUseCase) GetAllTasks(ctx context.Context, data query.TaskLocationWithSprint) ([]response.GetAllWorkspaceTasks, error) {
 	return helper.WithTx(ctx, uc.baseRepo, func(ctx context.Context, exec pgx.Tx) ([]response.GetAllWorkspaceTasks, error) {
 		return uc.taskRepo.GetAllTx(ctx, exec, data)
 	})
 }
 
-func (uc *TaskUseCase) CreateTask(ctx context.Context, task request.CreateTask) (response.CreateTask, error) {
+func (uc *TaskUseCase) CreateTask(ctx context.Context, task request.CreateTask, workspaceId uuid.UUID) (response.CreateTask, error) {
 	return helper.WithTx(ctx, uc.baseRepo, func(ctx context.Context, exec pgx.Tx) (response.CreateTask, error) {
-		return uc.taskRepo.CreateNewTx(ctx, exec, task, uuid.New())
+		return uc.taskRepo.CreateNewTx(ctx, exec, task, workspaceId)
 	})
 }
 
@@ -80,9 +80,9 @@ func (uc *TaskUseCase) UpdateTaskDescription(ctx context.Context, taskId uuid.UU
 	return uc.taskRepo.UpdateDescription(ctx, taskId, value)
 }
 
-func (uc *TaskUseCase) UpdateTaskColumn(ctx context.Context, dto request.ChangeTaskPositionAndColumn) (float64, error) {
+func (uc *TaskUseCase) UpdateTaskColumn(ctx context.Context, dto request.ChangeTaskPositionAndColumn, taskId uuid.UUID) (float64, error) {
 	return helper.WithTx(ctx, uc.baseRepo, func(ctx context.Context, exec pgx.Tx) (float64, error) {
-		if err := uc.taskRepo.UpdateColumnIdTx(ctx, exec, dto.TaskId, dto.ToColumnId); err != nil {
+		if err := uc.taskRepo.UpdateColumnIdTx(ctx, exec, taskId, dto.ToColumnId); err != nil {
 			return 0, err
 		}
 
@@ -92,23 +92,23 @@ func (uc *TaskUseCase) UpdateTaskColumn(ctx context.Context, dto request.ChangeT
 		}
 
 		if isColumnDone {
-			if err := uc.taskRepo.UpdateDoneStatusTx(ctx, exec, dto.TaskId, true); err != nil {
+			if err := uc.taskRepo.UpdateDoneStatusTx(ctx, exec, taskId, true); err != nil {
 				return 0, err
 			}
 		} else {
 			var isTaskDone bool
-			if err := uc.taskRepo.IsDoneTx(ctx, exec, dto.TaskId, &isTaskDone); err != nil {
+			if err := uc.taskRepo.IsDoneTx(ctx, exec, taskId, &isTaskDone); err != nil {
 				return 0, err
 			}
 
 			if isTaskDone {
-				if err := uc.taskRepo.UpdateDoneStatusTx(ctx, exec, dto.TaskId, false); err != nil {
+				if err := uc.taskRepo.UpdateDoneStatusTx(ctx, exec, taskId, false); err != nil {
 					return 0, err
 				}
 			}
 		}
 
-		return uc.taskRepo.ChangePositionAndColumnTx(ctx, exec, dto)
+		return uc.taskRepo.ChangePositionAndColumnTx(ctx, exec, dto, taskId)
 	})
 }
 
@@ -191,10 +191,14 @@ func (uc *TaskUseCase) UpdateTaskChildren(ctx context.Context, taskId uuid.UUID,
 			newType = enums.TaskTypeSubtask
 		}
 
-		if err := uc.taskRepo.UpdateTypeTx(ctx, exec, taskId, newType); err != nil {
+		if err = uc.taskRepo.UpdateTypeTx(ctx, exec, taskId, newType); err != nil {
 			return "", err
 		}
 
 		return newType, nil
 	})
+}
+
+func (uc *TaskUseCase) Search(ctx context.Context, data query.TaskLocationQuery, value string) ([]response.SearchTasks, error) {
+	return uc.taskRepo.Search(ctx, data, value)
 }

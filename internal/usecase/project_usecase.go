@@ -19,8 +19,16 @@ type ProjectUseCase struct {
 	userRepo    domain.UserRepository
 }
 
-func NewProjectUseCase(projectRepo domain.ProjectRepository, baseRepo *repository.BaseRepo, userRepo domain.UserRepository) *ProjectUseCase {
-	return &ProjectUseCase{projectRepo, baseRepo, userRepo}
+func NewProjectUseCase(
+	projectRepo domain.ProjectRepository,
+	baseRepo *repository.BaseRepo,
+	userRepo domain.UserRepository,
+) *ProjectUseCase {
+	return &ProjectUseCase{
+		projectRepo,
+		baseRepo,
+		userRepo,
+	}
 }
 
 func (uc *ProjectUseCase) CheckUserAccess(ctx context.Context, userId, projectId uuid.UUID) (dto.RolesMiddlewareDto, error) {

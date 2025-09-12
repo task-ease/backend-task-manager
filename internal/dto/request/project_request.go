@@ -7,18 +7,15 @@ import (
 )
 
 type CreateProject struct {
-	WorkspaceId uuid.UUID `json:"workspaceId"`
-	Name        string    `json:"name"`
-	Prefix      string    `json:"prefix"`
+	Name   string `json:"name"`
+	Prefix string `json:"prefix"`
 }
 
-type UserProjectManipulation struct {
-	ProjectId uuid.UUID `json:"projectId"`
-	UserId    uuid.UUID `json:"userId"`
+type UserId struct {
+	UserId uuid.UUID `json:"userId"`
 }
 
 type ChangeUserUserRoles struct {
-	ProjectId uuid.UUID       `json:"projectId"`
-	UserId    uuid.UUID       `json:"userId"`
-	Role      enums.UserRoles `json:"role"`
+	UserId uuid.UUID       `json:"userId"`
+	Role   enums.UserRoles `json:"role"`
 }

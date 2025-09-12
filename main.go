@@ -45,11 +45,11 @@ func main() {
 	taskUC := usecase.NewTaskUseCase(baseRepo, taskRepo, projectUC, workSpaceUC)
 
 	userHandler := handlers.NewUserHandler(userUC)
-	taskHandler := handlers.NewTaskHandler(taskUC)
+	taskHandler := handlers.NewTaskHandler(taskUC, workSpaceUC)
 	chatHandler := handlers.NewChatHandler(chatUC)
 	columnHandler := handlers.NewColumnHandler(columnUC)
 	messageHandler := handlers.NewMessageHandler(messageUC)
-	projectHandler := handlers.NewProjectHandler(projectUC, workSpaceUC)
+	projectHandler := handlers.NewProjectHandler(projectUC, workSpaceUC, taskUC)
 	documentHandler := handlers.NewDocumentHandler(documentUC, workSpaceUC, projectUC)
 	workSpaceHandler := handlers.NewWorkSpaceHandler(workSpaceUC)
 

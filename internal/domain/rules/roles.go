@@ -35,8 +35,13 @@ var AllDocumentRoles = []enums.UserRoles{
 	enums.CanEdit,
 }
 
-var CanEditDocument = []enums.UserRoles{
+var CanEdit = []enums.UserRoles{
 	enums.CanEdit,
+}
+
+var HasAccess = []enums.UserRoles{
+	enums.CanEdit,
+	enums.Access,
 }
 
 var SettingsNoAccess = dto.RolesMiddlewareDto{

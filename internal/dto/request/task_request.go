@@ -9,7 +9,6 @@ import (
 
 type CreateTask struct {
 	ColumnId    uuid.UUID            `json:"columnId"`
-	WorkspaceId uuid.UUID            `json:"workspaceId"`
 	ProjectId   *uuid.UUID           `json:"projectId"`
 	SprintId    *uuid.UUID           `json:"sprintId"`
 	AuthorId    uuid.UUID            `json:"authorId"`
@@ -24,7 +23,6 @@ type CreateTask struct {
 }
 
 type ChangeTaskPositionAndColumn struct {
-	TaskId     uuid.UUID  `json:"taskId"`
 	ToColumnId uuid.UUID  `json:"toColumnId"`
 	PrevTaskId *uuid.UUID `json:"prevTaskId"`
 }

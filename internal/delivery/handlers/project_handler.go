@@ -16,32 +16,48 @@ import (
 type ProjectHandler struct {
 	projectUC   *usecase.ProjectUseCase
 	workspaceUC *usecase.WorkSpaceUsecase
+	taskUC      *usecase.TaskUseCase
 }
 
-func NewProjectHandler(projectUC *usecase.ProjectUseCase, workspaceUC *usecase.WorkSpaceUsecase) *ProjectHandler {
-	return &ProjectHandler{projectUC, workspaceUC}
+func NewProjectHandler(
+	projectUC *usecase.ProjectUseCase,
+	workspaceUC *usecase.WorkSpaceUsecase,
+	taskUC *usecase.TaskUseCase,
+) *ProjectHandler {
+	return &ProjectHandler{
+		projectUC,
+		workspaceUC,
+		taskUC,
+	}
 }
 
 func (h *ProjectHandler) RegisterRoutes(router *gin.RouterGroup) {
 	authService := auth.NewJWTService()
 	protected := router.Group("/project", middleware.JWTMiddleware(authService))
 
-	protected.GET("/:workspaceId", h.getAllUserProjects)
-	protected.GET("/role/:projectId", h.getUserRole)
-	protected.GET("/id/:workspaceId", middleware.AccessMiddleware(enums.ParamWorkspace, h.workspaceUC, rules.CanEditWorkspace), h.getProjectIdByPrefix)
-	protected.GET("/members/:projectId", h.getAllProjectMembers)
+	protected.GET("/:"+string(enums.ParamWorkspace), middleware.AccessMiddleware(enums.ParamWorkspace, h.workspaceUC, rules.AllWorkspaceRoles), h.getAllUserProjects)
+	protected.GET("/role/:"+string(enums.ParamProject), middleware.AccessMiddleware(enums.ParamProject, h.projectUC, rules.AllProjectRoles), h.getUserRole)
+	protected.GET("/id/:"+string(enums.ParamWorkspace), middleware.AccessMiddleware(enums.ParamWorkspace, h.workspaceUC, rules.AllWorkspaceRoles), h.getProjectIdByPrefix)
+	protected.GET("/members/:"+string(enums.ParamProject), middleware.AccessMiddleware(enums.ParamProject, h.projectUC, rules.AllProjectRoles), h.getAllProjectMembers)
 
-	protected.PATCH("/role", h.changeUserRole)
+	protected.PATCH("/role/:"+string(enums.ParamProject), middleware.AccessMiddleware(enums.ParamProject, h.projectUC, rules.AllProjectRoles), h.changeUserRole)
 
-	protected.POST("/", h.createProject)
-	protected.POST("/user", h.addUserToProject)
+	protected.PUT("/user/:"+string(enums.ParamProject), middleware.AccessMiddleware(enums.ParamProject, h.projectUC, rules.CanEditProject), h.addUserToProject)
 
-	protected.DELETE("/user", h.removeUserFromProject)
+	protected.POST("/:"+string(enums.ParamWorkspace), middleware.AccessMiddleware(enums.ParamWorkspace, h.workspaceUC, rules.CanEditWorkspace), h.createProject)
+
+	protected.DELETE("/user/:"+string(enums.ParamProject), middleware.AccessMiddleware(enums.ParamProject, h.projectUC, rules.CanEditProject), h.removeUserFromProject)
 }
 
 func (h *ProjectHandler) createProject(c *gin.Context) {
+	workspaceId, err := mixins.ParamToUUID(c, string(enums.ParamWorkspace))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
 	var input request.CreateProject
-	if err := c.ShouldBindJSON(&input); err != nil {
+	if err = c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -52,7 +68,7 @@ func (h *ProjectHandler) createProject(c *gin.Context) {
 		return
 	}
 
-	if err = h.projectUC.CreateProject(c.Request.Context(), userId, input.WorkspaceId, input.Name, input.Prefix); err != nil {
+	if err = h.projectUC.CreateProject(c.Request.Context(), userId, workspaceId, input.Name, input.Prefix); err != nil {
 		if err.Error() == "409" {
 			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 		}
@@ -64,13 +80,19 @@ func (h *ProjectHandler) createProject(c *gin.Context) {
 }
 
 func (h *ProjectHandler) addUserToProject(c *gin.Context) {
-	var input request.UserProjectManipulation
+	projectId, err := mixins.ParamToUUID(c, string(enums.ParamProject))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var input request.UserId
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	email, err := h.projectUC.AddUserToProject(c.Request.Context(), input.ProjectId, input.UserId, enums.ProjectEditor)
+	email, err := h.projectUC.AddUserToProject(c.Request.Context(), projectId, input.UserId, enums.ProjectEditor)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -146,13 +168,19 @@ func (h *ProjectHandler) getAllProjectMembers(c *gin.Context) {
 }
 
 func (h *ProjectHandler) changeUserRole(c *gin.Context) {
+	projectId, err := mixins.ParamToUUID(c, string(enums.ParamProject))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
 	var input request.ChangeUserUserRoles
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	if err := h.projectUC.ChangeUserRole(c.Request.Context(), input.UserId, input.ProjectId, input.Role); err != nil {
+	if err := h.projectUC.ChangeUserRole(c.Request.Context(), input.UserId, projectId, input.Role); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -161,14 +189,19 @@ func (h *ProjectHandler) changeUserRole(c *gin.Context) {
 }
 
 func (h *ProjectHandler) removeUserFromProject(c *gin.Context) {
-	var input request.UserProjectManipulation
-
-	if err := c.ShouldBindJSON(&input); err != nil {
+	projectId, err := mixins.ParamToUUID(c, string(enums.ParamProject))
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	if err := h.projectUC.RemoveUserFromProject(c.Request.Context(), input.ProjectId, input.UserId); err != nil {
+	var input request.UserId
+	if err = c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err = h.projectUC.RemoveUserFromProject(c.Request.Context(), projectId, input.UserId); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
