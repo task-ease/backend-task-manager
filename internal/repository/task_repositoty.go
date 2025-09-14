@@ -10,6 +10,7 @@ import (
 	"context"
 	"errors"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -342,7 +343,7 @@ func (r *taskRepository) ChangePositionAndColumnTx(
 	`, prevPos, dto.ToColumnId).Scan(&nextPos); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			var columnLength int
-			if err := exec.QueryRow(ctx, `
+			if err = exec.QueryRow(ctx, `
 				SELECT COUNT(*)
 				FROM tasks 
 				WHERE column_id = $1
@@ -368,7 +369,7 @@ func (r *taskRepository) ChangePositionAndColumnTx(
 		return 0, err
 	}
 
-	return newPos, err
+	return newPos, nil
 }
 
 func (r *taskRepository) UpdateType(ctx context.Context, taskId uuid.UUID, value enums.TaskTypes) error {
@@ -472,4 +473,21 @@ func (r *taskRepository) GetLocationTx(ctx context.Context, exec entities.Execer
 		return query.TaskLocationQuery{}, err
 	}
 	return location, nil
+}
+
+func (r *taskRepository) GetIdByPrefix(ctx context.Context, prefix string, workspaceId uuid.UUID) (uuid.UUID, error) {
+	var id uuid.UUID
+
+	prefixParts := strings.Split(prefix, "-")
+
+	if err := r.conn.QueryRow(ctx, `
+		SELECT t.id
+		FROM tasks t
+		LEFT JOIN projects p ON p.prefix = $1 AND p.workspace_id = $2
+		WHERE t.workspace_id = $2 AND t.prefix_number = $3
+	`, prefixParts[0], workspaceId, prefixParts[1]).Scan(&id); err != nil {
+		return uuid.Nil, err
+	}
+
+	return id, nil
 }

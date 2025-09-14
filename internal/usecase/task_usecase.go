@@ -44,19 +44,23 @@ func (uc *TaskUseCase) CheckUserAccess(ctx context.Context, userId, resourceId u
 			return rules.SettingsNoAccess, err
 		}
 
+		var data dto.RolesMiddlewareDto
+
 		if location.ProjectId != nil {
-			data, err := uc.projectUC.CheckUserAccess(ctx, userId, *location.ProjectId)
-			if err != nil {
-				return rules.SettingsNoAccess, err
-			}
-			return data, nil
+			data, err = uc.projectUC.CheckUserAccess(ctx, userId, *location.ProjectId)
+		} else {
+			data, err = uc.workspaceUC.CheckUserAccess(ctx, userId, location.WorkspaceId)
 		}
 
-		data, err := uc.workspaceUC.CheckUserAccess(ctx, userId, *location.ProjectId)
 		if err != nil {
 			return rules.SettingsNoAccess, err
 		}
-		return data, nil
+
+		if data.Role != enums.NoAccess {
+			return dto.RolesMiddlewareDto{Role: enums.Access, CanEdit: true}, nil
+		}
+
+		return rules.SettingsNoAccess, nil
 	})
 }
 
@@ -201,4 +205,8 @@ func (uc *TaskUseCase) UpdateTaskChildren(ctx context.Context, taskId uuid.UUID,
 
 func (uc *TaskUseCase) Search(ctx context.Context, data query.TaskLocationQuery, value string) ([]response.SearchTasks, error) {
 	return uc.taskRepo.Search(ctx, data, value)
+}
+
+func (uc *TaskUseCase) GetIdByPrefix(ctx context.Context, prefix string, workspaceId uuid.UUID) (uuid.UUID, error) {
+	return uc.taskRepo.GetIdByPrefix(ctx, prefix, workspaceId)
 }

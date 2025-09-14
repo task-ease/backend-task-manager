@@ -16,6 +16,7 @@ type TaskRepository interface {
 	Search(ctx context.Context, data query.TaskLocationQuery, value string) ([]response.SearchTasks, error)
 	CreateNew(ctx context.Context, task request.CreateTask, id uuid.UUID) (response.CreateTask, error)
 
+	GetIdByPrefix(ctx context.Context, prefix string, workspaceId uuid.UUID) (uuid.UUID, error)
 	UpdateType(ctx context.Context, taskId uuid.UUID, value enums.TaskTypes) error
 	UpdateTitle(ctx context.Context, taskId uuid.UUID, value string) error
 	UpdatePriority(ctx context.Context, taskId uuid.UUID, priority enums.TaskPriorities) error

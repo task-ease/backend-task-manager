@@ -35,6 +35,7 @@ func (h *TaskHandler) RegisterRoutes(router *gin.RouterGroup) {
 	protected := router.Group("/task", middleware.JWTMiddleware(auth.NewJWTService()))
 
 	protected.GET("/:"+string(enums.ParamWorkspace), middleware.AccessMiddleware(enums.ParamWorkspace, h.workspaceUC, rules.AllWorkspaceRoles), h.getAllTasks)
+	protected.GET("/id/:prefix/:"+string(enums.ParamWorkspace), middleware.AccessMiddleware(enums.ParamWorkspace, h.workspaceUC, rules.AllWorkspaceRoles), h.getIdByPrefix)
 
 	protected.POST("/:"+string(enums.ParamWorkspace), middleware.AccessMiddleware(enums.ParamWorkspace, h.workspaceUC, rules.AllWorkspaceRoles), h.createTask)
 
@@ -279,4 +280,24 @@ func (h *TaskHandler) search(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"taskList": taskList})
+}
+
+//TODO позже разделить на два endpoint`а (project\workspace) для улучшения безопасности и скорости
+
+func (h *TaskHandler) getIdByPrefix(c *gin.Context) {
+	workspaceId, err := mixins.ParamToUUID(c, string(enums.ParamWorkspace))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	prefix := c.Param("prefix")
+
+	id, err := h.taskUC.GetIdByPrefix(c.Request.Context(), prefix, workspaceId)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"id": id})
 }
