@@ -176,6 +176,7 @@ func (h *WebSocketHandler) HandleWS(c *gin.Context) {
 			break
 		}
 	}
+
 	roomsMu.Unlock()
 }
 
