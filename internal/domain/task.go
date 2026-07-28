@@ -1,43 +1,45 @@
 package domain
 
 import (
+	"backend-task-manager/internal/dto/request"
+	"backend-task-manager/internal/dto/request/query"
+	"backend-task-manager/internal/dto/response"
+	"backend-task-manager/internal/entities"
+	"backend-task-manager/internal/enums"
+	"context"
+
 	"github.com/google/uuid"
-	"time"
 )
 
-type Task struct {
-	ID          uuid.UUID  `json:"id"`
-	AuthorID    uuid.UUID  `json:"authorId"`
-	ColumnID    uuid.UUID  `json:"columnId"`
-	WorkspaceID uuid.UUID  `json:"workspaceId"`
-	CreatedAt   time.Time  `json:"createdAt"`
-	Title       string     `json:"title"`
-	IsFinished  bool       `json:"isFinished"`
-	Description *string    `json:"description"`
-	DueDate     *time.Time `json:"dueDate"`
-	Status      *int       `json:"status"`
-	Priority    *int       `json:"priority"`
-	UpdatedAt   time.Time  `json:"updatedAt"`
-	Position    int        `json:"position"`
-}
-
-type TaskColumn struct {
-	ID          uuid.UUID `json:"id"`
-	WorkspaceId uuid.UUID `json:"workspaceId"`
-	Name        string    `json:"name"`
-	Position    int       `json:"position"`
-	Color       string    `json:"color"`
-	IsDone      bool      `json:"isDone"`
-}
-
 type TaskRepository interface {
-	CreateTask(task *Task) (bool, error)
-	CreateColumn(name string, workspaceId uuid.UUID, position int, color string) (bool, error)
-	GetAllColumns(workspaceId uuid.UUID) ([]*TaskColumn, error)
-	GetAllTasks(workspaceId uuid.UUID) ([]*Task, error)
+	GetAll(ctx context.Context, data query.TaskLocationWithSprint) ([]response.GetAllWorkspaceTasks, error)
+	Search(ctx context.Context, data query.TaskLocationQuery, value string) ([]response.SearchTasks, error)
+	CreateNew(ctx context.Context, task request.CreateTask, id uuid.UUID) (response.CreateTask, error)
 
-	ReorderTasks(columnId uuid.UUID, orderedTaskIDs []uuid.UUID) error
-	UpdateTask(task *Task) error
-	MarkColumnAsDone(columnID uuid.UUID, isDone bool) error
-	UpdateColumn(id, name, color string) error
+	GetIdByPrefix(ctx context.Context, prefix string, workspaceId uuid.UUID) (uuid.UUID, error)
+	UpdateType(ctx context.Context, taskId uuid.UUID, value enums.TaskTypes) error
+	UpdateTitle(ctx context.Context, taskId uuid.UUID, value string) error
+	UpdatePriority(ctx context.Context, taskId uuid.UUID, priority enums.TaskPriorities) error
+	RemoveAssigned(ctx context.Context, taskId uuid.UUID) error
+	UpdateDescription(ctx context.Context, taskId uuid.UUID, value string) error
+
+	IsDoneTx(ctx context.Context, exec entities.Execer, taskId uuid.UUID, done *bool) error
+	GetAllTx(ctx context.Context, exec entities.Execer, data query.TaskLocationWithSprint) ([]response.GetAllWorkspaceTasks, error)
+	GetTypeTx(ctx context.Context, exec entities.Execer, taskId uuid.UUID) (enums.TaskTypes, error)
+	GetPrefixTx(ctx context.Context, exec entities.Execer, workspaceId uuid.UUID, projectId *uuid.UUID, prefix *string) (err error)
+	CreateNewTx(ctx context.Context, exec entities.Execer, task request.CreateTask, workspaceId uuid.UUID) (response.CreateTask, error)
+	UpdateTypeTx(ctx context.Context, exec entities.Execer, taskId uuid.UUID, value enums.TaskTypes) error
+	HasAssignedTx(ctx context.Context, exec entities.Execer, taskId uuid.UUID, has *bool) error
+	GetLocationTx(ctx context.Context, exec entities.Execer, taskId uuid.UUID) (query.TaskLocationQuery, error)
+	IsColumnDoneTx(ctx context.Context, exec entities.Execer, taskId uuid.UUID, done *bool) error
+	UpdateParentIdTx(ctx context.Context, exec entities.Execer, taskId uuid.UUID, parentId *uuid.UUID) error
+	IfExistsParentTx(ctx context.Context, exec entities.Execer, taskId uuid.UUID) (bool, error)
+	RemoveAssignedTx(ctx context.Context, exec entities.Execer, taskId uuid.UUID) error
+	GetPrefixNumberTx(ctx context.Context, exec entities.Execer, taskId uuid.UUID, prefixNumber *int) error
+	UpdateChildrenIdTx(ctx context.Context, exec entities.Execer, taskId uuid.UUID, parentId *uuid.UUID) error
+	ChangePositionAndColumnTx(ctx context.Context, exec entities.Execer, dto request.ChangeTaskPositionAndColumn, taskId uuid.UUID) (float64, error)
+
+	UpdateColumnIdTx(ctx context.Context, exec entities.Execer, taskId uuid.UUID, columnId uuid.UUID) error
+	UpdateAssignedTx(ctx context.Context, exec entities.Execer, taskId uuid.UUID, userId uuid.UUID) error
+	UpdateDoneStatusTx(ctx context.Context, exec entities.Execer, taskId uuid.UUID, to bool) error
 }

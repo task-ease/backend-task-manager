@@ -1,33 +1,22 @@
 package domain
 
 import (
+	"backend-task-manager/internal/dto"
+	"backend-task-manager/internal/entities"
+	"context"
+
 	"github.com/google/uuid"
-	"go-postgres-test/internal/types/user"
-	"time"
 )
 
-type User struct {
-	ID           uuid.UUID `json:"id"`
-	Username     string    `json:"username"`
-	Email        string    `json:"email"`
-	UserIconUrl  *string   `json:"userIconUrl"`
-	IsOnline     bool      `json:"isOnline"`
-	LastOnlineAt time.Time `json:"lastOnlineAt"`
-}
-type AuthUser struct {
-	User
-	Password string `json:"password"`
-}
-type MemberUser struct {
-	User
-	JoinedAt time.Time      `json:"joined_at"`
-	Role     user.UserRoles `json:"role"`
-	Position *string        `json:"position"`
-}
-
 type UserRepository interface {
-	CreateUser(user AuthUser) (string, error)
-	LogIn(user AuthUser) (uuid.UUID, error)
-	SearchUserByEmail(value string) ([]User, error)
-	ChangeOnlineStatus(userId uuid.UUID, status bool) error
+	CreateUser(ctx context.Context, user entities.AuthUser, id uuid.UUID, passwordHash []byte) error
+	SearchUserByEmail(ctx context.Context, value string) ([]entities.User, error)
+	ChangeOnlineStatus(ctx context.Context, userId uuid.UUID, status bool) error
+	CheckIfExistsByEmail(ctx context.Context, email string, exists *bool) error
+	GetIdAndPasswordHash(ctx context.Context, email string) (dto.UserIdAndPasswordHash, error)
+
+	GetEmailByUserId(ctx context.Context, userId uuid.UUID) (string, error)
+	GetIdAndPasswordHashTx(ctx context.Context, exec entities.Execer, email string) (dto.UserIdAndPasswordHash, error)
+	CheckIfExistsByEmailTx(ctx context.Context, exec entities.Execer, email string, exists *bool) error
+	CreateUserTx(ctx context.Context, exec entities.Execer, user entities.AuthUser, id uuid.UUID, passwordHash []byte) error
 }

@@ -1,42 +1,132 @@
 package usecase
 
 import (
+	"backend-task-manager/internal/domain"
+	"backend-task-manager/internal/dto"
+	"backend-task-manager/internal/dto/request"
+	"backend-task-manager/internal/dto/response"
+	"backend-task-manager/internal/entities"
+	"backend-task-manager/internal/enums"
+	"backend-task-manager/internal/helper"
+	"backend-task-manager/internal/repository"
+	"context"
+
 	"github.com/google/uuid"
-	"go-postgres-test/internal/domain"
+	"github.com/jackc/pgx/v5"
 )
 
 type WorkSpaceUsecase struct {
-	repo domain.WorkSpaceRepository
+	workspaceRepo domain.WorkSpaceRepository
+	columnUsecase *ColumnUsecase
+	baseRepo      *repository.BaseRepo
 }
 
-func NewWorkSpaceUsecase(repo domain.WorkSpaceRepository) *WorkSpaceUsecase {
-	return &WorkSpaceUsecase{repo: repo}
+func NewWorkSpaceUsecase(workspaceRepo domain.WorkSpaceRepository, columnUsecase *ColumnUsecase, baseRepo *repository.BaseRepo) *WorkSpaceUsecase {
+	return &WorkSpaceUsecase{workspaceRepo, columnUsecase, baseRepo}
 }
 
-func (uc *WorkSpaceUsecase) CreateWorkSpace(workspace domain.WorkSpace) (uuid.UUID, error) {
-	return uc.repo.CreateWorkSpace(workspace)
+func (uc *WorkSpaceUsecase) CheckUserAccess(ctx context.Context, userId, resourceId uuid.UUID) (dto.RolesMiddlewareDto, error) {
+	role, err := uc.workspaceRepo.GetUserRole(ctx, userId, resourceId)
+
+	if err != nil {
+		return dto.RolesMiddlewareDto{Role: enums.NoAccess, CanEdit: false}, err
+	}
+
+	return dto.RolesMiddlewareDto{Role: role, CanEdit: true}, nil
 }
 
-func (uc *WorkSpaceUsecase) GetAllUserSpaces(userId uuid.UUID) ([]domain.WorkSpace, error) {
-	return uc.repo.GetAllUserSpaces(userId)
+func (uc *WorkSpaceUsecase) CreateWorkSpace(ctx context.Context, workspace domain.WorkSpace) (uuid.UUID, error) {
+	return helper.WithTx(ctx, uc.baseRepo, func(ctx context.Context, exec pgx.Tx) (uuid.UUID, error) {
+		workspace.ID = uuid.New()
+
+		if err := uc.workspaceRepo.CreateWorkSpaceTx(ctx, exec, workspace); err != nil {
+			return uuid.Nil, err
+		}
+
+		if err := uc.workspaceRepo.AddUserTx(ctx, exec, workspace.ID, workspace.CreatorId, enums.WorkspaceCreator); err != nil {
+			return uuid.Nil, err
+		}
+
+		columnList := []request.CreateNewColumnTemplate{
+			{
+				WorkspaceId: workspace.ID,
+				Name:        "To Do",
+				Color:       "#787878",
+				Position:    0,
+				IsRequired:  true,
+				IsDone:      false,
+				GlobalTasks: true,
+			},
+			{
+				WorkspaceId: workspace.ID,
+				Name:        "In Progress",
+				Color:       "#3d66b8",
+				Position:    10,
+				IsRequired:  true,
+				IsDone:      false,
+				GlobalTasks: true,
+			},
+			{
+				WorkspaceId: workspace.ID,
+				Name:        "Done",
+				Color:       "#00BFA6",
+				Position:    20,
+				IsRequired:  true,
+				IsDone:      true,
+				GlobalTasks: true,
+			},
+		}
+
+		for _, column := range columnList {
+			_, err := uc.columnUsecase.CreateColumnTemplateTx(ctx, exec, column)
+			if err != nil {
+				return uuid.Nil, err
+			}
+		}
+
+		return workspace.ID, nil
+	})
 }
 
-func (uc *WorkSpaceUsecase) AddUserToWorkSpace(workSpaceId string, userId string, role string) (bool, error) {
-	return uc.repo.AddUserToWorkSpace(workSpaceId, userId, role)
+func (uc *WorkSpaceUsecase) GetAllByUserId(ctx context.Context, userId uuid.UUID) ([]domain.WorkSpace, error) {
+	return uc.workspaceRepo.GetAllByUserId(ctx, userId)
 }
 
-func (uc *WorkSpaceUsecase) GetAllSpaceMembers(workSpaceId uuid.UUID) ([]domain.MemberUser, error) {
-	return uc.repo.GetAllSpaceMembers(workSpaceId)
+func (uc *WorkSpaceUsecase) AddUser(ctx context.Context, workSpaceId, userId uuid.UUID, role enums.UserRoles) error {
+	return uc.workspaceRepo.AddUser(ctx, workSpaceId, userId, role)
 }
 
-func (uc *WorkSpaceUsecase) RemoveUser(workSpaceId string, userId string) (bool, error) {
-	return uc.repo.RemoveUser(workSpaceId, userId)
+func (uc *WorkSpaceUsecase) GetAllMembers(ctx context.Context, workSpaceId uuid.UUID) ([]entities.MemberUser, error) {
+	return uc.workspaceRepo.GetAllMembers(ctx, workSpaceId)
 }
 
-func (uc *WorkSpaceUsecase) HasUserWorkspace(userId string, workspaceId string) (bool, error) {
-	return uc.repo.HasUserWorkspace(userId, workspaceId)
+func (uc *WorkSpaceUsecase) RemoveUser(ctx context.Context, workSpaceId, userId uuid.UUID) error {
+	return uc.workspaceRepo.RemoveUser(ctx, workSpaceId, userId)
 }
 
-func (uc *WorkSpaceUsecase) ChangeUserRole(workSpaceId string, userId string, role string) (bool, error) {
-	return uc.repo.ChangeUserRole(workSpaceId, userId, role)
+func (uc *WorkSpaceUsecase) HasUserWorkspace(ctx context.Context, userId, workspaceId uuid.UUID) (enums.UserRoles, error) {
+	return helper.WithTx(ctx, uc.baseRepo, func(ctx context.Context, exec pgx.Tx) (enums.UserRoles, error) {
+		var exists bool
+		if err := uc.workspaceRepo.HasUserWorkspaceTx(ctx, exec, userId, workspaceId, &exists); err != nil {
+			return enums.NoAccess, err
+		}
+
+		return uc.workspaceRepo.GetUserRoleTx(ctx, exec, userId, workspaceId)
+	})
+}
+
+func (uc *WorkSpaceUsecase) ChangeUserRole(ctx context.Context, workSpaceId, userId uuid.UUID, role enums.UserRoles) error {
+	return uc.workspaceRepo.ChangeUserRole(ctx, workSpaceId, userId, role)
+}
+
+func (uc *WorkSpaceUsecase) SearchWorkspaceMember(ctx context.Context, workSpaceId uuid.UUID, value string) ([]response.FindWorkspaceMemberResponse, error) {
+	return uc.workspaceRepo.SearchWorkspaceMember(ctx, workSpaceId, value)
+}
+
+func (uc *WorkSpaceUsecase) GetWorkspaceName(ctx context.Context, workspaceId uuid.UUID) (string, error) {
+	return uc.workspaceRepo.GetWorkspaceName(ctx, workspaceId)
+}
+
+func (uc *WorkSpaceUsecase) GetUserRole(ctx context.Context, userId, workspaceId uuid.UUID) (enums.UserRoles, error) {
+	return uc.workspaceRepo.GetUserRole(ctx, userId, workspaceId)
 }

@@ -1,18 +1,20 @@
 package domain
 
 import (
-	"github.com/google/uuid"
-	"go-postgres-test/internal/response"
-	"go-postgres-test/internal/types"
-	"go-postgres-test/internal/types/user"
+	"backend-task-manager/internal/dto/response"
+	"backend-task-manager/internal/entities"
+	"backend-task-manager/internal/enums"
+	"context"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type Chat struct {
 	ID              string         `json:"id"`
 	WorkspaceID     uuid.UUID      `json:"workspaceId"`
 	CreatorID       uuid.UUID      `json:"creatorId"`
-	Type            types.ChatType `json:"type"`
+	Type            enums.ChatType `json:"type"`
 	CreatedAt       time.Time      `json:"createdAt"`
 	UpdatedAt       time.Time      `json:"updatedAt"`
 	LastMessageTime time.Time      `json:"lastMessageTime"`
@@ -25,18 +27,26 @@ type GroupChat struct {
 }
 
 type UserChat struct {
-	ChatID       uuid.UUID     `db:"chat_id"`
-	UserID       uuid.UUID     `db:"user_id"`
-	Muted        bool          `db:"muted"`
-	Pinned       bool          `db:"pinned"`
-	Notification bool          `db:"notification"`
-	Role         user.ChatRole `db:"role"`
-	JoinedAt     time.Time     `db:"joined_at"`
+	ChatID       uuid.UUID       `db:"chat_id"`
+	UserID       uuid.UUID       `db:"user_id"`
+	Muted        bool            `db:"muted"`
+	Pinned       bool            `db:"pinned"`
+	Notification bool            `db:"notification"`
+	Role         enums.UserRoles `db:"role"`
+	JoinedAt     time.Time       `db:"joined_at"`
 }
 
 type ChatRepository interface {
-	CreateChat(chat *Chat, participantId uuid.UUID) error
-	AddUserToChat(userId uuid.UUID, chatId string, workspaceId uuid.UUID) error
-	GetAllUserChats(userId uuid.UUID, workspaceId uuid.UUID) ([]response.GetChats, error)
-	GetChatsBySearch(userID uuid.UUID, workspaceId uuid.UUID, value string) ([]response.GetChatsSearch, error)
+	CreateChat(ctx context.Context, chat *Chat) error
+	AddUserToChat(ctx context.Context, userId uuid.UUID, chatId string, workspaceId uuid.UUID, role enums.UserRoles) error
+	UpdateChatTime(ctx context.Context, chatId string, at time.Time) error
+	GetChatsBySearch(ctx context.Context, userID uuid.UUID, workspaceId uuid.UUID, value string) ([]response.GetChatsSearch, error)
+	GetLastMessageInfo(ctx context.Context, chat *response.GetChats, userID uuid.UUID) error
+
+	CreateChatTx(ctx context.Context, exec entities.Execer, chat *Chat) error
+	UpdateChatTimeTx(ctx context.Context, exec entities.Execer, chatId string, at time.Time) error
+	AddUserToChatTx(ctx context.Context, exec entities.Execer, userId uuid.UUID, chatId string, workspaceId uuid.UUID, role enums.UserRoles) error
+	GetAllUserChatsTx(ctx context.Context, exec entities.Execer, userId uuid.UUID, workspaceId uuid.UUID) ([]response.GetChats, error)
+	GetLastMessageInfoTx(ctx context.Context, exec entities.Execer, chat *response.GetChats, userID uuid.UUID) error
+	GetParticipantNameByChatIdTx(ctx context.Context, exec entities.Execer, chatId string, userId uuid.UUID, name *string) error
 }

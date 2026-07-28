@@ -1,0 +1,39 @@
+paths:
+  /users:
+    post:
+      summary: Sign Up (create new user)
+      security:
+        - cookieAuth: []
+      tags:
+        - Users
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '201':
+          description: User created
+        '400':
+          description: Bad Request
+  /users/is-authorized:
+    get:
+      summary: Check if user authorized
+      security:
+        - cookieAuth: []
+      tags:
+        - Users
+      responses:
+        '200':
+          description: Authorized
+        '401':
+          description: Unauthorized

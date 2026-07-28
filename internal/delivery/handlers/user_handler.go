@@ -1,12 +1,13 @@
 package handlers
 
 import (
-	"github.com/gin-gonic/gin"
-	"go-postgres-test/infrastructure/auth"
-	"go-postgres-test/internal/domain"
-	"go-postgres-test/internal/middleware"
-	"go-postgres-test/internal/usecase"
+	"backend-task-manager/infrastructure/auth"
+	"backend-task-manager/internal/entities"
+	"backend-task-manager/internal/middleware"
+	"backend-task-manager/internal/usecase"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
 type UserHandler struct {
@@ -20,21 +21,21 @@ func NewUserHandler(uc *usecase.UserUseCase) *UserHandler {
 func (h *UserHandler) RegisterRoutes(router *gin.RouterGroup) {
 	authService := auth.NewJWTService()
 
-	router.GET("/users/is-authorized", h.IsAuthorized)
+	router.GET("/users/is-authorized", h.isAuthorized)
 
-	router.POST("/users/log-in", h.LogIn)
-	router.POST("/users/create-user", h.CreateUser)
+	router.POST("/users/log-in", h.logIn)
+	router.POST("/users", h.createUser)
 
 	protected := router.Group("/users", middleware.JWTMiddleware(authService))
 
-	protected.GET("/search-user-by-email/:value", h.SearchUserByEmail)
-	protected.GET("/user-id", h.GetUserId)
+	protected.GET("/search-by-email/:value", h.searchUserByEmail)
+	protected.GET("/user-id", h.getUserId)
 }
 
-func (h *UserHandler) IsAuthorized(c *gin.Context) {
+func (h *UserHandler) isAuthorized(c *gin.Context) {
 	token, err := c.Cookie("token")
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"status": "unauthorized"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
 
@@ -44,30 +45,32 @@ func (h *UserHandler) IsAuthorized(c *gin.Context) {
 
 	if err != nil {
 		c.SetCookie("token", "", -1, "/", "localhost", false, true)
-		c.JSON(http.StatusUnauthorized, gin.H{"status": "unauthorized"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
 
 	c.JSON(http.StatusOK, userId)
 }
 
-func (h *UserHandler) LogIn(c *gin.Context) {
-	var user domain.AuthUser
+// TODO почти ничем не отличается от CreateUser, возможно сделать общий, и через GET\POST различать разницу
+
+func (h *UserHandler) logIn(c *gin.Context) {
+	var user entities.AuthUser
 
 	if err := c.ShouldBindJSON(&user); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"status": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	userId, err := h.uc.LogIn(user)
+	userId, err := h.uc.LogIn(c.Request.Context(), user)
 
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"status": err.Error()})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
 
 	authService := auth.NewJWTService()
-	token, err := authService.GenerateToken(userId.String())
+	token, err := authService.GenerateToken(userId)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -75,17 +78,17 @@ func (h *UserHandler) LogIn(c *gin.Context) {
 
 	c.SetCookie("token", token, 604800, "/", "localhost", false, true)
 
-	c.JSON(http.StatusOK, true)
+	c.Status(http.StatusOK)
 }
 
-func (h *UserHandler) CreateUser(c *gin.Context) {
-	var user domain.AuthUser
+func (h *UserHandler) createUser(c *gin.Context) {
+	var user entities.AuthUser
 	if err := c.ShouldBindJSON(&user); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	userID, err := h.uc.CreateUser(user)
+	userId, err := h.uc.CreateUser(c.Request.Context(), user)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -93,7 +96,7 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 	}
 
 	authService := auth.NewJWTService()
-	token, err := authService.GenerateToken(userID)
+	token, err := authService.GenerateToken(userId)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -102,23 +105,21 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 
 	c.SetCookie("token", token, 604800, "/", "localhost", false, true)
 
-	c.JSON(http.StatusCreated, true)
+	c.Status(http.StatusCreated)
 }
 
-func (h *UserHandler) SearchUserByEmail(c *gin.Context) {
-	value := c.Param("value")
-
-	users, err := h.uc.SearchUserByEmail(value)
+func (h *UserHandler) searchUserByEmail(c *gin.Context) {
+	users, err := h.uc.SearchUserByEmail(c.Request.Context(), c.Param("value"))
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, users)
+	c.JSON(http.StatusOK, gin.H{"users": users})
 }
 
-func (h *UserHandler) GetUserId(c *gin.Context) {
+func (h *UserHandler) getUserId(c *gin.Context) {
 	userIdStr, exists := c.Get("userId")
 
 	if !exists {
@@ -126,5 +127,5 @@ func (h *UserHandler) GetUserId(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, userIdStr)
+	c.JSON(http.StatusOK, gin.H{"id": userIdStr})
 }

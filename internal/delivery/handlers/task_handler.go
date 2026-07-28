@@ -1,216 +1,303 @@
 package handlers
 
 import (
-	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
-	"go-postgres-test/infrastructure/auth"
-	"go-postgres-test/internal/domain"
-	"go-postgres-test/internal/middleware"
-	"go-postgres-test/internal/usecase"
-	"log"
+	"backend-task-manager/infrastructure/auth"
+	"backend-task-manager/internal/domain/rules"
+	"backend-task-manager/internal/dto/request"
+	"backend-task-manager/internal/dto/request/query"
+	"backend-task-manager/internal/enums"
+	"backend-task-manager/internal/middleware"
+	"backend-task-manager/internal/usecase"
+	"backend-task-manager/mixins"
 	"net/http"
-	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
 type TaskHandler struct {
-	uc *usecase.TaskUseCase
+	taskUC      *usecase.TaskUseCase
+	workspaceUC *usecase.WorkSpaceUsecase
 }
 
-type RawTask struct {
-	ColumnID    uuid.UUID  `json:"columnId"`
-	WorkspaceID uuid.UUID  `json:"workspaceId"`
-	Title       string     `json:"title"`
-	IsFinished  bool       `json:"isFinished"`
-	Description *string    `json:"description"`
-	DueDate     *time.Time `json:"dueDate"`
-	Priority    int        `json:"priority"`
-	Status      int        `json:"status"`
+func NewTaskHandler(
+	taskUC *usecase.TaskUseCase,
+	workspaceUC *usecase.WorkSpaceUsecase,
+) *TaskHandler {
+	return &TaskHandler{
+		taskUC,
+		workspaceUC,
+	}
 }
 
-type ReorderRequest struct {
-	ColumnID uuid.UUID   `json:"columnId"`
-	TaskIDs  []uuid.UUID `json:"taskIds"`
-}
-
-type SetDoneColumnRequest struct {
-	WorkspaceID uuid.UUID `json:"workspaceId"`
-	ColumnID    uuid.UUID `json:"columnId"`
-}
-
-func NewTaskHandler(uc *usecase.TaskUseCase) *TaskHandler { return &TaskHandler{uc: uc} }
+//TODO сделать отдельный endpoint на создание тасок для проекта
 
 func (h *TaskHandler) RegisterRoutes(router *gin.RouterGroup) {
-	authService := auth.NewJWTService()
+	protected := router.Group("/task", middleware.JWTMiddleware(auth.NewJWTService()))
 
-	protected := router.Group("/task", middleware.JWTMiddleware(authService))
+	protected.GET("/:"+string(enums.ParamWorkspace), middleware.AccessMiddleware(enums.ParamWorkspace, h.workspaceUC, rules.AllWorkspaceRoles), h.getAllTasks)
+	protected.GET("/id/:prefix/:"+string(enums.ParamWorkspace), middleware.AccessMiddleware(enums.ParamWorkspace, h.workspaceUC, rules.AllWorkspaceRoles), h.getIdByPrefix)
 
-	protected.GET("/get-all-columns/:id", h.GetAllColumns)
-	protected.GET("/get-all-tasks/:id", h.GetAllTasks)
+	protected.POST("/:"+string(enums.ParamWorkspace), middleware.AccessMiddleware(enums.ParamWorkspace, h.workspaceUC, rules.AllWorkspaceRoles), h.createTask)
 
-	protected.POST("/update-task", h.UpdateTask)
-	protected.POST("/create-task", h.CreateTask)
-	protected.POST("/reorder-tasks", h.ReorderTasks)
-	protected.POST("/mark-column-done", h.MarkColumnAsDone)
-	protected.POST("/update-column", h.UpdateColumn)
+	protected.PATCH("/type/:"+string(enums.ParamTask), middleware.AccessMiddleware(enums.ParamTask, h.taskUC, rules.HasAccess), h.updateTaskType)
+	protected.PATCH("/title/:"+string(enums.ParamTask), middleware.AccessMiddleware(enums.ParamTask, h.taskUC, rules.HasAccess), h.updateTaskTitle)
+	protected.PATCH("/column/:"+string(enums.ParamTask), middleware.AccessMiddleware(enums.ParamTask, h.taskUC, rules.HasAccess), h.updateTaskColumn)
+	protected.PATCH("/priority/:"+string(enums.ParamTask), middleware.AccessMiddleware(enums.ParamTask, h.taskUC, rules.HasAccess), h.updateTaskPriority)
+	protected.PATCH("/assigned/:"+string(enums.ParamTask), middleware.AccessMiddleware(enums.ParamTask, h.taskUC, rules.HasAccess), h.updateTaskAssigned)
+	protected.PATCH("/relations/:"+string(enums.ParamTask), middleware.AccessMiddleware(enums.ParamTask, h.taskUC, rules.HasAccess), h.updateTaskRelations)
+	protected.PATCH("/description/:"+string(enums.ParamTask), middleware.AccessMiddleware(enums.ParamTask, h.taskUC, rules.HasAccess), h.updateTaskDescription)
+
+	protected.DELETE("/assigned/:"+string(enums.ParamTask), middleware.AccessMiddleware(enums.ParamTask, h.taskUC, rules.HasAccess), h.removeTaskAssigned)
 }
 
-func (h *TaskHandler) CreateTask(c *gin.Context) {
-	userIdStr, exists := c.Get("userId")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
-		return
-	}
-
-	var task domain.Task
-	var rawTask RawTask
+func (h *TaskHandler) getAllTasks(c *gin.Context) {
+	var queryInput query.TaskLocationWithSprint
 	var err error
 
-	task.AuthorID, err = uuid.Parse(userIdStr.(string))
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
-		return
-	}
-
-	if err := c.ShouldBindJSON(&rawTask); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	task.ColumnID = rawTask.ColumnID
-	task.WorkspaceID = rawTask.WorkspaceID
-	task.Title = rawTask.Title
-	task.IsFinished = rawTask.IsFinished
-
-	task.Priority = &rawTask.Priority
-	task.Status = &rawTask.Status
-
-	status, err := h.uc.CreateTask(&task)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, status)
-}
-
-func (h *TaskHandler) GetAllColumns(c *gin.Context) {
-	workSpaceId := c.Param("id")
-
-	id, err := uuid.Parse(workSpaceId)
-
+	queryInput.WorkspaceId, err = mixins.ParamToUUID(c, "workspaceId")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	columnsList, err := h.uc.GetAllColumns(id)
-
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, columnsList)
-}
-
-func (h *TaskHandler) GetAllTasks(c *gin.Context) {
-	workSpaceId := c.Param("id")
-	id, err := uuid.Parse(workSpaceId)
+	queryInput.ProjectId, err = mixins.QueryToUUIDCanBeNull(c, "projectId")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	tasks, err := h.uc.GetAllTasks(id)
-
+	queryInput.SprintId, err = mixins.QueryToUUIDCanBeNull(c, "sprintId")
 	if err != nil {
-		log.Println("GetAllTasks error:", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-
-		return
-	}
-
-	c.JSON(http.StatusOK, tasks)
-}
-
-func (h *TaskHandler) UpdateTask(c *gin.Context) {
-	var task domain.Task
-
-	if err := c.ShouldBindJSON(&task); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	if err := h.uc.UpdateTask(&task); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, task)
-}
-
-func (h *TaskHandler) ReorderTasks(c *gin.Context) {
-	var req ReorderRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	if err := h.uc.ReorderTasks(req.ColumnID, req.TaskIDs); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	tasks, err := h.uc.GetAllTasks(uuid.UUID{})
+	taskList, err := h.taskUC.GetAllTasks(c.Request.Context(), queryInput)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"status": "reordered",
-		"tasks":  tasks,
-	})
+	c.JSON(http.StatusOK, gin.H{"tasks": taskList})
 }
 
-type MarkDoneColumnRequest struct {
-	ColumnID uuid.UUID `json:"columnId"`
-	IsDone   bool      `json:"isDone"`
-}
-
-func (h *TaskHandler) MarkColumnAsDone(c *gin.Context) {
-	var req MarkDoneColumnRequest
-	if err := c.BindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+func (h *TaskHandler) createTask(c *gin.Context) {
+	workspaceId, err := mixins.ParamToUUID(c, "workspaceId")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	if err := h.uc.MarkColumnAsDone(req.ColumnID, req.IsDone); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "update failed"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"success": true})
-}
-
-func (h *TaskHandler) UpdateColumn(c *gin.Context) {
-	var input struct {
-		ID    string `json:"id"`
-		Name  string `json:"name"`
-		Color string `json:"color"`
-	}
-
+	var input request.CreateTask
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	log.Printf("Received update request for column: ID=%s, Name=%s, Color=%s\n", input.ID, input.Name, input.Color)
+	task, err := h.taskUC.CreateTask(c.Request.Context(), input, workspaceId)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 
-	if err := h.uc.UpdateColumn(input.ID, input.Name, input.Color); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update column"})
+	c.JSON(http.StatusCreated, gin.H{"task": task})
+}
+
+func (h *TaskHandler) updateTaskTitle(c *gin.Context) {
+	taskId, err := mixins.ParamToUUID(c, "taskId")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err = h.taskUC.UpdateTaskTitle(c.Request.Context(), taskId, c.Query("value")); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.Status(http.StatusOK)
+}
+
+func (h *TaskHandler) updateTaskDescription(c *gin.Context) {
+	taskId, err := mixins.ParamToUUID(c, "taskId")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err = h.taskUC.UpdateTaskDescription(c.Request.Context(), taskId, c.Query("value")); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Status(http.StatusOK)
+}
+
+func (h *TaskHandler) updateTaskColumn(c *gin.Context) {
+	taskId, err := mixins.ParamToUUID(c, string(enums.ParamTask))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var input request.ChangeTaskPositionAndColumn
+	if err = c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	newPosition, err := h.taskUC.UpdateTaskColumn(c.Request.Context(), input, taskId)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"newPosition": newPosition})
+}
+
+func (h *TaskHandler) updateTaskPriority(c *gin.Context) {
+	taskId, err := mixins.ParamToUUID(c, "taskId")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err = h.taskUC.UpdateTaskPriority(c.Request.Context(), taskId, enums.TaskPriorities(c.Query("value"))); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Status(http.StatusOK)
+}
+
+func (h *TaskHandler) updateTaskAssigned(c *gin.Context) {
+	taskId, err := mixins.ParamToUUID(c, "taskId")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	userId, err := mixins.QueryToUUID(c, "value")
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err = h.taskUC.UpdateTaskAssigned(c.Request.Context(), taskId, userId); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Status(http.StatusOK)
+}
+
+func (h *TaskHandler) removeTaskAssigned(c *gin.Context) {
+	taskId, err := mixins.ParamToUUID(c, "taskId")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err = h.taskUC.RemoveTaskAssigned(c.Request.Context(), taskId); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Status(http.StatusOK)
+}
+
+func (h *TaskHandler) updateTaskType(c *gin.Context) {
+	taskId, err := mixins.ParamToUUID(c, string(enums.ParamTask))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err = h.taskUC.UpdateTaskType(c.Request.Context(), taskId, enums.TaskTypes(c.Query("value"))); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Status(http.StatusOK)
+}
+
+func (h *TaskHandler) updateTaskRelations(c *gin.Context) {
+	taskId, err := mixins.ParamToUUID(c, "taskId")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	relationId, err := mixins.QueryToUUIDCanBeNull(c, "relationId")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var newType enums.TaskTypes
+	switch enums.UpdateTaskRelations(c.Query("method")) {
+	case enums.UpdateTaskParent:
+		{
+			newType, err = h.taskUC.UpdateTaskParent(c.Request.Context(), taskId, relationId)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+		}
+	case enums.UpdateTaskChildren:
+		{
+			newType, err = h.taskUC.UpdateTaskChildren(c.Request.Context(), taskId, relationId)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"newType": newType})
+}
+
+func (h *TaskHandler) search(c *gin.Context) {
+	var input query.TaskLocationQuery
+	var err error
+
+	input.WorkspaceId, err = mixins.ParamToUUID(c, string(enums.ParamWorkspace))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	input.ProjectId, err = mixins.QueryToUUIDCanBeNull(c, string(enums.ParamProject))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	taskList, err := h.taskUC.Search(c.Request.Context(), input, c.Query("value"))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"taskList": taskList})
+}
+
+//TODO позже разделить на два endpoint`а (project\workspace) для улучшения безопасности и скорости
+
+func (h *TaskHandler) getIdByPrefix(c *gin.Context) {
+	workspaceId, err := mixins.ParamToUUID(c, string(enums.ParamWorkspace))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	prefix := c.Param("prefix")
+
+	id, err := h.taskUC.GetIdByPrefix(c.Request.Context(), prefix, workspaceId)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"id": id})
 }

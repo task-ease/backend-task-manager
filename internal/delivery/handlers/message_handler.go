@@ -1,16 +1,16 @@
 package handlers
 
 import (
-	"fmt"
+	"backend-task-manager/infrastructure/auth"
+	"backend-task-manager/internal/dto"
+	"backend-task-manager/internal/entities"
+	"backend-task-manager/internal/middleware"
+	"backend-task-manager/internal/usecase"
+	"backend-task-manager/mixins"
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"go-postgres-test/infrastructure/auth"
-	"go-postgres-test/internal/domain"
-	"go-postgres-test/internal/middleware"
-	"go-postgres-test/internal/types"
-	"go-postgres-test/internal/usecase"
-	"net/http"
-	"time"
 )
 
 type MessageHandler struct {
@@ -24,147 +24,103 @@ func NewMessageHandler(uc *usecase.MessageUsecase) *MessageHandler {
 func (h *MessageHandler) RegisterRoutes(router *gin.RouterGroup) {
 	authService := auth.NewJWTService()
 
-	protected := router.Group("/message", middleware.JWTMiddleware(authService))
+	protected := router.Group("/messages", middleware.JWTMiddleware(authService))
 
-	protected.GET("/get-all-messages/:chatId", h.GetAllMessages)
-	protected.PATCH("/upload-image-list/:chatId", h.UploadImageList)
-	protected.PATCH("/add-message", h.AddMessage)
-	protected.PATCH("/set-read", h.SetMessagesRead)
+	protected.GET("/:chatId", h.getAllMessages)
+	protected.GET("/images/:chatId", h.getAllChatImages)
+
+	protected.PATCH("/", h.addMessage)
+	protected.PATCH("/set-read", h.setMessagesRead)
+	protected.PATCH("/upload-images/:chatId", h.uploadImageList)
 }
 
-func (h *MessageHandler) GetAllMessages(c *gin.Context) {
-	chatId := c.Param("chatId")
-	messageList, err := h.uc.GetAllMessages(chatId)
+func (h *MessageHandler) getAllMessages(c *gin.Context) {
+	messages, err := h.uc.GetAllMessages(c.Request.Context(), c.Param("chatId"))
 	if err != nil {
-		fmt.Println("Error, ", err.Error())
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "internal server error"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
 	}
 
-	c.JSON(http.StatusOK, messageList)
+	c.JSON(http.StatusOK, gin.H{"messages": messages})
 }
 
-func (h *MessageHandler) UploadImageList(c *gin.Context) {
-	chatId := c.Param("chatId")
-	content := c.Query("ct")
+func (h *MessageHandler) uploadImageList(c *gin.Context) {
+	var uploadImageDto dto.UploadImage
+	var err error
 
-	userIdStr, exists := c.Get("userId")
+	uploadImageDto.ChatId = c.Param("chatId")
+	uploadImageDto.Content = c.Query("ct")
 
-	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "user not found"})
-		return
-	}
+	uploadImageDto.UserId, err = mixins.ParseContextUserId(c)
 
-	userId, err := uuid.Parse(userIdStr.(string))
-
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	message := domain.Message{
-		ID:          "",
-		ChatID:      chatId,
-		SenderID:    userId,
-		Content:     content,
-		MessageType: types.MessageImage,
-		CreatedAt:   time.Now().UTC(),
-		UpdatedAt:   time.Now().UTC(),
-	}
-
-	err = h.uc.AddMessage(&message)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to add message"})
-		return
-	}
-
-	form, err := c.MultipartForm()
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid form"})
 		return
 	}
 
-	files := form.File["images"]
+	uploadImageDto.Form, err = c.MultipartForm()
 
-	var messageAttachments []domain.Attachment
-	for _, fileHeader := range files {
-		file, err := fileHeader.Open()
-		if err != nil {
-			continue
-		}
-		defer file.Close()
-
-		url, err := h.uc.UploadImage(file)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
-		}
-
-		var newAttachment = domain.Attachment{
-			ID:         uuid.New(),
-			MessageID:  message.ID,
-			FileUrl:    url,
-			FileType:   types.MessageImage,
-			FileName:   fileHeader.Filename,
-			FileSize:   fileHeader.Size,
-			UploadedAt: time.Now().UTC(),
-			ChatID:     message.ChatID,
-		}
-
-		if err := h.uc.AddAttachment(&newAttachment); err != nil {
-			fmt.Println(err)
-			continue
-		}
-
-		messageAttachments = append(messageAttachments, newAttachment)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "user not found"})
+		return
 	}
 
-	message.Attachments = messageAttachments
+	message, err := h.uc.UploadImage(c.Request.Context(), uploadImageDto)
 
 	c.JSON(http.StatusOK, gin.H{"message": message})
 }
 
-func (h *MessageHandler) AddMessage(c *gin.Context) {
-	var message domain.Message
+func (h *MessageHandler) addMessage(c *gin.Context) {
+	var message entities.Message
 	if err := c.ShouldBindJSON(&message); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"status": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	err := h.uc.AddMessage(&message)
+	unreadUserIds, err := h.uc.AddMessage(c.Request.Context(), message)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"status": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"messageId": message.ID})
+
+	c.JSON(http.StatusOK, gin.H{
+		"messageInfo": gin.H{
+			"messageId":      message.ID,
+			"unreadUsersIds": unreadUserIds,
+		},
+	})
 }
 
-func (h *MessageHandler) SetMessagesRead(c *gin.Context) {
-	var messages []domain.Message
+func (h *MessageHandler) setMessagesRead(c *gin.Context) {
+	var messages []uuid.UUID
 	if err := c.ShouldBindJSON(&messages); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	userIdStr, exists := c.Get("userId")
-
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "user id not found"})
-		return
-	}
-
-	userId, err := uuid.Parse(userIdStr.(string))
-
+	userId, err := mixins.ParseContextUserId(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	readList, err := h.uc.SetMessagesRead(&messages, userId)
+	err = h.uc.SetMessagesRead(c.Request.Context(), messages, userId)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"status": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, readList)
+	c.Status(http.StatusOK)
+}
+
+func (h *MessageHandler) getAllChatImages(c *gin.Context) {
+	chatId := c.Param("chatId")
+	images, err := h.uc.GetAllChatImages(c.Request.Context(), chatId)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"images": images})
 }

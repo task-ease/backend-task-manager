@@ -1,9 +1,11 @@
 package auth
 
 import (
-	"github.com/golang-jwt/jwt/v5"
 	"os"
 	"time"
+
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 )
 
 type JwtService struct {
@@ -16,7 +18,7 @@ func NewJWTService() *JwtService {
 	}
 }
 
-func (s *JwtService) GenerateToken(userID string) (string, error) {
+func (s *JwtService) GenerateToken(userID uuid.UUID) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"user_id": userID,
 		"exp":     time.Now().Add(time.Hour * 24 * 7).Unix(),

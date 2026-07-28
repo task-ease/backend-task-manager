@@ -3,13 +3,19 @@
 -- CREATE TYPE user_roles AS ENUM ('USER', 'ADMIN');
 -- CREATE TYPE workspace_user_roles AS ENUM ('CREATOR', 'ADMIN', 'MEMBER');
 -- CREATE TYPE chat_user_roles AS ENUM ('USER', 'ADMIN');
+-- CREATE TYPE project_user_roles AS ENUM ('CREATOR', 'EDITOR', 'VIEWER', 'ADMIN);
+-- CREATE TYPE task_types AS ENUM ('EPIC', 'TASK', 'SUBTASK', 'BUG', 'FEATURE', 'CHORE', 'SPIKE');
+-- CREATE TYPE task_priority_types AS ENUM ('VERY_LOW', 'LOW', 'MID', 'HIGH', 'VERY_HIGH');
+-- CREATE TYPE document_visibility_enum AS ENUM ('PUBLIC', 'PRIVATE', 'PROJECT');
+
+-- drop table tasks_assignment, task_comments, tasks, task_columns, task_columns_templates;
 
 CREATE TABLE IF NOT EXISTS users (
                                      id uuid PRIMARY KEY,
                                      username VARCHAR(50) NOT NULL,
                                      email VARCHAR(100) NOT NULL UNIQUE,
                                      password_hash TEXT NOT NULL,
-                                     user_icon_url TEXT,
+                                     icon_url TEXT,
                                      role user_roles,
                                      created_at timestamptz DEFAULT NOW(),
                                      last_online_at timestamptz,
@@ -20,7 +26,8 @@ CREATE TABLE IF NOT EXISTS workspaces (
                                           id uuid PRIMARY KEY,
                                           creator_id uuid REFERENCES users(id) NOT NULL,
                                           name VARCHAR(20) NOT NULL,
-                                          created_at TIMESTAMPTZ DEFAULT NOW()
+                                          created_at TIMESTAMPTZ DEFAULT NOW(),
+                                          prefix VARCHAR(10) NOT NULL DEFAULT 'GBL'
 );
 
 CREATE TABLE IF NOT EXISTS user_workspaces (
@@ -32,32 +39,73 @@ CREATE TABLE IF NOT EXISTS user_workspaces (
                                                PRIMARY KEY (user_id, workspace_id)
 );
 
-CREATE TABLE IF NOT EXISTS task_columns (
-                                            id UUID PRIMARY KEY,
-                                            workspace_id UUID REFERENCES workspaces(id),
-                                            name TEXT NOT NULL,
-                                            position INTEGER DEFAULT 0,
-                                            color VARCHAR(7)
+CREATE TABLE IF NOT EXISTS task_columns_templates (
+                                                      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                                                      workspace_id UUID NOT NULL REFERENCES workspaces(id),
+                                                      name TEXT NOT NULL,
+                                                      color varchar(7),
+                                                      position INTEGER NOT NULL,
+                                                      is_required BOOLEAN DEFAULT FALSE,
+                                                      is_active BOOLEAN DEFAULT TRUE,
+                                                      is_done BOOLEAN DEFAULT FALSE,
+                                                      created_at timestamptz DEFAULT NOW(),
+                                                      updated_at timestamptz DEFAULT NOW(),
+                                                      UNIQUE (workspace_id, position)
 );
 
+CREATE TABLE IF NOT EXISTS using_task_columns (
+                                             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                                             template_id UUID NOT NULL REFERENCES task_columns_templates(id) ON DELETE CASCADE,
+                                             workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+                                             project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+                                             sprint_id UUID REFERENCES sprints(id) ON DELETE CASCADE,
+                                             created_at timestamptz,
+                                             updated_at timestamptz,
+                                             UNIQUE (template_id, workspace_id, project_id, sprint_id)
+);
+
+-- CREATE TABLE IF NOT EXISTS task_columns (
+--                                             id UUID PRIMARY KEY,
+--                                             project_id UUID REFERENCES projects(id),
+--                                             template_id UUID REFERENCES task_columns_templates(id),
+--                                             UNIQUE (project_id, template_id)
+-- );
+
 CREATE TABLE IF NOT EXISTS tasks (
-                                     id UUID PRIMARY KEY,
-                                     column_id UUID REFERENCES task_columns(id),
-                                     workspace_id UUID REFERENCES workspaces(id),
-                                     author_id UUID REFERENCES users(id),
-                                     created_at TIMESTAMPTZ DEFAULT NOW(),
-                                     title VARCHAR(30) NOT NULL,
+                                     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                                     column_id UUID NOT NULL REFERENCES task_columns_templates(id),
+                                     workspace_id UUID NOT NULL REFERENCES workspaces(id),
+                                     project_id UUID REFERENCES projects(id),
+                                     sprint_id UUID REFERENCES sprints(id),
+                                     author_id UUID NOT NULL REFERENCES users(id),
+                                     parent_id UUID REFERENCES tasks(id),
+                                     type task_types NOT NULL DEFAULT 'TASK',
+                                     title VARCHAR(100) NOT NULL,
                                      description TEXT,
-                                     is_finished BOOLEAN DEFAULT FALSE NOT NULL,
+                                     is_done BOOLEAN NOT NULL DEFAULT FALSE,
+                                     deleted_at TIMESTAMPTZ,
                                      due_date TIMESTAMPTZ,
-                                     priority INTEGER DEFAULT 0,
+                                     priority task_priority_types DEFAULT 'MID',
+                                     position DOUBLE PRECISION NOT NULL,
+                                     prefix_number INT,
+                                     created_at TIMESTAMPTZ DEFAULT NOW(),
                                      updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS tasks_assignment (
                                                 task_id UUID REFERENCES tasks(id),
                                                 user_id UUID REFERENCES users(id),
+                                                assigned_at TIMESTAMPTZ DEFAULT NOW(),
                                                 PRIMARY KEY (task_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS task_comments (
+                               id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                               task_id UUID NOT NULL REFERENCES tasks(id),
+                               author_id UUID NOT NULL REFERENCES users(id),
+                               content TEXT NOT NULL,
+                               created_at TIMESTAMPTZ DEFAULT NOW(),
+                               updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS chats (
@@ -113,6 +161,7 @@ CREATE TABLE IF NOT EXISTS message_attachments (
                                                    id UUID PRIMARY KEY,
                                                    message_id TEXT REFERENCES messages(id),
                                                    file_url TEXT NOT NULL,
+                                                   --TODO добавить тип
                                                    file_type VARCHAR(20) NOT NULL,
                                                    file_name TEXT NOT NULL,
                                                    file_size INTEGER NOT NULL,
@@ -127,3 +176,71 @@ CREATE TABLE IF NOT EXISTS message_reads (
                                              read_at timestamptz,
                                              PRIMARY KEY (user_id, message_id)
 );
+
+CREATE TABLE IF NOT EXISTS projects (
+                                        id UUID PRIMARY KEY,
+                                        workspace_id UUID REFERENCES workspaces(id) NOT NULL,
+                                        creator_id UUID REFERENCES users(id) NOT NULL,
+                                        name VARCHAR(100) NOT NULL,
+                                        description TEXT,
+                                        is_done BOOLEAN DEFAULT FALSE NOT NULL,
+                                        created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+                                        updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+                                        prefix VARCHAR(10) NOT NULL UNIQUE
+);
+
+CREATE TABLE IF NOT EXISTS sprints (
+                                       id UUID PRIMARY KEY,
+                                       project_id UUID REFERENCES projects(id) NOT NULL,
+                                       name VARCHAR(100) NOT NULL,
+                                       start_date DATE NOT NULL,
+                                       end_date DATE NOT NULL,
+                                       is_done BOOLEAN DEFAULT FALSE NOT NULL,
+                                       created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+                                       updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS project_members (
+                                               id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                                               project_id UUID REFERENCES projects(id) ON DELETE CASCADE NOT NULL,
+                                               user_id UUID REFERENCES users(id) ON DELETE CASCADE NOT NULL,
+                                               role project_user_roles NOT NULL DEFAULT 'VIEWER',
+                                               joined_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+                                               UNIQUE (project_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS documents (
+                                         id UUID PRIMARY KEY NOT NULL DEFAULT gen_random_uuid(),
+                                         name VARCHAR(100) NOT NULL,
+                                         creator_id UUID REFERENCES users(id) NOT NULL,
+                                         created_at timestamptz DEFAULT NOW() NOT NULL,
+                                         updated_at timestamptz DEFAULT NOW() NOT NULL,
+                                         content TEXT,
+                                         workspace_id UUID REFERENCES workspaces(id) NOT NULL,
+                                         project_id UUID REFERENCES projects(id),
+                                         parent_id UUID REFERENCES documents(id),
+                                         visibility document_visibility_enum NOT NULL DEFAULT 'PUBLIC',
+                                         UNIQUE (name, workspace_id)
+);
+
+CREATE TABLE document_access (
+                                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                                 document_id UUID REFERENCES documents(id) NOT NULL,
+                                 user_id UUID REFERENCES users(id) NOT NULL,
+                                 can_edit BOOLEAN DEFAULT false NOT NULL
+);
+
+CREATE TABLE document_versions (
+                                   id UUID PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+                                   document_id UUID REFERENCES documents(id) NOT NULL,
+                                   content TEXT,
+                                   created_at timestamptz DEFAULT NOW() NOT NULL,
+                                   creator_id UUID REFERENCES users(id) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_tasks_project_id ON tasks(project_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_sprint_id ON tasks(sprint_id);
+
+CREATE INDEX IF NOT EXISTS idx_documents_content_gin
+    ON documents
+        USING gin (to_tsvector('simple', content));

@@ -1,71 +1,50 @@
 package repository
 
 import (
+	"backend-task-manager/internal/domain"
+	"backend-task-manager/internal/dto/response"
+	"backend-task-manager/internal/entities"
+	"backend-task-manager/internal/enums"
 	"context"
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"go-postgres-test/internal/domain"
-	"go-postgres-test/internal/response"
-	"go-postgres-test/internal/types"
-	"time"
 )
 
 type chatRepo struct {
-	conn        *pgxpool.Pool
-	messageRepo domain.MessageRepository
+	conn *pgxpool.Pool
 }
 
-func NewChatRepo(conn *pgxpool.Pool, messageRepo domain.MessageRepository) domain.ChatRepository {
-	return &chatRepo{
-		conn:        conn,
-		messageRepo: messageRepo,
-	}
+func NewChatRepo(conn *pgxpool.Pool) domain.ChatRepository {
+	return &chatRepo{conn: conn}
 }
 
-func (r *chatRepo) CreateChat(chat *domain.Chat, participantId uuid.UUID) error {
-	if chat.CreatorID.String() < participantId.String() {
-		chat.ID = "c-" + chat.CreatorID.String() + "&" + participantId.String()
-	} else {
-		chat.ID = "c-" + participantId.String() + "&" + chat.CreatorID.String()
-	}
+func (r *chatRepo) AddUserToChat(ctx context.Context, userId uuid.UUID, chatId string, workspaceId uuid.UUID, role enums.UserRoles) error {
+	return r.AddUserToChatTx(ctx, r.conn, userId, chatId, workspaceId, role)
+}
 
-	_, err := r.conn.Exec(
-		context.Background(),
-		`INSERT INTO chats (id, workspace_id, creator_id, type, created_at, updated_at, last_message_time)
-			VALUES ($1, $2, $3, $4, $5, $6, $7)`, chat.ID, chat.WorkspaceID, chat.CreatorID, chat.Type, time.Now().UTC(), time.Now().UTC(), time.Now().UTC())
-
-	if err != nil {
-		return err
-	}
-
-	if err = r.AddUserToChat(chat.CreatorID, chat.ID, chat.WorkspaceID); err != nil {
-		return err
-	}
-	if err = r.AddUserToChat(participantId, chat.ID, chat.WorkspaceID); err != nil {
-		return err
-	}
-
-	systemMessage := domain.Message{
-		ChatID:      chat.ID,
-		SenderID:    chat.CreatorID,
-		MessageType: types.MessageSystem,
-		Content:     "chat created",
-		CreatedAt:   time.Now().UTC(),
-		UpdatedAt:   time.Now().UTC(),
-	}
-
-	err = r.messageRepo.AddMessage(&systemMessage)
+func (r *chatRepo) AddUserToChatTx(ctx context.Context, exec entities.Execer, userId uuid.UUID, chatId string, workspaceId uuid.UUID, role enums.UserRoles) error {
+	_, err := exec.Exec(ctx,
+		`INSERT INTO user_chats (user_id, chat_id, workspace_id, role) VALUES ($1, $2, $3, $4)`, userId, chatId, workspaceId, role)
 	return err
 }
 
-func (r *chatRepo) AddUserToChat(userId uuid.UUID, chatId string, workspaceId uuid.UUID) error {
-	_, err := r.conn.Exec(context.Background(),
-		`INSERT INTO user_chats (user_id, chat_id, workspace_id) VALUES ($1, $2, $3)`, userId, chatId, workspaceId)
+func (r *chatRepo) CreateChat(ctx context.Context, chat *domain.Chat) (err error) {
+	return r.CreateChatTx(ctx, r.conn, chat)
+}
+
+func (r *chatRepo) CreateChatTx(ctx context.Context, exec entities.Execer, chat *domain.Chat) error {
+	now := time.Now().UTC()
+	_, err := exec.Exec(ctx, `
+		INSERT INTO chats (id, workspace_id, creator_id, type, created_at, updated_at, last_message_time)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+	`, chat.ID, chat.WorkspaceID, chat.CreatorID, chat.Type, now, now, now)
 	return err
 }
 
-func (r *chatRepo) GetAllUserChats(userId uuid.UUID, workspaceId uuid.UUID) ([]response.GetChats, error) {
-	rows, err := r.conn.Query(context.Background(), `
+func (r *chatRepo) GetAllUserChatsTx(ctx context.Context, exec entities.Execer, userId uuid.UUID, workspaceId uuid.UUID) ([]response.GetChats, error) {
+	rows, err := exec.Query(ctx, `
 		SELECT
   			uc.chat_id,
   			uc.muted,
@@ -92,60 +71,18 @@ func (r *chatRepo) GetAllUserChats(userId uuid.UUID, workspaceId uuid.UUID) ([]r
 		if err := rows.Scan(&chat.ID, &chat.Muted, &chat.Pinned, &chat.Notification, &chat.Role, &chat.Type, &chat.IsOnline, &chat.ParticipantID); err != nil {
 			return nil, err
 		}
-		if err = r.getLastMessageInfo(&chat, userId); err != nil {
-			return nil, err
-		}
-		switch chat.Type {
-		case types.TypePrivate:
-			if err := r.getUserNameById(chat.ID, userId, &chat.Name); err != nil {
-				chat.Name = "error"
-			}
-		}
 		chats = append(chats, chat)
+	}
+
+	if rows.Err() != nil {
+		return nil, rows.Err()
 	}
 
 	return chats, err
 }
 
-func (r *chatRepo) getUserNameById(chatId string, userId uuid.UUID, name *string) error {
-	err := r.conn.QueryRow(context.Background(), `
-		SELECT u.username 
-		FROM user_chats uc
-		JOIN users u ON uc.user_id = u.id
-		WHERE uc.chat_id = $1 AND u.id != $2`, chatId, userId).Scan(name)
-	return err
-}
-
-func (r *chatRepo) getLastMessageInfo(chat *response.GetChats, userID uuid.UUID) error {
-	err := r.conn.QueryRow(context.Background(), `
-		SELECT
-		    m.content,
-		    m.message_type, 
-		    m.created_at,
-		    COALESCE(ma.file_url, '') as lastMessageAttachment,
-		    (
-				SELECT COUNT(*) 
-				FROM message_reads
-				WHERE chat_id = $1 AND user_id = $3 AND read_at IS NULL
-			) AS unread_count
-		FROM messages m
-		LEFT JOIN message_attachments ma
-			ON ma.message_id = m.id AND m.message_type = $2
-		WHERE m.chat_id = $1
-		ORDER BY m.created_at DESC
-		LIMIT 1`,
-		chat.ID, types.MessageImage, userID).Scan(
-		&chat.LastMessage,
-		&chat.LastMessageType,
-		&chat.LastMessageTime,
-		&chat.LastMessageAttachment,
-		&chat.UnreadForUser, // типа int
-	)
-	return err
-}
-
-func (r *chatRepo) GetChatsBySearch(userID uuid.UUID, workspaceId uuid.UUID, value string) ([]response.GetChatsSearch, error) {
-	rows, err := r.conn.Query(context.Background(), `
+func (r *chatRepo) GetChatsBySearch(ctx context.Context, userID uuid.UUID, workspaceId uuid.UUID, value string) ([]response.GetChatsSearch, error) {
+	rows, err := r.conn.Query(ctx, `
 		 SELECT
 		    u.id,
 		    c.chat_id,
@@ -173,11 +110,11 @@ func (r *chatRepo) GetChatsBySearch(userID uuid.UUID, workspaceId uuid.UUID, val
   		AND u.username ILIKE $3
 	LIMIT 10;
 	`, userID, workspaceId, "%"+value+"%")
-	defer rows.Close()
 
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	var chats []response.GetChatsSearch
 	for rows.Next() {
@@ -187,5 +124,62 @@ func (r *chatRepo) GetChatsBySearch(userID uuid.UUID, workspaceId uuid.UUID, val
 		}
 		chats = append(chats, chat)
 	}
+
+	if rows.Err() != nil {
+		return nil, rows.Err()
+	}
 	return chats, err
+}
+
+func (r *chatRepo) GetParticipantNameByChatIdTx(ctx context.Context, exec entities.Execer, chatId string, userId uuid.UUID, name *string) error {
+	err := exec.QueryRow(ctx, `
+		SELECT u.username 
+		FROM user_chats uc
+		JOIN users u ON uc.user_id = u.id
+		WHERE uc.chat_id = $1 AND u.id != $2`, chatId, userId).Scan(name)
+	return err
+}
+
+func (r *chatRepo) GetLastMessageInfo(ctx context.Context, chat *response.GetChats, userID uuid.UUID) error {
+	return r.GetLastMessageInfoTx(ctx, r.conn, chat, userID)
+}
+
+func (r *chatRepo) GetLastMessageInfoTx(ctx context.Context, exec entities.Execer, chat *response.GetChats, userID uuid.UUID) error {
+	err := exec.QueryRow(ctx, `
+		SELECT
+		    m.content,
+		    m.message_type, 
+		    m.created_at,
+		    COALESCE(ma.file_url, '') as lastMessageAttachment,
+		    (
+				SELECT COUNT(*) 
+				FROM message_reads
+				WHERE chat_id = $1 AND user_id = $3 AND read_at IS NULL
+			) AS unread_count
+		FROM messages m
+		LEFT JOIN message_attachments ma
+			ON ma.message_id = m.id AND m.message_type = $2
+		WHERE m.chat_id = $1
+		ORDER BY m.created_at DESC
+		LIMIT 1
+	`, chat.ID, enums.MessageImage, userID).Scan(
+		&chat.LastMessage,
+		&chat.LastMessageType,
+		&chat.LastMessageTime,
+		&chat.LastMessageAttachment,
+		&chat.UnreadForUser,
+	)
+
+	return err
+}
+
+func (r *chatRepo) UpdateChatTime(ctx context.Context, chatId string, at time.Time) error {
+	return r.UpdateChatTimeTx(ctx, r.conn, chatId, at)
+}
+
+func (r *chatRepo) UpdateChatTimeTx(ctx context.Context, exec entities.Execer, chatId string, at time.Time) error {
+	_, err := exec.Exec(ctx,
+		`UPDATE chats SET updated_at = $1 WHERE id = $2
+	`, at, chatId)
+	return err
 }

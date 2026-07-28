@@ -1,6 +1,8 @@
 package domain
 
+import "github.com/google/uuid"
+
 type AuthService interface {
-	GenerateToken(userID string) (string, error)
+	GenerateToken(userID uuid.UUID) (string, error)
 	VerifyToken(tokenString string) (string, error)
 }

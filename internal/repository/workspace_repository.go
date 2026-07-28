@@ -1,16 +1,34 @@
 package repository
 
 import (
+	"backend-task-manager/internal/domain"
+	"backend-task-manager/internal/dto/response"
+	"backend-task-manager/internal/entities"
+	"backend-task-manager/internal/enums"
 	"context"
-	"database/sql"
+
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"go-postgres-test/internal/domain"
 )
 
 type workSpaceRepo struct {
 	conn     *pgxpool.Pool
 	taskRepo domain.TaskRepository
+}
+
+func (r *workSpaceRepo) GetUserRoleByDocumentTx(ctx context.Context, exec entities.Execer, userId, documentId uuid.UUID) (enums.UserRoles, error) {
+	var role enums.UserRoles
+	if err := exec.QueryRow(ctx, `
+		SELECT uw.role 
+		FROM user_workspaces uw
+		JOIN workspaces w ON w.id = uw.workspace_id
+		JOIN documents d ON d.workspace_id = w.id
+		WHERE d.id = $1 AND uw.user_id = $2
+	`, documentId, userId).Scan(&role); err != nil {
+		return enums.NoAccess, err
+	}
+
+	return role, nil
 }
 
 func NewWorkSpaceRepository(conn *pgxpool.Pool, taskRepo domain.TaskRepository) domain.WorkSpaceRepository {
@@ -20,54 +38,53 @@ func NewWorkSpaceRepository(conn *pgxpool.Pool, taskRepo domain.TaskRepository) 
 	}
 }
 
-func (r *workSpaceRepo) CreateWorkSpace(workSpace domain.WorkSpace) (uuid.UUID, error) {
-	workSpace.ID = uuid.New()
-
-	_, err := r.conn.Exec(context.Background(),
-		"INSERT INTO workspaces (id, creator_id, name) VALUES ($1, $2, $3)",
-		workSpace.ID,
-		workSpace.CreatorId,
-		workSpace.Name,
-	)
-
-	if err != nil {
-		return uuid.Nil, err
+func (r *workSpaceRepo) GetWorkspaceName(ctx context.Context, workspaceId uuid.UUID) (string, error) {
+	var name string
+	if err := r.conn.QueryRow(ctx, `
+		SELECT name 
+		FROM workspaces
+		WHERE id = $1
+	`, workspaceId).Scan(&name); err != nil {
+		return "", err
 	}
 
-	_, err = r.taskRepo.CreateColumn("Planning", workSpace.ID, 0, "38BDF8")
-	_, err = r.taskRepo.CreateColumn("To do", workSpace.ID, 1, "FACC15")
-	_, err = r.taskRepo.CreateColumn("Done", workSpace.ID, 2, "22C55E")
-
-	if err != nil {
-		return uuid.Nil, err
-	}
-
-	_, err = r.AddUserToWorkSpace(workSpace.ID.String(), workSpace.CreatorId.String(), "admin")
-
-	if err != nil {
-		return uuid.Nil, err
-	}
-
-	return workSpace.ID, nil
+	return name, nil
 }
 
-func (r *workSpaceRepo) AddUserToWorkSpace(workSpaceId string, userId string, role string) (bool, error) {
-	_, err := r.conn.Exec(context.Background(),
-		"INSERT INTO user_workspaces (user_id, workspace_id, role) VALUES ($1, $2, $3)",
-		userId,
-		workSpaceId,
-		role,
-	)
-
-	if err != nil {
-		return false, err
+func (r *workSpaceRepo) GetIdByColumnTemplateIdTx(ctx context.Context, exec entities.Execer, columnTemplateId uuid.UUID) (uuid.UUID, error) {
+	var workspaceId uuid.UUID
+	if err := exec.QueryRow(ctx, `
+		SELECT workspace_id
+		FROM task_columns_templates
+		WHERE id = $1
+	`, columnTemplateId).Scan(&workspaceId); err != nil {
+		return uuid.Nil, err
 	}
-
-	return true, nil
+	return workspaceId, nil
 }
 
-func (r *workSpaceRepo) GetAllUserSpaces(userId uuid.UUID) ([]domain.WorkSpace, error) {
-	rows, err := r.conn.Query(context.Background(), `
+func (r *workSpaceRepo) CreateWorkSpaceTx(ctx context.Context, exec entities.Execer, workSpace domain.WorkSpace) error {
+	_, err := exec.Exec(ctx,
+		`INSERT INTO workspaces (id, creator_id, name) 
+		VALUES ($1, $2, $3)
+	`, workSpace.ID, workSpace.CreatorId, workSpace.Name)
+	return err
+}
+
+func (r *workSpaceRepo) AddUser(ctx context.Context, workSpaceId, userId uuid.UUID, role enums.UserRoles) error {
+	return r.AddUserTx(ctx, r.conn, workSpaceId, userId, role)
+}
+
+func (r *workSpaceRepo) AddUserTx(ctx context.Context, exec entities.Execer, workSpaceId, userId uuid.UUID, role enums.UserRoles) error {
+	_, err := exec.Exec(ctx,
+		`INSERT INTO user_workspaces (user_id, workspace_id, role) 
+		VALUES ($1, $2, $3)
+	`, userId, workSpaceId, role)
+	return err
+}
+
+func (r *workSpaceRepo) GetAllByUserId(ctx context.Context, userId uuid.UUID) ([]domain.WorkSpace, error) {
+	rows, err := r.conn.Query(ctx, `
 		SELECT w.id, w.creator_id, w.name, w.created_at
 		FROM user_workspaces uw
 		JOIN workspaces w ON uw.workspace_id = w.id
@@ -89,12 +106,16 @@ func (r *workSpaceRepo) GetAllUserSpaces(userId uuid.UUID) ([]domain.WorkSpace, 
 		workspaces = append(workspaces, ws)
 	}
 
+	if rows.Err() != nil {
+		return nil, err
+	}
+
 	return workspaces, nil
 }
 
-func (r *workSpaceRepo) GetAllSpaceMembers(workSpaceId uuid.UUID) ([]domain.MemberUser, error) {
-	rows, err := r.conn.Query(context.Background(), `
-		SELECT u.id, u.username, u.email, u.user_icon_url, uw.joined_at, uw.role, uw.position
+func (r *workSpaceRepo) GetAllMembers(ctx context.Context, workSpaceId uuid.UUID) ([]entities.MemberUser, error) {
+	rows, err := r.conn.Query(ctx, `
+		SELECT u.id, u.username, u.email, u.icon_url, uw.joined_at, uw.role, uw.position
 		FROM user_workspaces uw
 		JOIN users u ON uw.user_id = u.id
 		WHERE uw.workspace_id = $1`,
@@ -105,65 +126,93 @@ func (r *workSpaceRepo) GetAllSpaceMembers(workSpaceId uuid.UUID) ([]domain.Memb
 	}
 	defer rows.Close()
 
-	var users []domain.MemberUser
+	var users []entities.MemberUser
 	for rows.Next() {
-		var user domain.MemberUser
-		var pos sql.NullString
-		if err := rows.Scan(&user.ID, &user.Username, &user.Email, &user.UserIconUrl, &user.JoinedAt, &user.Role, &pos); err != nil {
+		var user entities.MemberUser
+		if err := rows.Scan(&user.ID, &user.Username, &user.Email, &user.UserIconUrl, &user.JoinedAt, &user.Role, &user.Position); err != nil {
 			return nil, err
-		}
-
-		if pos.Valid {
-			user.Position = &pos.String
-		} else {
-			user.Position = nil
 		}
 
 		users = append(users, user)
 	}
 
+	if rows.Err() != nil {
+		return nil, err
+	}
+
 	return users, nil
 }
 
-func (r *workSpaceRepo) RemoveUser(workSpaceId string, userId string) (bool, error) {
-	_, err := r.conn.Exec(context.Background(),
-		`DELETE FROM user_workspaces WHERE workspace_id = $1 AND user_id = $2`,
-		workSpaceId,
-		userId)
-
-	if err != nil {
-		return false, err
-	}
-
-	return true, nil
+func (r *workSpaceRepo) RemoveUser(ctx context.Context, workSpaceId, userId uuid.UUID) error {
+	_, err := r.conn.Exec(ctx, `
+		DELETE FROM user_workspaces 
+        WHERE workspace_id = $1 AND user_id = $2
+	`, workSpaceId, userId)
+	return err
 }
 
-func (r *workSpaceRepo) HasUserWorkspace(userId string, workspaceId string) (bool, error) {
-	var exists bool
-
-	err := r.conn.QueryRow(context.Background(), `
+func (r *workSpaceRepo) HasUserWorkspaceTx(ctx context.Context, exec entities.Execer, userId, workspaceId uuid.UUID, exists *bool) error {
+	return exec.QueryRow(ctx, `
 		SELECT EXISTS (
-			SELECT 1 FROM user_workspaces
-			WHERE user_id = $1 AND workspace_id = $2
-			)`,
-		userId, workspaceId).Scan(&exists)
-
-	if err != nil {
-		return false, err
-	}
-
-	return exists, nil
+		SELECT 1 FROM user_workspaces
+		WHERE user_id = $1 AND workspace_id = $2
+	)`, userId, workspaceId).Scan(&exists)
 }
 
-func (r *workSpaceRepo) ChangeUserRole(workSpaceId string, userId string, role string) (bool, error) {
-	_, err := r.conn.Exec(context.Background(),
-		`UPDATE user_workspaces
-				SET role = $1
-				WHERE workspace_id = $2 AND user_id = $3`, role, workSpaceId, userId)
+func (r *workSpaceRepo) GetUserRole(ctx context.Context, userId, workspaceId uuid.UUID) (enums.UserRoles, error) {
+	return r.GetUserRoleTx(ctx, r.conn, userId, workspaceId)
+}
+
+func (r *workSpaceRepo) GetUserRoleTx(ctx context.Context, exec entities.Execer, userId, workspaceId uuid.UUID) (enums.UserRoles, error) {
+	var role enums.UserRoles
+	if err := exec.QueryRow(ctx, `
+		SELECT role 
+		FROM user_workspaces 
+		WHERE user_id = $1 AND workspace_id = $2
+	`, userId, workspaceId).Scan(&role); err != nil {
+		return enums.NoAccess, err
+	}
+	return role, nil
+}
+
+func (r *workSpaceRepo) ChangeUserRole(ctx context.Context, workSpaceId, userId uuid.UUID, role enums.UserRoles) error {
+	_, err := r.conn.Exec(ctx, `
+		UPDATE user_workspaces
+		SET role = $1
+		WHERE workspace_id = $2 AND user_id = $3
+	`, role, workSpaceId, userId)
+	return err
+}
+
+func (r *workSpaceRepo) SearchWorkspaceMember(ctx context.Context, workSpaceId uuid.UUID, value string) ([]response.FindWorkspaceMemberResponse, error) {
+	value = "%" + value + "%"
+	rows, err := r.conn.Query(ctx, `
+		SELECT u.id, u.username 
+		FROM users u
+		JOIN user_workspaces uw ON u.id = uw.user_id
+		WHERE uw.workspace_id = $1 
+		  AND (u.username ILIKE $2 OR u.email ILIKE $2) 
+		ORDER BY u.username
+		LIMIT 5
+	`, workSpaceId, value)
 
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
-	return true, nil
+	defer rows.Close()
+	var members []response.FindWorkspaceMemberResponse
+	for rows.Next() {
+		var member response.FindWorkspaceMemberResponse
+		if err = rows.Scan(&member.ID, &member.Name); err != nil {
+			return nil, err
+		}
+		members = append(members, member)
+	}
+
+	if rows.Err() != nil {
+		return nil, err
+	}
+
+	return members, nil
 }

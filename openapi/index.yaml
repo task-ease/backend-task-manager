@@ -1,0 +1,11 @@
+#  swagger-cli bundle openapi/index.yaml -o openapi/bundle.yaml --type yaml
+# oapi-codegen -generate types -o ./internal/dto/api/users_api.go -package api ./openapi/users.yaml
+
+openapi: 3.0.3
+info:
+  title: Api
+  description: Title
+  version: 1.0.0
+
+paths:
+  $ref: './users.yaml#/paths'

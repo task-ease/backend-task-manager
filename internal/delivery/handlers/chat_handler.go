@@ -1,21 +1,23 @@
 package handlers
 
 import (
-	"fmt"
-	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
-	"go-postgres-test/infrastructure/auth"
-	"go-postgres-test/internal/domain"
-	"go-postgres-test/internal/middleware"
-	"go-postgres-test/internal/usecase"
+	"backend-task-manager/infrastructure/auth"
+	"backend-task-manager/internal/domain"
+	"backend-task-manager/internal/dto/request"
+	"backend-task-manager/internal/enums"
+	"backend-task-manager/internal/middleware"
+	"backend-task-manager/internal/usecase"
+	"backend-task-manager/mixins"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
 type ChatHandler struct {
-	uc usecase.ChatUsecase
+	uc *usecase.ChatUsecase
 }
 
-func NewChatHandler(uc usecase.ChatUsecase) *ChatHandler {
+func NewChatHandler(uc *usecase.ChatUsecase) *ChatHandler {
 	return &ChatHandler{uc: uc}
 }
 
@@ -24,126 +26,103 @@ func (h *ChatHandler) RegisterRoutes(router *gin.RouterGroup) {
 
 	protected := router.Group("/chat", middleware.JWTMiddleware(authService))
 
-	protected.GET("/get-all-user-chats/:workspaceId", h.GetAllUserChats)
-	protected.GET("/get-all-user-chats-search/:value", h.GetChatsBySearch)
+	protected.GET("/:workspaceId", h.getAllUserChats)
+	protected.GET("/search/:value", h.getChatsBySearch)
 
-	protected.POST("/create-chat/:participantId", h.CreateChat)
-	protected.POST("/add-user-to-chat", h.AddUserToChat)
+	protected.POST("/:participantId", h.createChat)
+
+	protected.PATCH("/user", h.addUserToChat)
 }
 
-func (h *ChatHandler) CreateChat(c *gin.Context) {
+func (h *ChatHandler) createChat(c *gin.Context) {
 	var chat domain.Chat
+	var err error
 
-	if err := c.ShouldBindJSON(&chat); err != nil {
+	if err = c.ShouldBindJSON(&chat); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	userIdStr, exists := c.Get("userId")
-
-	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "user not found"})
-		return
-	}
-
-	userId, err := uuid.Parse(userIdStr.(string))
-
+	chat.CreatorID, err = mixins.ParseContextUserId(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	pIdStr := c.Param("participantId")
-	pId, err := uuid.Parse(pIdStr)
-
+	participantId, err := mixins.ParamToUUID(c, "participantId")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	chat.CreatorID = userId
-	if err = h.uc.CreateChat(&chat, pId); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if err = h.uc.CreateChat(c.Request.Context(), &chat, participantId); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusCreated, gin.H{"chat": chat})
 }
 
-func (h *ChatHandler) AddUserToChat(c *gin.Context) {
-	var input struct {
-		ChatID      string    `json:"chatId"`
-		UserID      uuid.UUID `json:"userId"`
-		WorkspaceID uuid.UUID `json:"workspaceId"`
-	}
+func (h *ChatHandler) addUserToChat(c *gin.Context) {
+	var input request.AddUserToChat
 
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	}
 
-	err := h.uc.AddUserToChat(input.UserID, input.ChatID, input.WorkspaceID)
-
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if err := h.uc.AddUserToChat(c.Request.Context(), input.UserID, input.ChatID, input.WorkspaceID, enums.ChatUser); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"message": "success"})
+	c.Status(http.StatusOK)
 }
 
-func (h *ChatHandler) GetAllUserChats(c *gin.Context) {
-	workspaceId, err := uuid.Parse(c.Param("workspaceId"))
+func (h *ChatHandler) getAllUserChats(c *gin.Context) {
+	workspaceId, err := mixins.ParamToUUID(c, "workspaceId")
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	}
 
-	userIdStr, exists := c.Get("userId")
-
-	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "user not found"})
-		return
-	}
-
-	userId, err := uuid.Parse(userIdStr.(string))
+	userId, err := mixins.ParseContextUserId(c)
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	chatList, err := h.uc.GetAllUserChats(userId, workspaceId)
+	chats, err := h.uc.GetAllUserChats(c.Request.Context(), userId, workspaceId)
 
 	if err != nil {
-		fmt.Println("Error, ", err.Error())
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, chatList)
+	c.JSON(http.StatusOK, gin.H{"chats": chats})
 }
 
-func (h *ChatHandler) GetChatsBySearch(c *gin.Context) {
+func (h *ChatHandler) getChatsBySearch(c *gin.Context) {
 	value := c.Param("value")
-	workspaceId, err := uuid.Parse(c.Query("workspaceId"))
-	userIdStr, exists := c.Get("userId")
-
-	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "user not found"})
-		return
-	}
-
-	userId, err := uuid.Parse(userIdStr.(string))
+	workspaceId, err := mixins.QueryToUUID(c, "workspaceId")
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	chatList, err := h.uc.GetChatsBySearch(userId, workspaceId, value)
+	userId, err := mixins.ParseContextUserId(c)
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
 	}
-	c.JSON(http.StatusOK, chatList)
+
+	chats, err := h.uc.GetChatsBySearch(c.Request.Context(), userId, workspaceId, value)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	}
+
+	c.JSON(http.StatusOK, gin.H{"chats": chats})
 }

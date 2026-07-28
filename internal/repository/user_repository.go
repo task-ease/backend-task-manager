@@ -1,12 +1,13 @@
 package repository
 
 import (
+	"backend-task-manager/internal/domain"
+	"backend-task-manager/internal/dto"
+	"backend-task-manager/internal/entities"
 	"context"
-	"fmt"
+
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"go-postgres-test/internal/domain"
-	"golang.org/x/crypto/bcrypt"
 )
 
 type userRepo struct{ conn *pgxpool.Pool }
@@ -15,65 +16,50 @@ func NewUserRepository(conn *pgxpool.Pool) domain.UserRepository {
 	return &userRepo{conn: conn}
 }
 
-func (r *userRepo) CreateUser(user domain.AuthUser) (string, error) {
-	id := uuid.New().String()
-	var exists bool
+func (r *userRepo) CheckIfExistsByEmail(ctx context.Context, email string, exists *bool) error {
+	return r.CheckIfExistsByEmailTx(ctx, r.conn, email, exists)
+}
 
-	err := r.conn.QueryRow(context.Background(),
-		`SELECT EXISTS (SELECT 1 FROM users WHERE email = $1)`,
-		user.Email,
-	).Scan(&exists)
+func (r *userRepo) CheckIfExistsByEmailTx(ctx context.Context, exec entities.Execer, email string, exists *bool) error {
+	return exec.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM users WHERE email = $1)`, email).Scan(exists)
+}
 
-	if err != nil {
-		return "", err
-	}
+func (r *userRepo) CreateUser(ctx context.Context, user entities.AuthUser, id uuid.UUID, passwordHash []byte) error {
+	return r.CreateUserTx(ctx, r.conn, user, id, passwordHash)
+}
 
-	if exists {
-		return "", fmt.Errorf("email already exists")
-	}
-
-	passwordHash, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
-
-	if err != nil {
-		return "", err
-	}
-
-	_, err = r.conn.Exec(context.Background(),
+func (r *userRepo) CreateUserTx(ctx context.Context, exec entities.Execer, user entities.AuthUser, id uuid.UUID, passwordHash []byte) error {
+	_, err := exec.Exec(ctx,
 		"INSERT INTO users (id, username, email, password_hash) VALUES ($1, $2, $3, $4)",
 		id,
 		user.Username,
 		user.Email,
 		passwordHash,
 	)
-
-	return id, err
+	return err
 }
 
-func (r *userRepo) LogIn(user domain.AuthUser) (uuid.UUID, error) {
+func (r *userRepo) GetIdAndPasswordHash(ctx context.Context, email string) (dto.UserIdAndPasswordHash, error) {
+	return r.GetIdAndPasswordHashTx(ctx, r.conn, email)
+}
+
+func (r *userRepo) GetIdAndPasswordHashTx(ctx context.Context, exec entities.Execer, email string) (dto.UserIdAndPasswordHash, error) {
 	var passwordHash string
 	var userId uuid.UUID
 
-	err := r.conn.QueryRow(context.Background(),
-		`SELECT password_hash, id FROM users WHERE email = $1`,
-		user.Email).Scan(&passwordHash, &userId)
+	err := exec.QueryRow(ctx, `SELECT password_hash, id FROM users WHERE email = $1`, email).Scan(&passwordHash, &userId)
 
 	if err != nil {
-		return uuid.Nil, err
+		return dto.UserIdAndPasswordHash{}, err
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(user.Password))
-
-	if err != nil {
-		return uuid.Nil, err
-	}
-
-	return userId, nil
+	return dto.UserIdAndPasswordHash{PasswordHash: passwordHash, ID: userId}, nil
 }
 
-func (r *userRepo) SearchUserByEmail(value string) ([]domain.User, error) {
+func (r *userRepo) SearchUserByEmail(ctx context.Context, value string) ([]entities.User, error) {
 	pattern := value + "%"
 
-	rows, err := r.conn.Query(context.Background(),
+	rows, err := r.conn.Query(ctx,
 		`SELECT email, id, username FROM users WHERE email ILIKE $1 LIMIT 10`,
 		pattern)
 
@@ -82,9 +68,9 @@ func (r *userRepo) SearchUserByEmail(value string) ([]domain.User, error) {
 	}
 	defer rows.Close()
 
-	var users []domain.User
+	var users []entities.User
 	for rows.Next() {
-		var user domain.User
+		var user entities.User
 		if err := rows.Scan(&user.Email, &user.ID, &user.Username); err != nil {
 			return nil, err
 		}
@@ -92,11 +78,23 @@ func (r *userRepo) SearchUserByEmail(value string) ([]domain.User, error) {
 		users = append(users, user)
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
 	return users, nil
 }
 
-func (r *userRepo) ChangeOnlineStatus(userId uuid.UUID, status bool) error {
-	_, err := r.conn.Exec(context.Background(),
+func (r *userRepo) ChangeOnlineStatus(ctx context.Context, userId uuid.UUID, status bool) error {
+	_, err := r.conn.Exec(ctx,
 		`UPDATE users SET is_online = $1 WHERE id = $2`, status, userId)
 	return err
+}
+
+func (r *userRepo) GetEmailByUserId(ctx context.Context, userId uuid.UUID) (string, error) {
+	var email string
+	if err := r.conn.QueryRow(ctx, `SELECT email FROM users WHERE id = $1`, userId).Scan(&email); err != nil {
+		return "", err
+	}
+	return email, nil
 }

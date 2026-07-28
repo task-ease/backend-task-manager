@@ -1,17 +1,19 @@
 package ws
 
 import (
+	"backend-task-manager/infrastructure/auth"
+	"backend-task-manager/internal/domain"
+	"backend-task-manager/internal/entities"
+	"backend-task-manager/internal/enums"
+	"backend-task-manager/internal/middleware"
 	"encoding/json"
-	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
-	"go-postgres-test/infrastructure/auth"
-	"go-postgres-test/internal/domain"
-	"go-postgres-test/internal/middleware"
-	"go-postgres-test/internal/types"
 	"log"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 
 	"github.com/gorilla/websocket"
 )
@@ -28,7 +30,7 @@ type Client struct {
 }
 
 type WebSocketMessage struct {
-	Type   types.WsMessageTypes `json:"type"`
+	Type   enums.WsMessageTypes `json:"type"`
 	UserID uuid.UUID            `json:"userId"`
 	Data   string               `json:"data"`
 	RoomID string               `json:"roomId"`
@@ -38,7 +40,7 @@ type MessageNotification struct {
 	ChatID                string            `json:"chatID"`
 	LastMessage           string            `json:"lastMessage"`
 	LastMessageTime       time.Time         `json:"lastMessageTime"`
-	LastMessageType       types.MessageType `json:"lastMessageType"`
+	LastMessageType       enums.MessageType `json:"lastMessageType"`
 	LastMessageAttachment *string           `json:"lastMessageAttachment"`
 	LastMessageSenderId   uuid.UUID         `json:"lastMessageSenderId"`
 }
@@ -96,24 +98,24 @@ func (h *WebSocketHandler) HandleWS(c *gin.Context) {
 	roomsMu.Unlock()
 
 	msg := WebSocketMessage{
-		Type:   types.TypeConnected,
+		Type:   enums.TypeConnected,
 		UserID: client.ID,
 		Data:   "",
 		RoomID: roomId,
 	}
-	_ = h.userRepo.ChangeOnlineStatus(client.ID, true)
+	_ = h.userRepo.ChangeOnlineStatus(c.Request.Context(), client.ID, true)
 	sendJSONToRoom(roomId, msg)
 
 	for {
 		_, raw, err := conn.ReadMessage()
 		if err != nil {
 			msg := WebSocketMessage{
-				Type:   types.TypeDisconnected,
+				Type:   enums.TypeDisconnected,
 				UserID: client.ID,
 				Data:   "",
 				RoomID: roomId,
 			}
-			_ = h.userRepo.ChangeOnlineStatus(client.ID, false)
+			_ = h.userRepo.ChangeOnlineStatus(c.Request.Context(), client.ID, false)
 			sendJSONToRoom(roomId, msg)
 			break
 		}
@@ -130,8 +132,8 @@ func (h *WebSocketHandler) HandleWS(c *gin.Context) {
 
 		sendJSONToRoom(roomId, incomingMsg)
 
-		if incomingMsg.Type == types.TypeMessage {
-			var message domain.Message
+		if incomingMsg.Type == enums.TypeMessage {
+			var message entities.Message
 			err := json.Unmarshal([]byte(incomingMsg.Data), &message)
 			if err != nil {
 				log.Println("Invalid message content:", err)
@@ -155,7 +157,7 @@ func (h *WebSocketHandler) HandleWS(c *gin.Context) {
 			dataStr, _ := json.Marshal(messageNotificationData)
 
 			msgNotificationGlobal := WebSocketMessage{
-				Type:   types.TypeMessageNotification,
+				Type:   enums.TypeMessageNotification,
 				UserID: client.ID,
 				Data:   string(dataStr),
 				RoomID: "global",
@@ -174,6 +176,7 @@ func (h *WebSocketHandler) HandleWS(c *gin.Context) {
 			break
 		}
 	}
+
 	roomsMu.Unlock()
 }
 
